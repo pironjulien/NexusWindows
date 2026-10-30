@@ -11,12 +11,13 @@ name: Release
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:  # registry only, for a release already published (server.json of the chosen ref)
 
 permissions: {}
 
 jobs:
   release:
-    if: github.repository == 'pironjulien/NexusWindows'
+    if: github.repository == 'pironjulien/NexusWindows' && github.event_name == 'push'
     runs-on: windows-latest
     permissions:
       contents: write
@@ -79,6 +80,7 @@ jobs:
     # server.json to the official MCP registry, with the extension just published. mcp-publisher pinned by version and
     # SHA-256; no token stored, no manual login.
     needs: release
+    if: always() && github.repository == 'pironjulien/NexusWindows' && (needs.release.result == 'success' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -95,11 +97,12 @@ jobs:
           MCPB_SHA256: ${{ needs.release.outputs.mcpb-sha256 }}
         run: |
           set -euo pipefail
-          [[ "$MCPB_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "No bundle SHA-256"; exit 1; }
-          jq --arg sha "$MCPB_SHA256" '.packages[0].fileSha256 = $sha' server.json > server.tmp && mv server.tmp server.json
           url=$(jq -r '.packages[0].identifier' server.json)
           curl -fsSL -o bundle.mcpb "$url"
-          echo "$MCPB_SHA256  bundle.mcpb" | sha256sum --strict -c
+          actual=$(sha256sum bundle.mcpb | cut -d' ' -f1)
+          # A push run checks the bundle against the hash its release job computed; a manual run takes the published one.
+          if [[ -n "$MCPB_SHA256" && "$MCPB_SHA256" != "$actual" ]]; then echo "Bundle SHA-256 mismatch"; exit 1; fi
+          jq --arg sha "$actual" '.packages[0].fileSha256 = $sha' server.json > server.tmp && mv server.tmp server.json
       - name: Install mcp-publisher (pinned, checksum verified)
         run: |
           set -euo pipefail

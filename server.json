@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.pironjulien/nexus-windows",
   "title": "NexusWindows",
-  "description": "Windows computer use in the background: desktop apps driven without your mouse, every action read back.",
+  "description": "Windows computer use in the background: desktop apps driven without your mouse or keyboard.",
   "version": "3.9.0",
   "websiteUrl": "https://julienpiron.fr/nexuswindows/",
   "icons": [
