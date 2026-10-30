@@ -25,11 +25,16 @@ Let your AI install it: NexusSystem detects your AI apps and sets up the right p
 Install Nexus for me by following https://raw.githubusercontent.com/pironjulien/NexusSystem/main/INSTALL-AI.md
 ```
 
-Or get the [NexusSystem app](https://apps.microsoft.com/detail/9NSH2P3QLWT1) from the Microsoft Store, or run in
-PowerShell (no administrator rights):
+Or get the [NexusSystem app](https://apps.microsoft.com/detail/9NSH2P3QLWT1) from the Microsoft Store
+(`winget install --id 9NSH2P3QLWT1 --source msstore`). By hand, from the release files (no administrator rights):
 
 ```powershell
-irm https://raw.githubusercontent.com/pironjulien/NexusWindows/main/get.ps1 | iex
+$r = 'https://github.com/pironjulien/NexusWindows/releases/latest/download'
+Invoke-WebRequest "$r/get.ps1" -OutFile get.ps1
+Invoke-WebRequest "$r/SHA256SUMS.txt" -OutFile SHA256SUMS.txt
+(Get-FileHash get.ps1 -Algorithm SHA256).Hash    # must equal the get.ps1 line of SHA256SUMS.txt
+gh attestation verify get.ps1 --repo pironjulien/NexusWindows   # optional: build provenance
+powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1
 ```
 
 get.ps1 downloads `NexusWindows-win-x64.zip` or `NexusWindows-win-arm64.zip` from the latest release, checks its

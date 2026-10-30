@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID, createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { assertRenderedRichText } from './fixtures/claude-cdp-rendered-oracle.mjs';
+import { fileArguments } from './fixtures/script-file.mjs';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const exe = process.env.NEXUS_NATIVE_TEST_EXE, browser = process.env.NEXUS_CDP_LIVE_BROWSER;
@@ -82,7 +83,7 @@ try {
  @{closed=$closed;running=(!$process.HasExited);matched=1;pid=$process.Id;hwnd=$window.ToInt64();birth=$entry.Birth.ToString('o')}|ConvertTo-Json -Compress
 } finally {$process.Dispose()}
 `;
-  const result=await execFileAsync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(source,'utf16le').toString('base64')],{
+  const result=await execFileAsync('powershell.exe',fileArguments(source),{
     windowsHide:true,timeout:10000,maxBuffer:1024*1024,env:{...process.env,NEXUS_CDP_FIXTURE_IDENTITY:JSON.stringify(identity)},
   });
   return JSON.parse(result.stdout);

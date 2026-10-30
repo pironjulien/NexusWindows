@@ -7,6 +7,7 @@
 // qu'il revient. Le processus WinForms crée aussi une fenêtre de classe
 // « ConsoleWindowClass » (fausse console) : libre depuis l'accord « garde-fous » du 18/10, comme le formulaire.
 import { spawn } from 'node:child_process';
+import { fileArguments } from '../fixtures/script-file.mjs';
 
 const WINFORMS = String.raw`
 $ErrorActionPreference = 'Stop'
@@ -146,8 +147,7 @@ $handle = (New-Object System.Windows.Interop.WindowInteropHelper $w).Handle
 // Windows PowerShell en STA, script encodé (aucun fichier écrit), sans console visible.
 export async function startBenchForm(kind, timeoutMs = 45000) {
   const script = kind === 'wpf' ? WPF : WINFORMS;
-  const encoded = Buffer.from(script, 'utf16le').toString('base64');
-  const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded],
+  const child = spawn('powershell.exe', fileArguments(script, '-STA'),
     { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
   const exited = new Promise(resolve => child.once('close', resolve));
   let stderr = '';

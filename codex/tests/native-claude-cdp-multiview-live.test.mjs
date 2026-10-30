@@ -11,6 +11,7 @@ import os from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {randomUUID} from 'node:crypto';
 import {promisify} from 'node:util';
+import { fileArguments } from './fixtures/script-file.mjs';
 
 const directory=path.dirname(fileURLToPath(import.meta.url));
 const exe=process.env.NEXUS_NATIVE_TEST_EXE;
@@ -61,7 +62,7 @@ try{
  @{closed=($window -eq [IntPtr]::Zero -or ![MultiFixtureNative]::IsWindow($window));running=(!$p.HasExited);pid=$p.Id;hwnd=$window.ToInt64()}|ConvertTo-Json -Compress
 }finally{$p.Dispose()}
 `;
-  const result=await executeFile('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{windowsHide:true,timeout:10000,env:{...process.env,NEXUS_MULTIVIEW_IDENTITY:JSON.stringify(spec)}});
+  const result=await executeFile('powershell.exe',fileArguments(script),{windowsHide:true,timeout:10000,env:{...process.env,NEXUS_MULTIVIEW_IDENTITY:JSON.stringify(spec)}});
   return JSON.parse(result.stdout);
 }
 test('native Claude multiview CDP: one HWND, exact documents, HTTP value/event oracle and zero other-surface input', {skip,timeout:120000},async t=>{

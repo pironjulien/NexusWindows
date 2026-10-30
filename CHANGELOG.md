@@ -17,7 +17,7 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 - Native release files for Windows x64 and ARM64: `NexusWindows-win-x64.zip` and `NexusWindows-win-arm64.zip`
   (self-contained engine, nothing else to install), `SHA256SUMS.txt` and a Sigstore build provenance attestation
   (`gh attestation verify <file> --repo pironjulien/NexusWindows`).
-- `get.ps1`: one-line installer and updater (`irm .../get.ps1 | iex`, `-Remove` to uninstall) that picks the PC's
+- `get.ps1`, attached to each release (run as a verified file with `-File`; `-Remove` to uninstall): installer and updater that picks the PC's
   architecture, checks the SHA-256 and declares NexusWindows to the clients present.
 - Stable launcher `%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe`: every client declares this one path; it runs
   the engine version recorded in `installation.json` after checking its SHA-256, passes stdin, stdout and the exit

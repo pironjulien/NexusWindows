@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { fileArguments } from './script-file.mjs';
 
 const execFileAsync = promisify(execFile);
 // Only the exact fixture main process can be closed, even when its MCP transport died during launch.
@@ -60,7 +61,7 @@ try {
  @{closed=($window -eq [IntPtr]::Zero -or ![ElectronFixtureNative]::IsWindow($window));running=(!$process.HasExited);matched=1;pid=$process.Id}|ConvertTo-Json -Compress
 } finally {$process.Dispose()}
 `;
-  const result = await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(source, 'utf16le').toString('base64')], {
+  const result = await execFileAsync('powershell.exe', fileArguments(source), {
     windowsHide: true, timeout: 10000, maxBuffer: 1024 * 1024,
     env: { ...process.env, NEXUS_SIMULATED_FIXTURE_IDENTITY: JSON.stringify(identity) },
   });

@@ -70,6 +70,9 @@ public class WindowTests
     [Fact]
     public void Wgc_capture_of_a_covered_window_read_back_by_ocr_without_a_lost_handle()
     {
+        // A real Windows.Graphics.Capture session needs an interactive desktop with a GPU: run by test.ps1 -Full, as
+        // before (hosted CI runners have none).
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("NEXUS_TESTS_FULL") == "1", "Real capture session: test.ps1 -Full.");
         var lines = SelfTest.Lines(Wgc.SelfTest);
         Assert.Equal(3, lines.Length);
         Assert.All(lines, line => Assert.StartsWith("ok ", line));

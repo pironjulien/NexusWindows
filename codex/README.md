@@ -64,20 +64,17 @@ bench.
 
 ## Installation
 
-Windows 10 or 11 and the [Codex app](https://openai.com/codex/) (or the Codex CLI). The server runs on
-[Node.js](https://nodejs.org/) 22 or later; the npm package carries a self-contained helper: no .NET install.
+Windows 10 or 11 and the [Codex app](https://openai.com/codex/) (or the Codex CLI).
 
-**One step** (installs Node.js LTS if missing, downloads and checks the server, registers it and its guide in Codex): open
-**Windows PowerShell** (Start menu, type `powershell`) and paste:
+**Recommended**: the native engine, nothing else to install. Use the
+[NexusSystem app](https://apps.microsoft.com/detail/9NSH2P3QLWT1) from the Microsoft Store, or the release files
+(see the [main README](../README.md#install)): `get.ps1`, checked against `SHA256SUMS.txt` and run with
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1`, declares
+`%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe --mcp --agent codex` in Codex `config.toml`.
 
-```powershell
-irm https://raw.githubusercontent.com/pironjulien/NexusWindows/main/codex/setup.ps1 | iex
-```
-
-Then quit Codex completely and open it again. [`setup.ps1`](https://github.com/pironjulien/NexusWindows/blob/main/codex/setup.ps1)
-is short and can be read first; running it again only does what is missing. Node.js comes from its official package
-through winget (Windows asks once for approval).
-
+**npm package** (adds the guide for Codex's JavaScript REPL; [Node.js](https://nodejs.org/) 22 or later): download
+[`setup.ps1`](https://github.com/pironjulien/NexusWindows/blob/main/codex/setup.ps1), read it, then run it as a file
+(`powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1`); running it again only does what is missing.
 **Codex plugin** (the same server and its guide; Node.js 22+ required). This repository is a plugin marketplace. In the Codex app:
 Settings → Plugins → Add → Add a marketplace, source `pironjulien/NexusWindows-Codex`, then install
 **NexusWindows** from the Plugins directory. Or in a terminal:

@@ -4,6 +4,7 @@
 param([switch]$Full)
 $ErrorActionPreference = 'Stop'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
+if ($Full) { $env:NEXUS_TESTS_FULL = '1' }
 Push-Location $PSScriptRoot
 try { dotnet test --project tests; if ($LASTEXITCODE) { throw 'dotnet test failed.' } } finally { Pop-Location }
 & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'codex\test.ps1') -Full:$Full

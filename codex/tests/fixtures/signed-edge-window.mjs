@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { fileArguments } from './script-file.mjs';
 
 const execFileAsync = promisify(execFile);
 const exactBirthPowerShell = String.raw`
@@ -18,7 +19,7 @@ async function readOnlyProbe(source, env, label) {
 `;
   let stdout, failure;
   try {
-    ({ stdout } = await execFileAsync('pwsh.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(guarded, 'utf16le').toString('base64')], {
+    ({ stdout } = await execFileAsync('pwsh.exe', fileArguments(guarded), {
       windowsHide: true, timeout: 10000, maxBuffer: 1024 * 1024, env: { ...process.env, ...env },
     }));
   } catch (error) { failure = error; stdout = error.stdout; }

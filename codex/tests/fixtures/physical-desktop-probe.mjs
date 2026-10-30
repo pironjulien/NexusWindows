@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
+import { fileArguments } from './script-file.mjs';
 
 // A new native probe process can inherit a different DPI default. Compare every sample in PMv2,
 // restore that thread's original context, and never move/focus anything while observing.
@@ -42,7 +43,7 @@ try {
 export function physicalDesktopProbe() {
   let result;
   try {
-    result = JSON.parse(execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(source, 'utf16le').toString('base64')], {
+    result = JSON.parse(execFileSync('powershell.exe', fileArguments(source), {
       windowsHide: true, encoding: 'utf8', timeout: 5000,
     }));
   } catch { throw new Error('Physical desktop probe failed; no input attempted'); }

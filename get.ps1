@@ -1,8 +1,8 @@
 # NexusWindows for Windows 10/11 (Windows PowerShell 5.1 or PowerShell 7), no administrator rights, nothing else to
-# install (no Python, no Node.js, no .NET: the engine is self-contained):
-#   irm https://raw.githubusercontent.com/pironjulien/NexusWindows/main/get.ps1 | iex
-# Remove it (declarations removed, files deleted once no session uses them):
-#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/pironjulien/NexusWindows/main/get.ps1))) -Remove
+# install (no Python, no Node.js, no .NET: the engine is self-contained). Attached to each release with SHA256SUMS.txt
+# and its build provenance; download it as a file, check its SHA-256, then run it as a file:
+#   powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1
+# Remove it (declarations removed, files deleted once no session uses them): the same with -Remove.
 #
 # It downloads NexusWindows-win-x64.zip or NexusWindows-win-arm64.zip (this PC's architecture) from the latest
 # release, checks it against the release's SHA256SUMS.txt (its build provenance can be checked with
@@ -201,7 +201,7 @@ try {
     $code = 1
 }
 if ($Pack -and $result) { Write-Output $result }
-# Run as a file (the Nexus pack, -File): its exit code. Run by `irm | iex` or a script block: never `exit`, which would
-# close the user's window; a failure is an error instead.
+# Run as a file (-File): its exit code. Dot-sourced or run as a script block: never `exit`, which would close the
+# user's window; a failure is an error instead.
 if ($PSCommandPath) { exit $code }
 if ($code) { throw 'NexusWindows: not installed (see above).' }

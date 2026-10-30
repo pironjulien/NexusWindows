@@ -1,5 +1,5 @@
 # One-step setup of NexusWindows for Codex on a fresh Windows PC, for people who never used a terminal:
-#   irm https://raw.githubusercontent.com/pironjulien/NexusWindows/main/codex/setup.ps1 | iex
+#   powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1   (downloaded as a file and read first)
 # 1. installs Node.js LTS (official package, through winget) when Node 22 or later is missing;
 # 2. preserves any existing plugin or MCP declaration, including disabled and custom entries;
 # 3. registers a fresh npm server in Codex config.toml and supplies its guide, or reuses the plugin guide.
