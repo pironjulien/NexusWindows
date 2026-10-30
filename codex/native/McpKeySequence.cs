@@ -9,14 +9,16 @@ static partial class McpServer
         readonly SessionState state;
         readonly JsonObject step, initial, identity, selector;
         readonly long window, pid;
+        readonly string agent;
         readonly Func<JsonObject> inspect;
         readonly Func<string> title;
         readonly HashSet<string> approved = new(StringComparer.Ordinal);
         readonly NativeTextSubmitScope? previous;
         public NativeTextSubmitScope(SessionState state, JsonObject step, JsonObject snapshot, JsonObject target, Func<JsonObject>? inspect = null, Func<string>? title = null)
         {
-            if (state.Agent != "claude" || state.BoundWindow is not { } bound || textSubmitEntry != null) throw new ActionRefusedException("A simulated text submission needs one bound Claude session");
+            if (state.BoundWindow is not { } bound || textSubmitEntry != null) throw new ActionRefusedException("A text submission needs one bound agent session");
             this.state = state; this.step = step.DeepClone().AsObject(); initial = snapshot.DeepClone().AsObject();
+            agent = state.Agent;
             identity = ElementIdentity(snapshot, target); selector = SelectorOf(target);
             if (identity["runtimeId"] is not JsonArray { Count: > 0 }) throw new ActionRefusedException("The original text field needs a real runtime identity");
             (window, pid) = (bound.Id, bound.Pid);
@@ -33,7 +35,7 @@ static partial class McpServer
         }
         public void BeforeEnter()
         {
-            if (!ReferenceEquals(textSubmitEntry, this) || state.Agent != "claude" || GardeFous.CurrentAgent != "claude" || state.BoundWindow is not { } bound || bound.Id != window || bound.Pid != pid)
+            if (!ReferenceEquals(textSubmitEntry, this) || state.Agent != agent || GardeFous.CurrentAgent != agent || state.BoundWindow is not { } bound || bound.Id != window || bound.Pid != pid)
                 throw new ActionRefusedException("The text submission session/window changed; Enter not sent");
             var current = inspect(); ValidateKeyContext(initial, current);
             var target = StepTarget(current, new JsonObject { ["observedIdentity"] = identity.DeepClone() }, selector);
@@ -49,15 +51,19 @@ static partial class McpServer
                 target["value"] = contents;
             }
             var context = title();
-            CheckGesture(state, step, current, target, this, context);
+            CheckGesture(state, step, current, target, this, context, textUsesEnter: true);
             if (context != title()) throw new ActionRefusedException("The text submission context changed while authorizing; Enter not sent");
         }
         public void CheckLease() { EmergencyStop.ThrowIfStopped(); state.Interaction?.Check(); }
         public void Dispose() => textSubmitEntry = previous;
     }
-    public static void BeforeClaudeTextEnter()
+    public static void BeforeClaudeTextEnter() => BeforeTextEnter();
+    public static void BeforeTextEnter(bool requireScope = true)
     {
-        var scope = textSubmitEntry ?? throw new ActionRefusedException("Simulated Enter requires a bound MCP text submission scope; no Enter sent");
+        var scope = textSubmitEntry;
+        // Non-MCP low-level clients retain their own guards. MCP multiline fallbacks always bind a scope.
+        if (scope == null && !requireScope) return;
+        if (scope == null) throw new ActionRefusedException("Simulated Enter requires a bound MCP text submission scope; no Enter sent");
         var entered = Program.InputStarted;
         try { scope.CheckLease(); scope.BeforeEnter(); }
         finally { Program.InputStarted |= entered; }

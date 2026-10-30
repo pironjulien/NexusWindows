@@ -295,10 +295,10 @@ static class Physical
                             Guard(window);
                             if (ch == '\n')
                             {
-                                // Claude multiline text owns an in-process submission scope bound by the MCP
-                                // facade. A reactive recipient/send control is checked after the typed prefix,
-                                // at this actual Enter boundary. Other profiles retain their existing policy.
-                                if (GardeFous.CurrentAgent == "claude") McpServer.BeforeClaudeTextEnter();
+                                // MCP multiline text owns an in-process submission scope bound by the facade.
+                                // A reactive recipient/send control is checked after the typed prefix,
+                                // at this actual Enter boundary, before any key event is sent.
+                                McpServer.BeforeTextEnter(requireScope: GardeFous.CurrentAgent == "claude");
                                 Guard(window); // The contextual read may have taken time: focus/STOP/user again.
                                 Send(started, Key(0x0D, false), Key(0x0D, true));
                             }

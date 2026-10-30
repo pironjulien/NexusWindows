@@ -390,14 +390,17 @@ static partial class McpServer
         var chain = element["ancestors"] as JsonArray ?? new JsonArray();
         request["ancestry"] = new JsonArray(chain.Select(i => Elements(observation).OfType<JsonObject>().First(e => Number(e, "index", -1) == i!.GetValue<int>()).DeepClone()).ToArray());
     }
-    static void CheckGesture(SessionState state, JsonObject step, JsonObject observation, JsonObject? target, NativeTextSubmitScope? textSubmit = null, string? currentTitle = null)
+    static void CheckGesture(SessionState state, JsonObject step, JsonObject observation, JsonObject? target, NativeTextSubmitScope? textSubmit = null, string? currentTitle = null, bool textUsesEnter = false)
     {
         var kind = Str(step, "kind");
         var triggers = new List<JsonObject>();
         if (step["ocrTarget"] is JsonObject ocrTrigger && kind is "click" or "drag" or "secondary") triggers.Add(ocrTrigger);
         if (target != null && kind is "click" or "secondary" or "drag") triggers.Add(target);
         if (kind == "menu") triggers.Add(new JsonObject { ["name"] = Str(step, "path"), ["role"] = "menuitem" });
-        var keyKinds = kind == "key" ? GardeFous.KeyKinds(Str(step, "key")) : kind is "typeText" or "setValue" && (Str(step, "text", Str(step, "value")).Contains('\n') || Str(step, "text", Str(step, "value")).Contains('\r')) ? new[] { "submit" } : [];
+        // ValuePattern/WM_SETTEXT replace field contents, including newlines, without pressing Enter.
+        // A transport that really types Enter rechecks the current submission context at that boundary.
+        var keyKinds = kind == "key" ? GardeFous.KeyKinds(Str(step, "key")) :
+            (kind == "typeText" || kind == "setValue" && textUsesEnter) && Str(step, "text", Str(step, "value")).IndexOfAny(['\r', '\n']) >= 0 ? new[] { "submit" } : [];
         if (keyKinds.Length > 0)
         {
             var elements = Elements(observation).OfType<JsonObject>().ToList();
@@ -512,6 +515,10 @@ static partial class McpServer
             // Only a proven refusal before input permits this fallback. An unchanged result never does.
             request["operation"] = "physical"; request["action"] = kind switch { "click" => "click", "focus" => "focus", "setValue" => "replaceText", "typeText" => "type", "key" => "key", "scroll" => "wheel", "hover" => "move", _ => throw new ActionRefusedException("No physical fallback for " + kind + ": " + e.Message) };
             if (kind == "typeText") request["text"] = Str(step, "text");
+            // Unlike a value replacement, physical multiline input sends real Enter keys. Bind its
+            // original field and recheck new/changed outward controls before each such key, for every agent.
+            using var fallbackSubmission = textSubmit == null && kind is ("setValue" or "typeText") && target != null && Str(step, "text", Str(step, "value")).IndexOfAny(['\r', '\n']) >= 0
+                ? new NativeTextSubmitScope(state, step, snapshot, target) : null;
             outcome = NativeFallbackAttempt(() => PhysicalNative(state, request), () => Program.InputStarted);
         }
         catch (Exception e) when (Program.InputStarted)
