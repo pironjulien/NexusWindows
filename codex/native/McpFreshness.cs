@@ -89,9 +89,10 @@ static partial class McpServer
             if (capabilities[key] is not JsonValue known || !known.TryGetValue<bool>(out var available) || available) return false;
         if (capabilities["legacy"] is not JsonValue legacy || !legacy.TryGetValue<bool>(out var hasLegacy)
             || hasLegacy && (capabilities["legacyActionPresent"] is not JsonValue action || !action.TryGetValue<bool>(out var actionPresent) || actionPresent)) return false;
-        // MSAA selected/focused/checked/default/expanded/collapsed/focusable/selectable states.
-        const int interactiveLegacyStates = 0x2 | 0x4 | 0x10 | 0x100 | 0x200 | 0x400 | 0x100000 | 0x200000;
-        if (capabilities["legacyState"] is not JsonValue state || !state.TryGetValue<int>(out var flags) || (flags & interactiveLegacyStates) != 0) return false;
+        // Only MSAA unavailable/read-only/invisible/off-screen states are proved passive. Unknown or contradictory
+        // states (linked, has-popup, pressed, alerts, selection, focus, etc.) cannot inherit the text exception.
+        const int passiveLegacyStates = 0x1 | 0x40 | 0x8000 | 0x10000;
+        if (capabilities["legacyState"] is not JsonValue state || !state.TryGetValue<int>(out var flags) || (flags & ~passiveLegacyStates) != 0) return false;
         return true;
     }
 
