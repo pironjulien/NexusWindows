@@ -38,5 +38,7 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 - MCP stdio: `notifications/cancelled` stops the running request at its next guard, like an emergency stop (no
   replay, unknown outcome after input); a batch ended by EOF is always processed in full.
 - Clicks posted in the exact DPI context of the target; Chromium rich-text focus under exact identity.
+- Antigravity profile: a read right after an input is recognised as a newer observation (the repeat guard used a
+  clock that only moves every ~15 ms on Windows).
 - A UIA or Win32 input whose effect is not confirmed no longer triggers another technique or a physical click;
   repeated inputs require a newer observation of the same window; `expanded` and `focused` postconditions are checked.

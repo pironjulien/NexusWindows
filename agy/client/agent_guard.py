@@ -211,7 +211,9 @@ class RepeatGuard:
         self._lock = threading.Lock()
 
     def observed(self, window: int, now: float | None = None) -> None:
-        observed_at = time.monotonic() if now is None else now
+        # perf_counter : monotone et fin ; monotonic() n'avance que toutes les ~15 ms sous Windows, une lecture juste
+        # après l'envoi tombait au même instant et n'était pas prise pour une observation nouvelle.
+        observed_at = time.perf_counter() if now is None else now
         window = int(window or 0)
         with self._lock:
             # Une lecture ancienne (ou notée au même instant que l'envoi) n'est pas une nouvelle observation.
@@ -222,7 +224,7 @@ class RepeatGuard:
 
     def check(self, kind: str, window: int, payload: Any, repeat: bool = False, now: float | None = None):
         """None si l'appel peut partir (il est alors noté), sinon le message de refus."""
-        now = time.monotonic() if now is None else now
+        now = time.perf_counter() if now is None else now
         key = (int(window or 0), signature(kind, payload))
         with self._lock:
             if key in self._sent:
