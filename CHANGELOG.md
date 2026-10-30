@@ -11,6 +11,10 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 
 ## [Unreleased]
 
+### Changed
+- Deferred experimental native freshness reconciliation until unsupported UIA properties provide reliable proof.
+  The candidate and qualification work are preserved on branch `codex/native-freshness-3.9.3`; public behavior remains 3.9.2.
+
 ### Fixed
 - Release-installation fixture now represents an installed Claude Code with its existing `.claude.json`, so the
   all-client check tests the same clients as installation. Published tags can be checked again without rebuilding
