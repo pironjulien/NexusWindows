@@ -12,14 +12,18 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 ## [Unreleased]
 
 ### Changed
+- Deferred experimental native freshness reconciliation until unsupported UIA properties provide reliable proof.
+  The candidate and qualification work are preserved on branch `codex/native-freshness-3.9.3`; this experimental work is not included in 3.9.4.
+
+## [3.9.4] - 2026-10-30
+
+### Changed
 - Clarified that an existing explicit end-to-end user request or approval covers the same operation's preparation
   and application confirmation steps, without repeated questions for fresh technical tokens. Exact token binding,
   single use and expiry remain unchanged; materially changed scope or publication mode requires a separate decision.
 - Updated the three profile guides and skills to prefer discovered MCP schemas, fresh observations and modern
   equality postconditions. A shared cookbook records tested background file-dialog handling, explicit UTF-8 for
   custom stdio clients, and the distinction between optional Chromium warmup retries and a genuinely blank page.
-- Deferred experimental native freshness reconciliation until unsupported UIA properties provide reliable proof.
-  The candidate and qualification work are preserved on branch `codex/native-freshness-3.9.3`; public behavior remains 3.9.2.
 
 ### Fixed
 - Multiline value replacements no longer inherit an unrelated publish/send button as their trigger. Physical multiline
