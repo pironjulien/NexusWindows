@@ -11,6 +11,17 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 
 ## [Unreleased]
 
+## [3.9.1] - 2026-10-30
+
+### Added
+- Claude Desktop extension for ARM64 PCs, `nexus-windows-claude-arm64.mcpb`, next to the x64 one in each release.
+
+### Fixed
+- MCP registry entry: description within the registry's 100-character limit; the registry publication can be rerun
+  by hand for a published release.
+- Installation is documented and tested only from the release files (get.ps1 checked against `SHA256SUMS.txt`, then
+  run with `-File`); test PowerShell sources run as script files instead of encoded command lines.
+
 ## [3.9.0] - 2026-10-30
 
 ### Added

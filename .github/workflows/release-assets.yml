@@ -1,7 +1,7 @@
 # Release: on a vX.Y.Z tag (same version as codex/native, claude/mcpb/manifest.json, server.json and CHANGELOG.md), runs
 # test.ps1, builds (commun/package.ps1) NexusWindows-win-x64.zip and NexusWindows-win-arm64.zip (stable launcher, Native
-# AOT, + the self-contained engine: what get.ps1 installs), the Claude Desktop extension nexus-windows-claude.mcpb (the
-# name NexusSystem downloads from the latest release) and get.ps1, attests their build provenance (Sigstore, keyless:
+# AOT, + the self-contained engine: what get.ps1 installs), the Claude Desktop extension nexus-windows-claude.mcpb (x64,
+# the name NexusSystem downloads from the latest release) and nexus-windows-claude-arm64.mcpb, and get.ps1, attests their build provenance (Sigstore, keyless:
 # `gh attestation verify <file> --repo pironjulien/NexusWindows`), and publishes them with SHA256SUMS.txt and that
 # provenance (NexusWindows-X.Y.Z.intoto.jsonl, for `gh attestation verify <file> --bundle`) as the "NexusWindows X.Y.Z"
 # GitHub release. Then server.json, with the extension's URL and SHA-256, goes to the official MCP registry (GitHub OIDC

@@ -1,7 +1,7 @@
 # Release files (run by the release workflow, or by hand to try get.ps1 on a local package):
 #   NexusWindows-win-x64.zip, NexusWindows-win-arm64.zip  NexusWindows.exe (stable launcher, Native AOT) + engine\ (the
 #       self-contained engine, the shared policy and the Antigravity plugin): what get.ps1 installs;
-#   nexus-windows-claude.mcpb                            Claude Desktop extension (the x64 engine, runs on ARM64 too);
+#   nexus-windows-claude.mcpb, nexus-windows-claude-arm64.mcpb   Claude Desktop extension, x64 and ARM64 engines;
 #   get.ps1                                              the installer, attested with the packages.
 # Builds go to %USERPROFILE%\.nexus\build\nexuswindows\package; nothing is written to the source tree.
 [CmdletBinding()]
@@ -36,16 +36,20 @@ try {
         [IO.Compression.ZipFile]::CreateFromDirectory($stage, $zip, [IO.Compression.CompressionLevel]::Optimal, $false)
     }
     if (-not $NoMcpb) {
-        $mcpb = Join-Path $work 'mcpb'
-        Copy-Item (Join-Path $root 'claude\mcpb') $mcpb -Recurse
-        $manifest = Get-Content (Join-Path $mcpb 'manifest.json') -Raw | ConvertFrom-Json
-        if ($manifest.version -ne $Version) { throw "claude/mcpb/manifest.json has version $($manifest.version), not $Version." }
-        # Only the manifest and the icon come from claude\mcpb; server\ is the x64 engine without the Antigravity plugin.
-        Get-ChildItem -LiteralPath $mcpb -Force | Where-Object Name -notin 'manifest.json', 'icon.png' | Remove-Item -Recurse -Force
-        Copy-Item (Join-Path $work 'win-x64\engine') (Join-Path $mcpb 'server') -Recurse
-        Remove-Item (Join-Path $mcpb 'server\plugins') -Recurse -Force
-        & npx --yes '@anthropic-ai/mcpb@2.1.2' pack $mcpb (Join-Path $Out 'nexus-windows-claude.mcpb')
-        if ($LASTEXITCODE) { throw 'Claude Desktop extension packing failed.' }
+        foreach ($rid in $Runtimes) {
+            $mcpb = Join-Path $work "mcpb-$rid"
+            Copy-Item (Join-Path $root 'claude\mcpb') $mcpb -Recurse
+            $manifest = Get-Content (Join-Path $mcpb 'manifest.json') -Raw | ConvertFrom-Json
+            if ($manifest.version -ne $Version) { throw "claude/mcpb/manifest.json has version $($manifest.version), not $Version." }
+            # Only the manifest and the icon come from claude\mcpb; server\ is this architecture's engine without the
+            # Antigravity plugin. The x64 file keeps the name NexusSystem and the MCP registry use.
+            Get-ChildItem -LiteralPath $mcpb -Force | Where-Object Name -notin 'manifest.json', 'icon.png' | Remove-Item -Recurse -Force
+            Copy-Item (Join-Path $work "$rid\engine") (Join-Path $mcpb 'server') -Recurse
+            Remove-Item (Join-Path $mcpb 'server\plugins') -Recurse -Force
+            $name = if ($rid -eq 'win-x64') { 'nexus-windows-claude.mcpb' } else { "nexus-windows-claude-$($rid -replace '^win-').mcpb" }
+            & npx --yes '@anthropic-ai/mcpb@2.1.2' pack $mcpb (Join-Path $Out $name)
+            if ($LASTEXITCODE) { throw "Claude Desktop extension packing failed ($rid)." }
+        }
     }
     Copy-Item (Join-Path $root 'get.ps1') $Out
 } finally {
