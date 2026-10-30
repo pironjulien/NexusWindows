@@ -40,6 +40,7 @@ static partial class McpServer
             var current = inspect(); ValidateKeyContext(initial, current);
             var target = StepTarget(current, new JsonObject { ["observedIdentity"] = identity.DeepClone() }, selector);
             if (Bool(target, "password") || Bool(target, "disabled") || Bool(target, "valueTruncated")) throw new ActionRefusedException("The original text field became secret, disabled or unreadable; Enter not sent");
+            if (!Bool(target, "focused")) throw new ActionRefusedException("The original text field lost keyboard focus; Enter not sent");
             if (target["value"] == null)
             {
                 // Chromium rich editors may publish TextPattern rather than ValuePattern. Inspect's full document

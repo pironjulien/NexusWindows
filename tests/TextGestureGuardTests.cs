@@ -81,11 +81,14 @@ public class TextGestureGuardTests
     }
 
     [Theory]
-    [InlineData("codex", false)]
-    [InlineData("antigravity", false)]
-    [InlineData("claude", false)]
-    [InlineData("codex", true)]
-    public void A_real_text_enter_rechecks_new_submit_controls_and_the_original_field_identity(string agent, bool replaceField)
+    [InlineData("codex", "submit")]
+    [InlineData("antigravity", "submit")]
+    [InlineData("claude", "submit")]
+    [InlineData("codex", "replace")]
+    [InlineData("codex", "focus")]
+    [InlineData("antigravity", "focus")]
+    [InlineData("claude", "focus")]
+    public void A_real_text_enter_rechecks_new_submit_controls_field_identity_and_keyboard_focus(string agent, string change)
     {
         var previous = GardeFous.CurrentAgent;
         try
@@ -100,10 +103,11 @@ public class TextGestureGuardTests
                 [Session(agent), step, initial, field, (Func<JsonObject>)(() => live), (Func<string>)(() => Context)], null)!;
             var beforeEnter = scopeType.GetMethod("BeforeEnter")!;
             Invoke(beforeEnter, scope);
-            if (replaceField) live["elements"]![0]!["runtimeId"] = new JsonArray(9, 9);
+            if (change == "replace") live["elements"]![0]!["runtimeId"] = new JsonArray(9, 9);
+            else if (change == "focus") live["elements"]![0]!["focused"] = false;
             else live["elements"]!.AsArray().Add(new JsonObject { ["index"] = 1, ["role"] = "button", ["name"] = "Envoyer pour examen" });
             var refusal = Refusal(() => Invoke(beforeEnter, scope));
-            Assert.Contains(replaceField ? "replaced" : "Envoyer pour examen", refusal.Message);
+            Assert.Contains(change == "replace" ? "replaced" : change == "focus" ? "lost keyboard focus" : "Envoyer pour examen", refusal.Message);
         }
         finally { GardeFous.CurrentAgent = previous; }
     }
