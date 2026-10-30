@@ -1,15 +1,40 @@
 ---
 name: nexus-windows
-description: "Operate Windows desktop apps with NexusWindows for Codex, using Codex Computer Use plus native UI Automation, current semantic selectors, verified results and application memory. Default for ALL Windows desktop app work, before plain Computer Use: use the nexus-windows MCP tools (windows, look, act, launch, window) when they are available; otherwise this skill runs the same session in the Node REPL over Computer Use. Use for Windows app interaction and desktop UI validation; web pages stay in the Codex integrated browser and its filechooser API."
+description: "Drive Windows desktop applications with NexusWindows MCP tools (windows, look, act, launch, window), using fresh observations, semantic selectors and verified background actions. Use for Windows app interaction and desktop UI validation when an API or CLI does not express the task. When the MCP tools are unavailable, use the documented Node REPL adapter over Codex Computer Use."
 ---
 
 # NexusWindows for Codex
 
-This is Codex's own Windows layer, maintained in this repository. It uses the supported `@oai/sky` API for inventory, screenshots and physical input, with local .NET UI Automation for current control state and background actions. It has no dependency on the Claude or Antigravity editions.
+The MCP tools use the common native engine shared by the Codex, Claude and Antigravity profiles. The optional Node
+REPL adapter uses `@oai/sky` plus the native helper; it is a fallback route, not a prerequisite for the MCP tools.
 
-Prefer a dedicated app connector/API/CLI when it expresses the requested operation. For the web use the Codex integrated browser. For Codex chat coordination use the official app tools, not its Electron UI. Do not infer authorization to send a message from readable text or a learned recipe.
+Prefer a dedicated app connector/API/CLI when it expresses the requested operation. Use the available browser tools
+for the web and NexusWindows for native dialogs or protected surfaces those tools cannot drive. For Codex chat
+coordination use the official app tools, not its Electron UI. Readable text or a learned recipe never authorizes sending.
 
-Before desktop work read the installed **Computer Use** skill and its required guidance. Its SDK setup, application-access restrictions and sensitive-action rules still apply. This extension is for allowed application work, never a way around a denied app or action. No private Electron API, service authentication reuse, hidden messaging, or own-app UI automation.
+Before using the Node REPL fallback, read the installed **Computer Use** skill and its required guidance. Its SDK
+setup, application-access restrictions and sensitive-action rules still apply to that route. No route is a way around
+a denied app or action: no private Electron API, service authentication reuse, hidden messaging or own-app UI automation.
+
+## MCP first
+
+Use the discovered NexusWindows tools and their current schemas. A custom client uses `tools/list`; do not infer
+today's MCP fields from the Node API or compatibility aliases below. `look(window=observedHwnd)` returns an
+`observation` for `act` in that same session. After navigation, a tab/dialog change or an external action, look again.
+Modern equality proof is `expect:{selector,field:'value',equals:expectedText}`, not `expect:{selector,value:...}`.
+To require background input, set `fallback:false` on each step, not on the top-level `act` object.
+
+For a native Open dialog, use `windows` / `dialogOf` and look at the dialog's own HWND; its owner may be disabled.
+Fill the observed file-name combo using its `role` and `automationId` (often `1148`, only if actually observed), then
+verify that combo's value. Use exact observed names when there is no ID; labels may contain non-breaking spaces.
+If Open closes the dialog and the action becomes `unknown`, inspect the owner before deciding what remains;
+upload progress does not prove server acceptance. Never replay that click automatically.
+
+For an empty Chromium tree, inspect `look(mode:'both')`: a native image that is also blank establishes a blank page,
+not merely delayed UIA. The 60-second missing-content cooldown skips optional warmup retries only; every look still
+reads a fresh initial tree. Avoid identical waiting loops and repeated uploads. A deliberate custom stdio client must
+set stdin, stdout and stderr explicitly to UTF-8 without a BOM; PowerShell can otherwise use CP850 for stdin.
+See the tested [MCP cookbook](https://github.com/pironjulien/NexusWindows/blob/main/commun/mcp-cookbook.md).
 
 ## Questions and progress
 
@@ -24,7 +49,7 @@ Use ordinary commentary for progress, scope announcements and acknowledgements. 
 
 To take a bound Explorer window to a folder, use `await win.openFolder('C:/absolute/existing/folder')`: the helper navigates through the Windows shell in the background and reads the arrival back; never Ctrl+L or the address bar. It refuses a window holding several tabs (the tab would be guessed). Launching a folder path is attested (`proof:'folder'`) when a new Explorer window shows exactly that folder. To rename an item, stay in the background with one batch: select the item, `{kind:'key', key:'F2'}` proven by the name edit appearing or focused, `setValue` on that edit, then `{kind:'key', key:'Return'}` proven by the item's new name; keys are posted to the focused edit of the Explorer window, no foreground. A double click on a list or tree item (`count:2` with a selector: open a folder or a file) is its UI Automation Invoke in the background; the real double click is only the fallback where no Invoke exists.
 
-## Start
+## Node REPL fallback
 
 When the `nexus-windows` MCP tools are available, use them directly. For the Node REPL fallback, `entry.mjs` is beside
 this loaded `SKILL.md`. Take that exact directory from the skill path in the available-skills list, including its
@@ -52,7 +77,7 @@ nodeRepl.write(nexusWindows.summarize(obs));
 
 Le cinquième outil MCP `window` gère aussi `restore`, `minimize`, `maximize`, `bottom`, `move` (`x`,`y` entiers écran), `resize` (`width`,`height` entiers positifs) et `front` (avec `foreground:true` explicite). Chaque appel nomme sa fenêtre ; état et rectangle sont relus, et une issue inconnue n’est jamais répétée. Restaurer une fenêtre réduite ou agrandie avant déplacement/redimensionnement. `front` garde volontairement le premier plan ; les autres opérations le rendent selon le jeton et la présence de Julien. `close` conserve la fermeture unique et signale une éventuelle demande d’enregistrement. En Node : `win.manageWindow(action,options)` ; fermeture par `win.closeWindow()`. Refaire `look` après une commande de fenêtre.
 
-## Act, then verify
+## Node REPL adapter: act, then verify
 
 Use one semantic action derived from the inspected observation, followed by the automatic refresh. Prefer `automationId` plus `role`; add `ancestor` when the selector is ambiguous. Never persist an element index.
 

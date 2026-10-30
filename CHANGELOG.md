@@ -12,10 +12,15 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 ## [Unreleased]
 
 ### Changed
+- Updated the three profile guides and skills to prefer discovered MCP schemas, fresh observations and modern
+  equality postconditions. A shared cookbook records tested background file-dialog handling, explicit UTF-8 for
+  custom stdio clients, and the distinction between optional Chromium warmup retries and a genuinely blank page.
 - Deferred experimental native freshness reconciliation until unsupported UIA properties provide reliable proof.
   The candidate and qualification work are preserved on branch `codex/native-freshness-3.9.3`; public behavior remains 3.9.2.
 
 ### Fixed
+- Multiline value replacements no longer inherit an unrelated publish/send button as their trigger. Physical multiline
+  fallbacks recheck the bound field, its focus and current outward controls before every real Enter for all three agents.
 - Classic editable combo boxes, including the common file picker, expose their live edit text as the combo value.
   Empty text also replaces a stale provider value, so a background write can be verified against the same control.
   Hidden Win32 control regressions cover file paths, clearing the field, selected options and synthetic edit input.

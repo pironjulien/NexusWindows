@@ -15,7 +15,7 @@
 
 [![NexusWindows: Windows computer use for AI agents, in the background. Works with Claude, Codex and Antigravity.](https://raw.githubusercontent.com/pironjulien/NexusWindows/main/codex/docs/assets/banner.webp)](https://julienpiron.fr/nexuswindows/)
 
-**Windows computer use for Codex, in the background.** An MCP server (`nexus-windows-codex`, one `npx` command) that
+**Windows computer use for Codex, in the background.** A native MCP profile (`nexus-windows-codex`) that
 lets OpenAI Codex see and operate Windows desktop applications while the user keeps their mouse, keyboard and
 foreground window. Codex's own Computer Use came to macOS first; on Windows, OpenAI's documentation says to keep the
 target app visible on the active desktop while it runs ([Codex docs](https://developers.openai.com/codex/app/computer-use)).
@@ -24,7 +24,7 @@ capture of covered windows, Win32 messages and UI Automation patterns without fo
 keyboard as the last resort, under a shared foreground token. Every action is judged from the application's real
 state, and a batch needs an explicit postcondition per step. It also ships as a Codex skill that layers the same session over Codex's Computer Use API (`@oai/sky`).
 
-Version 3.7.2 · Windows 10/11 · Node 22+ · .NET 10 · MIT licence
+Version 3.9.2 · Windows 10/11 (x64, ARM64) · native .NET 10, nothing else to install · Node 22+ for the optional REPL guide · MIT licence
 
 Part of the Nexus family: [NexusWindows](https://julienpiron.fr/nexuswindows/)
 ([Claude](https://github.com/pironjulien/NexusWindows) ·
@@ -42,19 +42,19 @@ Codex tries the background techniques first, judges the result from the applicat
 helper's real mouse and keyboard as a fallback, after a pause in the user's own typing and under a token shared with
 the other agents on the PC.
 
-It is an MCP server (Node, no npm dependency) with a self-contained .NET helper: no listening network port, no token
-and no private Electron API. The optional Codex skill runs the same session in Codex's Node REPL instead, over Codex's
-Computer Use API.
+The MCP profile uses the common self-contained .NET engine: no listening network port and no private Electron API.
+The optional Node adapter and skill run the session in Codex's Node REPL over its Computer Use API.
 
 ## NexusWindows family
 
-Three MCP servers, one per agent, built separately because each model needs its tools shaped for it, with the same
-promise: the user keeps their mouse, keyboard and foreground window, and every action is read back.
+One native engine exposes three MCP profiles, with tools shaped for each agent. They share the same background
+techniques, safeguards and read-back. Use the [MCP cookbook](../commun/mcp-cookbook.md) for current requests, native
+file dialogs, UTF-8 stdio and diagnosing blank Chromium content.
 
 | | Claude | Codex | Antigravity |
 |---|---|---|---|
-| Install | `uvx --python 3.14 nexus-windows-claude` | `npx -y nexus-windows-codex@latest` | `uvx --python 3.14 nexus-windows-antigravity` |
-| Package | [PyPI](https://pypi.org/project/nexus-windows-claude/) | [npm](https://www.npmjs.com/package/nexus-windows-codex) | [PyPI](https://pypi.org/project/nexus-windows-antigravity/) |
+| Install | `get.ps1` (one engine, three profiles) | `get.ps1`, or the optional Codex REPL guide | `get.ps1` |
+| Package | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest), optional [npm guide](https://www.npmjs.com/package/nexus-windows-codex) | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) |
 | Tools | `windows` `look` `act` `launch` `window`, plus `notifications` and `logs` | `windows` `look` `act` `launch` `window` | `windows` `look` `act` `launch` `window` |
 | Repository | [NexusWindows-Claude](https://github.com/pironjulien/NexusWindows) | [NexusWindows-Codex](https://github.com/pironjulien/NexusWindows) | [NexusWindows-Antigravity](https://github.com/pironjulien/NexusWindows) |
 

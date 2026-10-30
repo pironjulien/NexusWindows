@@ -40,8 +40,9 @@ effect back, and only falls back to the real mouse or keyboard when the step all
 
 ## NexusWindows family
 
-Three MCP servers, one per agent, built separately because each model needs its tools shaped for it, with the same
-promise: the user keeps their mouse, keyboard and foreground window, and every action is read back.
+One native engine exposes three MCP profiles, with tools shaped for each agent. They share the same background
+techniques, safeguards and read-back. Use the [MCP cookbook](../commun/mcp-cookbook.md) for current requests, native
+file dialogs, UTF-8 stdio and diagnosing blank Chromium content.
 
 | | Claude | Codex | Antigravity |
 |---|---|---|---|
@@ -117,9 +118,9 @@ Tool descriptions, server instructions, tool and parameter names are in English;
   a one-line `next` (✓ done · = already done, do not redo · ~ effect not seen, look at the attached image · ✗ failure,
   cause and what to try) and, when the effect was not read back, a WebP image of the window (common Nexus image rule:
   ≤ 2000 px and 2.56 MP, lossless up to 500 KB, never over 500 KB; not attached again when the screen is unchanged;
-  `look(zoom=box_2d)` enlarges an area for small text). A
-  batch identical to one sent in the last 10 s on the same window without a `look` in between is
-  **refused** (`repeat=true` forces it).
+  `look(zoom=box_2d)` enlarges an area for small text). An
+  unknown or failed result requires a fresh `look` before deciding the remaining actions; the compatible
+  `repeat` argument does not authorize replaying an uncertain input or replace a current observation.
 - **Background first, even with `foreground=True`**: a `box_2d` or (x, y) target is mapped to the element under the
   point in the window's own UI Automation tree (covered windows included) and handled like a label target; a click on
   a text field *retains* it, so `type` without target, `ctrl+a`, `ctrl+v` and erase keys become background writes
@@ -147,7 +148,6 @@ Tool descriptions, server instructions, tool and parameter names are in English;
   the sign-in screen, lock screen and UAC prompt are refused. An action labelled pay, buy, order, transfer money,
   send, publish, delete permanently, uninstall, format, reset, cancel a subscription, erase data or make a repository
   public needs `confirm: true` on the step, and so does any key, `submit` or coordinate click that would trigger one.
-  `NEXUS_AGY_CONFIRM=off` in the MCP server environment turns confirmation off entirely (default: on).
 - **Clipboard**: saved in all its formats and restored; the text put there is excluded from Win+V history and cloud
   clipboard. Used only as a last resort for typing (multi-line or more than 300 characters).
 - **Agent at work**: while an action runs (`act`, opening, closing, focusing and the action aliases; never

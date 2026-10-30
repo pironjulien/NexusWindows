@@ -46,8 +46,9 @@ only falls back to the real mouse or keyboard when the user explicitly allows it
 
 ## NexusWindows family
 
-Three MCP servers, one per agent, built separately because each model needs its tools shaped for it, with the same
-promise: the user keeps their mouse, keyboard and foreground window, and every action is read back.
+One native engine exposes three MCP profiles, with tools shaped for each agent. They share the same background
+techniques, safeguards and read-back. Use the [MCP cookbook](../commun/mcp-cookbook.md) for current requests, native
+file dialogs, UTF-8 stdio and diagnosing blank Chromium content.
 
 | | Claude | Codex | Antigravity |
 |---|---|---|---|
