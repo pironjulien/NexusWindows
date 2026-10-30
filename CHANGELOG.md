@@ -11,19 +11,7 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 
 ## [Unreleased]
 
-## [3.9.3] - 2026-10-30
-
 ### Fixed
-- A single background semantic action can survive unrelated text streaming after its target, parent subtree,
-  ancestor chain, process identities and every non-text control are proved unchanged. Only passive leaf text with
-  known non-interactive UIA capabilities may vary; missing capability evidence still refuses reconciliation.
-  The full property proof
-  includes link names, states, geometry and supported patterns; reused runtime IDs alone never authorize input.
-  New dialogs, menus, untyped overlays, incomplete observations, changed context and ambiguous targets still refuse
-  before input. Coordinate actions, routines, continuation and implicit physical fallback keep the global guard.
-- Isolated regression coverage checks native UIA text streaming and refusal before input after target replacement,
-  changed purpose, parent changes and sibling overlays. The opt-in fixture never activates or uses physical input;
-  it counts its own activation messages independently, so legitimate user activity stays free during qualification.
 - Release-installation fixture now represents an installed Claude Code with its existing `.claude.json`, so the
   all-client check tests the same clients as installation. Published tags can be checked again without rebuilding
   or republishing their assets.

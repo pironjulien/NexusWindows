@@ -44,16 +44,6 @@ Use a screenshot ID you actually inspected; if multiple regions are returned, ch
 
 ### Background first
 
-For one direct semantic step with explicit `fallback:false`, unrelated text streaming may be reconciled before
-input. Both complete observations must prove the same process/window, unique runtime identity, every target
-property, its entire parent subtree and ancestor context. Every non-text node in the window must remain identical;
-only passive leaf-text changes outside the parent's rectangle and beneath existing unchanged ancestors are accepted.
-Passivity requires known non-interactive UIA capabilities; existing text metadata cannot change. Unknown capability
-evidence refuses reconciliation, and ARIA/default-action text is never exported by the capability summary. Any new
-dialog, menu or untyped overlay, truncated evidence, ambiguous/replaced target or changed context refuses before
-input. Routines, learning, continuation, coordinates and implicit physical fallback retain the full-tree guard.
-`query` limits the returned presentation only; it never limits or weakens this validation.
-
 Semantic `click` (one left click, or a double click on a list or tree item: UIA Invoke), `setValue`, `typeText`, `secondary` (Expand/Collapse), `select` and `menu` go first to the native helper in background mode, for Sky and native observations alike (a Sky observation is matched again by selector in the helper's own tree; a native one also by runtime identity):
 
 - Win32 controls: `BN_CLICKED` to the parent (plus `BM_SETCHECK` for auto check boxes and auto radio groups), `EM_SETSEL`+`EM_REPLACESEL` (`setValue`; `typeText` inserts at the caret; a single-line field refuses line breaks), combo box: `secondary` Expand/Collapse by `CB_SHOWDROPDOWN` read back by `CB_GETDROPPEDSTATE`, `select` or a click on an option (open list included) by `CB_SETCURSEL`+`CBN_SELCHANGE`+`CBN_SELENDOK` after closing an open list first (closing is a cancel that restores the previous choice), `LB_SETCURSEL`+`LBN_SELCHANGE` (also a click on a list item), `TCM_SETCURFOCUS`, `WM_COMMAND` for menus; UIA Toggle. Never UIA Invoke (foreground) nor UIA Select on a list (silent).

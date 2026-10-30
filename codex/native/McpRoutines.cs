@@ -104,7 +104,9 @@ static partial class McpServer
         if (obsArg.Length > 0 && obsArg != state.CurrentObservationId) throw new ActionRefusedException("Observation already consumed or replaced; look again");
         var observed = ObjectOf(state.CurrentObservation.Value);
         var start = InspectNative(state);
-        ValidateNativeFreshness(observed, start, args, operation);
+        if (StructureNative(observed) != StructureNative(start)) throw new ActionRefusedException("Interface structure changed since look; observe again before input");
+        if (Str(observed, "processStartedUtc").Length == 0 || Str(observed, "processStartedUtc") != Str(start, "processStartedUtc") || Str(observed, "revision") != Str(start, "revision"))
+            throw new ActionRefusedException("Application identity changed since look; nothing sent");
         JsonArray steps, results, anchors; JsonArray? definition = null; string? remember = null, routine = null;
         var next = 0; var transitions = 0; JsonObject? entryForRun = null;
         if (operation == "continue")
