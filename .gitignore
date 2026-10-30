@@ -1,10 +1,4 @@
-# Python, Node.js and .NET outputs; caches live outside the repository.
-__pycache__/
-*.py[cod]
-*.egg-info/
-.pytest_cache/
-.ruff_cache/
-.venv/
+# .NET and Node.js outputs; builds and caches live outside the repository (%USERPROFILE%\.nexus\build\nexuswindows).
 node_modules/
 build/
 dist/
@@ -12,4 +6,7 @@ native/bin/
 obj/
 *.log
 *.tmp
+*.bak
+Thumbs.db
+Desktop.ini
 @AutomationLog.txt

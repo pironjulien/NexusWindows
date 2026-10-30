@@ -14,7 +14,6 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { signedEdgeProof, signedChromeProof, chromiumWindowIdentity as edgeWindowIdentity, chromiumWindowInventory as edgeWindowInventory, privateChromiumWindowProof } from './fixtures/signed-edge-window.mjs';
 import { assertRenderedRichText } from './fixtures/claude-cdp-rendered-oracle.mjs';
-import { fixtureReadOnlyChild, legacyEdgeSnapshot } from './fixtures/legacy-edge-snapshot.mjs';
 import { physicalDesktopProbe, assertCursorKept } from './fixtures/physical-desktop-probe.mjs';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
@@ -151,27 +150,6 @@ test(comparisonOnly ? `read-only historical comparison on one signed ${browserNa
     const observation = await call('look', { hwnd, show: 'elements' });
     await edgeWindowIdentity({ hwnd, executable: signature.path, title, pid: owned.pid, birth: owned.birth });
     const documents = observation.elements.filter(e => e.role === 'document');
-    if (browser === 'edge' && documents.length === 0 && !legacyComparison && process.env.NEXUS_LEGACY_EDGE_PYTHON) {
-      assert.equal(observation.elements.filter(e => e.role === 'tab').length, 0, 'Diagnostic refuses a tabbed browser window');
-      const spec = { hwnd, executable: signature.path, executableSha256: signature.sha256, title, url, pid: owned.pid, birth: owned.birth };
-      const bounded = { operation: 'inspect', windowId: hwnd, app: `process:${signature.path}`, expectedPid: owned.pid, expectedProcessStartedUtc: owned.birth };
-      const environment = { ...process.env, NEXUS_WINDOWS_HOME: state, NEXUS_SHARED_HOME: state, NEXUS_ROUTINES_MIRROR: '', NEXUS_JOURNAL_HOME: path.join(state, 'journal'), NEXUS_GARDE_FOUS: path.join(root, 'commun', 'garde-fous.json') };
-      legacyComparison = { run: runId, fixture: spec, inputSent: false, firstNativeObservation: observation };
-      try {
-        await edgeWindowIdentity(spec);
-        legacyComparison.nativeFullBefore = await fixtureReadOnlyChild(exe, ['--agent', 'claude'], bounded, 'Complete native fixture observation', environment);
-        await edgeWindowIdentity(spec);
-        legacyComparison.legacy = await legacyEdgeSnapshot(process.env.NEXUS_LEGACY_EDGE_PYTHON, spec);
-        await edgeWindowIdentity(spec);
-        legacyComparison.nativeFullAfter = await fixtureReadOnlyChild(exe, ['--agent', 'claude'], bounded, 'Complete native fixture observation', environment);
-        await edgeWindowIdentity(spec);
-      } catch (error) { legacyComparison.error = error.message; throw error; }
-      finally {
-        await writeFile(path.join(state, 'legacy-comparison.json'), JSON.stringify(legacyComparison, null, 2));
-        const summary = value => ({ nodes: value?.elements?.length, documents: value?.elements?.filter(e => e.role === 'document').length, notes: value?.elements?.filter(e => e.name === 'Notes').length });
-        t.diagnostic(JSON.stringify({ stage: 'read-only-legacy-comparison', state, nativeBefore: summary(legacyComparison.nativeFullBefore), legacy: legacyComparison.legacy?.view, nativeAfter: summary(legacyComparison.nativeFullAfter), error: legacyComparison.error ?? null, inputSent: false }));
-      }
-    }
     assert.equal(documents.length, 1, 'The dedicated app window must have exactly one accessible document');
     assert.ok(documents[0].name.includes(title), 'The accessible document must be the exact local fixture');
     const proof = privateChromiumWindowProof(browser, current, observation.elements, title);

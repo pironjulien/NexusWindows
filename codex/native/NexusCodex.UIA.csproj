@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>NexusCodex.UIA</AssemblyName>
-    <Version>3.8.0</Version>
+    <Version>3.9.0</Version>
     <!-- Le contenu du runtime est identifié par ses SHA-256 ; ne pas lui attribuer le dernier commit
          si une qualification est construite depuis le worktree courant. -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
@@ -19,5 +19,7 @@
     <!-- Logo de l'indicateur « agent au travail » (BusyIndicator.cs), lu a cote de l'executable. -->
     <None Include="logo.png" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="NativeSchemas.json" LogicalName="NexusWindows.Contracts" />
+    <!-- xUnit tests (tests/) call the engine in-process. -->
+    <InternalsVisibleTo Include="NexusWindows.Tests" />
   </ItemGroup>
 </Project>

@@ -1,7 +1,7 @@
 using System.Text.Json;
 
 // Recherche d'un element de menu DIRECTEMENT sous un autre (relecture de Codex du 22/10), independante de la source de
-// l'arbre (UI Automation dans ComUia.MenuChild, arbre simule dans --menu-selftest) : parcours en largeur qui traverse les
+// l'arbre (UI Automation dans ComUia.MenuChild, arbre simule dans tests/CdpTests.cs) : parcours en largeur qui traverse les
 // conteneurs (menu, barre, volet) sans jamais franchir un autre element de menu ; nom exact, identifiant
 // d'automatisation s'il est donne ; homonyme, plus de Max noeuds ou enfants illisibles (children leve) : refus.
 static class MenuSearch

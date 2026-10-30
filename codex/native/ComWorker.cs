@@ -657,7 +657,7 @@ static class ComBridge
     static Process Start()
     {
         Stop();
-        var start = new ProcessStartInfo(Environment.ProcessPath ?? throw new InvalidOperationException("Helper path unavailable"), "--com-worker")
+        var start = new ProcessStartInfo(Program.HelperExecutable is { Length: > 0 } helper ? helper : throw new InvalidOperationException("Helper path unavailable"), "--com-worker")
         {
             RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true,
             StandardOutputEncoding = new UTF8Encoding(false), StandardInputEncoding = new UTF8Encoding(false), StandardErrorEncoding = new UTF8Encoding(false),

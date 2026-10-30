@@ -8,12 +8,8 @@ import os from 'node:os';
 import { NativeUIA } from '../lib/native.mjs';
 
 const executable = process.env.NEXUS_FOREGROUND_EXE;
-const python = process.env.NEXUS_FOREGROUND_PYTHON;
 const lockPath = path.join(os.homedir(), '.nexus', 'foreground.lock');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-// Shared Python implementation of the token, next to the repository in the author's layout (absent from a public clone).
-const shared = path.resolve(import.meta.dirname, '../../commun');
-const hasSharedLock = existsSync(path.join(shared, 'foreground_lock.py'));
 
 test('real foreground lease excludes other processes, defers input and releases on failure', { skip: !executable, timeout: 20000 }, async () => {
   const first = new NativeUIA(executable), second = new NativeUIA(executable);
@@ -46,25 +42,4 @@ test('real foreground lease waits for the holder and releases when its pipe clos
       assert.equal(performed, true);
     } finally { holder.kill(); }
   }
-});
-
-test('C# lease interoperates with the shared Python LockFileEx implementation', { skip: !executable || !python || !hasSharedLock, timeout: 12000 }, async () => {
-  const code = 'import sys; sys.path.insert(0, sys.argv[1]); from foreground_lock import ForegroundLock; lock = ForegroundLock("InteropPython", timeout=0, purpose="interop test"); ok = lock.acquire(); print(ok, flush=True); sys.stdin.readline(); lock.release()';
-  const probe = () => spawn(python, ['-B', '-c', code, shared], { windowsHide: true });
-  const ready = child => new Promise((resolve, reject) => {
-    child.stdout.once('data', bytes => resolve(bytes.toString().trim())); child.once('error', reject);
-    child.once('close', () => reject(Error('Python probe exited before readiness')));
-  });
-  await new NativeUIA(executable).withForeground('C# interop test', async () => {
-    const child = probe();
-    try { assert.equal(await ready(child), 'False'); } finally { child.stdin.end(); }
-  });
-  const child = probe();
-  try {
-    assert.equal(await ready(child), 'True');
-    let performed = false;
-    const waiting = new NativeUIA(executable).withForeground('Python interop wait', async () => { performed = true; });
-    await delay(150); assert.equal(performed, false);
-    child.stdin.end(); await waiting; assert.equal(performed, true);
-  } finally { child.stdin.end(); }
 });

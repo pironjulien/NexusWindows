@@ -11,7 +11,7 @@ static class NativeMcpGuard
     [ThreadStatic] static long inputAtStart;
     public static IDisposable Start(string version)
     {
-        var process = Process.Start(new ProcessStartInfo(Environment.ProcessPath!, "--stop-guard " + version)
+        var process = Process.Start(new ProcessStartInfo(Program.HelperExecutable, "--stop-guard " + version)
         {
             UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true,
             RedirectStandardOutput = true, RedirectStandardError = true,

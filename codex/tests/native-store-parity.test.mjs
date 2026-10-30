@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import os from 'node:os';
@@ -11,18 +11,6 @@ import { fileURLToPath } from 'node:url';
 // The parent qualification sets this to its one fresh shared build, never an older installed helper.
 const executable = process.env.NEXUS_NATIVE_TEST_EXE;
 const skip = process.platform !== 'win32' || !executable ? 'Set NEXUS_NATIVE_TEST_EXE to the final shared build' : false;
-
-test('native Store support: state readback, identity gate, no retry and hidden application classification', { skip }, () => {
-  const result = JSON.parse(execFileSync(executable, ['--store-parity-selftest'], { windowsHide: true, timeout: 15000 }));
-  assert.equal(result.ok, true);
-  assert.ok(result.checks >= 17);
-});
-
-test('native virtualized materialization: Realize precedes scrolling, interruption stops and every pattern is released', { skip }, () => {
-  const result = JSON.parse(execFileSync(executable, ['--virtualization-selftest'], { windowsHide: true, timeout: 15000 }));
-  assert.equal(result.ok, true);
-  assert.ok(result.checks >= 7);
-});
 
 function jsonProcess(command, args, env = process.env) {
   const child = spawn(command, args, { windowsHide: true, env, stdio: ['pipe', 'pipe', 'pipe'] });

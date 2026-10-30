@@ -314,7 +314,7 @@ static class Steam
                     var path = Path.Combine(Path.GetTempPath(), "nexus-steam-startup-" + Guid.NewGuid().ToString("N") + ".json");
                     try
                     {
-                        StartNoActivate(new ProcessStartInfo(Environment.ProcessPath!, "--steam-startup-info \"" + path + "\""));
+                        StartNoActivate(new ProcessStartInfo(Program.HelperExecutable, "--steam-startup-info \"" + path + "\""));
                         var wait = Stopwatch.StartNew();
                         while (!File.Exists(path) && wait.ElapsedMilliseconds < 5000) Thread.Sleep(25);
                         if (!File.Exists(path)) throw new InvalidOperationException("Startup selftest child did not report; outcome unknown");

@@ -1,0 +1,9 @@
+<Project>
+  <!-- Builds and test outputs outside OneDrive: %USERPROFILE%\.nexus\build\nexuswindows\<project>. An explicit
+       -p:BaseIntermediateOutputPath (the installer's immutable build) still takes precedence. -->
+  <PropertyGroup>
+    <NexusWindowsBuild>$(USERPROFILE)\.nexus\build\nexuswindows\$(MSBuildProjectName)\</NexusWindowsBuild>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(NexusWindowsBuild)obj\</BaseIntermediateOutputPath>
+    <BaseOutputPath Condition="'$(BaseOutputPath)' == ''">$(NexusWindowsBuild)bin\</BaseOutputPath>
+  </PropertyGroup>
+</Project>

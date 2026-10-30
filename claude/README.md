@@ -4,12 +4,11 @@
 
 <img src="https://raw.githubusercontent.com/pironjulien/NexusWindows/main/claude/mcpb/icon.png" alt="NexusWindows icon" width="96">
 
-[![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows-Claude)](https://github.com/pironjulien/NexusWindows/releases)
-[![PyPI](https://img.shields.io/pypi/v/nexus-windows-claude)](https://pypi.org/project/nexus-windows-claude/)
+[![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows)](https://github.com/pironjulien/NexusWindows/releases)
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/pironjulien/NexusWindows/badge)](https://scorecard.dev/viewer/?uri=github.com/pironjulien/NexusWindows)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusWindows/blob/main/claude/LICENSE)
-[![Python 3.14](https://img.shields.io/badge/python-3.14-blue?logo=python&logoColor=white)](https://github.com/pironjulien/NexusWindows/blob/main/claude/pyproject.toml)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://github.com/pironjulien/NexusWindows/tree/main/codex/native)
 [![MCP](https://img.shields.io/badge/MCP-server-7ee2a8)](https://modelcontextprotocol.io)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](#installation)
 
@@ -21,7 +20,7 @@
 and Claude Code see and operate Windows desktop applications while the user keeps their mouse, keyboard and
 foreground window.
 
-Version 3.7.4 · Windows 10/11 · Python 3.14 · MIT licence
+Version 3.9.0 · Windows 10/11 (x64, ARM64) · native .NET 10, nothing else to install · MIT licence
 
 Part of the Nexus family: [NexusWindows](https://julienpiron.fr/nexuswindows/)
 ([Claude](https://github.com/pironjulien/NexusWindows) ·
@@ -52,8 +51,8 @@ promise: the user keeps their mouse, keyboard and foreground window, and every a
 
 | | Claude | Codex | Antigravity |
 |---|---|---|---|
-| Install | `uvx --python 3.14 nexus-windows-claude` | `npx -y nexus-windows-codex` | `uvx --python 3.14 nexus-windows-antigravity` |
-| Package | [PyPI](https://pypi.org/project/nexus-windows-claude/) | [npm](https://www.npmjs.com/package/nexus-windows-codex) | [PyPI](https://pypi.org/project/nexus-windows-antigravity/) |
+| Install | `get.ps1` (one engine, three profiles) | `get.ps1`, or `npx -y nexus-windows-codex` for the Codex REPL guide | `get.ps1` |
+| Package | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) | [npm](https://www.npmjs.com/package/nexus-windows-codex) | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) |
 | Tools | `windows` `look` `act` `launch` `window`, plus `notifications` and `logs` | `windows` `look` `act` `launch` `window` | `windows` `look` `act` `launch` `window` |
 | Repository | [NexusWindows-Claude](https://github.com/pironjulien/NexusWindows) | [NexusWindows-Codex](https://github.com/pironjulien/NexusWindows) | [NexusWindows-Antigravity](https://github.com/pironjulien/NexusWindows) |
 
@@ -63,95 +62,41 @@ bench.
 
 ## Installation
 
-Windows 10 or 11. You do not need Python: [uv](https://docs.astral.sh/uv/) downloads Python 3.14 by itself.
+Windows 10 or 11, x64 or ARM64. Nothing else to install: NexusWindows is one self-contained native program
+(C#, .NET 10); no Python, Node.js or .NET runtime is needed.
 
-**One step** (installs uv if missing, downloads and checks the server, registers it with Claude Code and declares it
-in Claude Desktop's configuration, merged after a backup; an entry of your own is kept, and with the Claude Code
-plugin enabled no second server is added): open **Windows PowerShell** (Start menu, type `powershell`) and paste:
-
-```powershell
-irm https://raw.githubusercontent.com/pironjulien/NexusWindows/main/claude/setup.ps1 | iex
-```
-
-Then close Claude completely and open it again. [`setup.ps1`](https://github.com/pironjulien/NexusWindows/blob/main/claude/setup.ps1)
-is short and can be read first; running it again only does what is missing.
-
-**Claude Code plugin** (the same server, plus a skill; uv required):
+**Let your AI install it**: NexusSystem detects your AI apps and sets up every profile.
 
 ```text
-/plugin marketplace add pironjulien/nexus-plugins
-/plugin install nexus-windows@nexus-plugins
+Install Nexus for me by following https://raw.githubusercontent.com/pironjulien/NexusSystem/main/INSTALL-AI.md
 ```
 
-**Claude Desktop extension** (uv required): download `nexus-windows-claude-<version>.mcpb` from the
-[latest release](https://github.com/pironjulien/NexusWindows/releases/latest), then in Claude Desktop open
-Settings → Extensions and drop the file there (or Advanced settings → Install extension), and click Install. With the
-Microsoft Store version of Claude Desktop, double-clicking the file does not open it: Windows has no app for `.mcpb`.
-
-**By hand.** Install uv ([official package](https://docs.astral.sh/uv/getting-started/installation/#winget)):
+**One line in PowerShell** (no administrator rights):
 
 ```powershell
-winget install --id=astral-sh.uv -e
+irm https://raw.githubusercontent.com/pironjulien/NexusWindows/main/get.ps1 | iex
 ```
 
-then restart Claude so that it sees uv, and register the server from [PyPI](https://pypi.org/project/nexus-windows-claude/).
-Claude Code:
+It downloads `NexusWindows-win-x64.zip` or `NexusWindows-win-arm64.zip` from the latest release, checks it against the
+release's `SHA256SUMS.txt`, installs the engine under `%USERPROFILE%\.nexus\nexus-windows`, and declares it to Claude
+Code (or its nexus-windows plugin), Claude Desktop, Codex and Antigravity when they are on the PC. Run it again to
+update; sessions already running keep their version. Remove it with
+`& ([scriptblock]::Create((irm https://raw.githubusercontent.com/pironjulien/NexusWindows/main/get.ps1))) -Remove`.
+Every release file has a build provenance attestation: `gh attestation verify <file> --repo pironjulien/NexusWindows`.
 
-```powershell
-claude mcp add --scope user -e PYTHONUTF8=1 --transport stdio nexus-windows -- uvx --python 3.14 nexus-windows-claude
-```
+**Claude Desktop extension**: `nexus-windows-claude.mcpb` from the
+[latest release](https://github.com/pironjulien/NexusWindows/releases/latest) (Settings, Extensions, Install extension).
 
-Claude Desktop: Settings → Developer → Edit Config, add this to `claude_desktop_config.json` (inside the existing
-`mcpServers` if there is one), save, then quit Claude completely and reopen it:
+**By hand**: every client declares the same stable command,
+`%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe --mcp --agent <claude|codex|antigravity>`, for example in
+JSON (`claude_desktop_config.json`, `mcp_config.json`):
 
 ```json
-{
-  "mcpServers": {
-    "nexus-windows": {
-      "command": "uvx",
-      "args": ["--python", "3.14", "nexus-windows-claude"],
-      "env": { "PYTHONUTF8": "1" }
-    }
-  }
-}
+{ "mcpServers": { "nexus-windows": { "command": "C:\\Users\\you\\.nexus\\nexus-windows\\NexusWindows.exe", "args": ["--mcp", "--agent", "claude"] } } }
 ```
 
-The first start downloads about 100 MB (Python 3.14 and the server's dependencies); later starts take under a
-second. Until 3.0.0 the package was named `nexus-windows`; that name still works and installs `nexus-windows-claude`.
-
-From a clone (development):
-
-```powershell
-git clone https://github.com/pironjulien/NexusWindows.git
-cd NexusWindows-Claude
-$env:UV_PROJECT_ENVIRONMENT = "$env:LOCALAPPDATA\claude-windows-computer-use\venv"   # optional: venv outside the clone
-uv sync --frozen
-```
-
-Register it with Claude Code (user scope):
-
-```powershell
-claude mcp add --scope user `
-  -e "UV_PROJECT_ENVIRONMENT=$env:LOCALAPPDATA\claude-windows-computer-use\venv" -e PYTHONUTF8=1 `
-  --transport stdio nexus-windows '--' uv run --project "$PWD" --frozen python -m nexus_windows
-```
-
-For Claude Desktop from a clone:
-
-```json
-{
-  "mcpServers": {
-    "nexus-windows": {
-      "command": "uv",
-      "args": ["run", "--project", "C:/path/to/NexusWindows-Claude", "--frozen", "python", "-m", "nexus_windows"],
-      "env": { "PYTHONUTF8": "1" }
-    }
-  }
-}
-```
-
-Local state (logs, routines) lives in `%USERPROFILE%\.claude\nexus-claude\`; set
-`NEXUS_WINDOWS_HOME` to use another folder.
+`NexusWindows.exe --register claude|codex|antigravity|all [--check] [--remove]` writes (or checks, or removes) these
+declarations; an entry of your own is never changed.
 
 ## Tools
 
@@ -322,58 +267,16 @@ file or changing the clock does not lift it, a new press re-arms it.
 
 ```mermaid
 flowchart LR
-    Claude["Claude Code or Claude Desktop"] -->|"MCP stdio"| Server["server.py MCP tools"]
-    Server --> Worker["COM worker thread with hard timeout"]
-    Worker --> Snapshot["snapshot and capture"]
-    Worker --> Actions["actions per UI family"]
-    Actions --> Win32["Win32 messages"]
-    Actions --> UIA["UI Automation"]
-    Actions --> Chromium["Chromium simulated activation and DevTools"]
-    Actions --> Real["real input only with foreground true"]
-    Server --> Safety["policy, emergency stop, foreground guard"]
-    Safety --> Shared["shared files in USERPROFILE nexus"]
-    Real --> Shared
+  Claude["Claude Code or Claude Desktop"] -->|"MCP stdio"| Launcher["NexusWindows.exe (stable launcher)"]
+  Launcher --> Engine["engine native/&lt;sha-256&gt;/NexusWindows.exe --mcp --agent claude"]
+  Engine --> UIA["UI Automation, Win32 messages, DevTools"]
+  Engine --> Capture["PrintWindow / Windows.Graphics.Capture, Windows OCR"]
 ```
 
-```
-src/nexus_windows/
-  reloader.py      stdio supervisor: restarts the server on new code and replays the client handshake
-  server.py        MCP tools, dedicated COM thread, per-call log
-  actions.py       executor facade, assembled from the act_*.py modules
-  act_base.py      targets read back live, technique chains, outcomes, shared refusals
-  act_win32.py     Win32 messages
-  act_uia.py       UI Automation (WinForms, WPF, UWP/WinUI) and dispatch per family
-  act_chromium.py  Chromium/Electron/CEF: verified click, DevTools, simulated activation, <select>
-  act_pointer.py   points, message clicks, scrolling, drag, hover
-  act_wait.py      text presence and waiting
-  snapshot.py      window + popups, [N] elements, image, coordinates, changes since the last list
-  ocr.py           Windows built-in OCR (Windows.Media.Ocr) for windows without UI Automation
-  uia.py           UI Automation with a single cross-process cache request
-  methods.py       Win32 message techniques
-  cdp.py           minimal Chrome DevTools Protocol client
-  capture.py       PrintWindow / Windows.Graphics.Capture
-  foreground.py    foreground monitoring and restoration, brief activation
-  agentlock.py     shared foreground token
-  postcond.py      step postconditions (check)
-  routines.py      verified routines per application
-  physical.py      the user's physical input (Raw Input, no hook), told apart from injected input
-  launch.py        background launch, DevTools, throwaway browser profiles
-  steam.py         Steam switches, clean restart, DevTools port
-  realinput.py     real mouse/keyboard (SendInput), only when authorised
-  policy.py        where to act and what to launch (hard blocks of the shared policy, launch switches)
-  act_confirm.py   confirmation of irreversible gestures (confirm: true), whatever key or click triggers them
-  shared/          the guard-rail policy shared with NexusWindows for Antigravity (garde-fous.json)
-  packages.py      resumes Store apps that Windows suspended in the background
-  offwindows.py    outside Windows: the server starts and lists its tools, every desktop tool says Windows is required
-  stop.py          shared emergency stop
-  freshness.py     detects a server whose code changed on disk
-  codeprint.py     code fingerprint and location of the shared policy (no dependencies)
-  worker.py        COM thread with a hard timeout
-  log.py           JSONL log, 14 days
-lab/     test applications (Win32, WinForms, WPF, Tk, a web page for Electron/Edge)
-bench/   technique benchmarks and raw results
-tests/   unit tests (pytest) and end-to-end tests (pytest -m live)
-```
+One C# (.NET 10) engine serves the three profiles (`codex/native/`, `--agent claude|codex|antigravity`); each profile
+keeps its own tools and guide. The stable launcher (`commun/launcher/`) checks the engine's recorded SHA-256 and runs
+it with the same standard input and output, so an update never changes a client's declaration. The shared safety
+policy is `commun/garde-fous.json`.
 
 ## Measurements
 
@@ -423,8 +326,7 @@ clicks, then its foreground fallback; Windows-MCP: bring the window forward with
 The effect is judged by the application (event received or value read back), never by the tool's report. Foreground
 changes are sampled every millisecond, the real cursor before and after each attempt. 51 tasks across Win32, WinForms,
 WPF, Tk, Electron and Edge (`bench/tally_cua.py`, raw results in `bench/results/2026-10-26_1210-cua-vs-nexus.json`).
-To reproduce: `python bench/cua_vs_nexus.py` on an idle Windows PC, with Cua Driver and Windows-MCP installed as
-described at the top of the script.
+The Python bench of that date has since been retired with the Python engine; its raw results stay in `bench/results/`.
 
 | All 51 tasks, target covered | nexus-windows 3.3.0 | Cua Driver 0.38.0 | Windows-MCP 0.8.8 |
 |---|---|---|---|
@@ -474,8 +376,7 @@ it), and a `click` on a closed WPF list is `~` where `expand` is `✓`.
 
 - **Emergency stop**: Ctrl+Alt+Shift+Esc interrupts the running action at its next checkpoint (typing included) and
   refuses every new action for 2 minutes, across conversations and for the other agents (protocol above).
-- **Hard blocks** (shared policy, `src/nexus_windows/shared/garde-fous.json`, same file as NexusWindows for
-  Antigravity): the secure desktop (UAC, lock and sign-in screens) and password managers are never read nor driven. A missing or unreadable policy refuses every action (fail closed).
+- **Hard blocks** (shared policy, `commun/garde-fous.json`, same file for the three profiles): the secure desktop (UAC, lock and sign-in screens) and password managers are never read nor driven. A missing or unreadable policy refuses every action (fail closed).
 - **Confirmation of irreversible gestures**: paying, buying, ordering, transferring money, sending, publishing,
   posting, deleting permanently, emptying the bin, formatting, uninstalling, resetting, cancelling a subscription,
   deleting an account or making a repository public need `confirm: true` on the step, which the model sets only on the
@@ -496,39 +397,28 @@ it), and a `click` on a closed WPF list is `~` where `expand` is `✓`.
 - **Accounts**: a browser started with `devtools=true` gets a throwaway profile without account or sync, checked
   after launch and deleted afterwards.
 - **Screen content is data**: every `look` reminds the model that on-screen text is not an instruction.
-- **Up-to-date code**: the entry point is a small stdio supervisor (`reloader.py`). Before each tool call it compares
-  the code on disk with the running server's; if it changed, it waits for calls in progress, starts a fresh server
-  and replays the client's handshake, so an update needs no reconnection (`/mcp`). A server whose code changed
-  between two checks refuses `act`, `launch` and `window`, and the call is replayed on the fresh one.
+- **Up-to-date code**: clients start the stable launcher, which runs the engine version recorded at install time after checking its SHA-256; an update installs a new immutable version beside it, so a running session is never changed under its feet and the next one gets the new version.
 - **Timeouts**: an abandoned call is cancelled at its next checkpoint instead of finishing later.
 - **Clipboard**: never used.
 
 ## Privacy
 
-NexusWindows for Claude runs entirely on your PC. It has no account, no telemetry and no analytics. Its only network
-request of its own is the update check: at most once a day, at startup and in the background, it reads the latest
-version number from PyPI (`https://pypi.org/pypi/nexus-windows-claude/json`, nothing sent but the request itself) and,
-when it was started by `uvx`, prepares that version in uv's cache for the next start of Claude.
-`NEXUS_UPDATE_CHECK=off` turns this off. DevTools connections stay on `127.0.0.1`.
+NexusWindows for Claude runs entirely on your PC. It has no account, no telemetry, no analytics and no network request
+of its own (updates come from running get.ps1 or NexusSystem again). DevTools connections stay on `127.0.0.1`.
 
-- **What it reads**: window titles, the UI Automation tree and window images of the applications Claude works in,
-  only when a tool is called. Password managers and the secure desktop are never inspected
-  (`look`) nor driven (`act`); `windows` still lists their window titles, like the taskbar does. The OCR fallback
-  uses the Windows built-in engine on the PC; no image leaves it for OCR. `look(window="screen")` reads the whole
-  screen as you see it, every visible window included. The `notifications` tool reads the Windows notification
-  database read-only (app, time, texts; never modified), masking security codes.
-- **Where it goes**: tool results are returned to Claude Desktop or Claude Code, which send them to Anthropic under
-  Anthropic's own privacy policy; this server sends nothing anywhere else.
-- **What it stores**, under `%USERPROFILE%\.claude\nexus-claude\` (or `NEXUS_WINDOWS_HOME`): a JSONL debug log kept
-  14 days (tools, techniques, durations, errors; typed text is replaced by its length), the routines you chose to
-  remember, and throwaway browser profiles created by `devtools=true` (deleted afterwards). Images are written to the
-  log only if you set `NEXUS_WINDOWS_DEBUG_IMAGES=1`. Under `%USERPROFILE%\.nexus\`: the shared foreground token and
-  emergency-stop state, and `status\windows-claude.json` (installed and latest version, update state) with the date of
-  the last check in `windows-claude\update.json`. Under `%LOCALAPPDATA%\NexusJournal\windows\claude\` (or `NEXUS_JOURNAL_HOME`): a short
-  monthly JSONL journal, in the same format as the other NexusWindows tools (app executable name, framework, action,
-  technique, outcome, duration, whether the foreground was used, and the first words of an error, cut before any
-  quote, colon or bracket); never typed text, screen text, labels, titles or paths. The server never deletes it.
-- **Removing it**: remove the server from Claude (`claude mcp remove nexus-windows`), then delete those folders (and `%LOCALAPPDATA%\NexusJournal`).
+- **What it reads**: window titles, the UI Automation tree and window images of the applications the agent works in,
+  only when a tool is called. Password managers and the secure desktop are never inspected nor driven. The OCR
+  fallback uses the Windows built-in engine on the PC; no image leaves it. The `notifications` tool reads the Windows
+  notification database read-only, masking security codes.
+- **Where it goes**: tool results are returned to Claude Desktop or Claude Code, which may send them to Anthropic under its own privacy policy;
+  NexusWindows sends nothing anywhere else.
+- **What it stores**, under `%USERPROFILE%\.nexus\`: the engine and its stable launcher (`nexus-windows\`), per-agent
+  state (debug log without typed text, routines you chose to remember, throwaway browser profiles deleted
+  afterwards), the shared foreground token and emergency-stop state, and a short monthly journal
+  (`journal\windows\<agent>\`: app executable name, action, technique, outcome, duration; never typed text, screen
+  text, labels, titles or paths).
+- **Removing it**: run get.ps1 with `-Remove` (declarations removed, engine files deleted), then delete
+  `%USERPROFILE%\.nexus\journal\windows` if you want the journal gone too.
 
 Questions or concerns: open an issue on this repository.
 
@@ -551,16 +441,16 @@ Questions or concerns: open an issue on this repository.
   one that Windows still does not render can only be shown by taking the foreground; this is reported.
 - In Chromium, a page that reacts very slowly to each keystroke can exceed the read-back time and is reported as ✗.
 - An effect with nothing readable (a file written by a button, for example) stays `~`; add a `check` that observes it.
-- The end-to-end suite (`pytest -m live`) drives real windows and refuses to start if the PC was used less than
-  2 minutes ago.
 
 ## Development
 
+From the repository root (the folder of `global.json`):
+
 ```powershell
-pwsh -NoProfile -File test.ps1         # unit tests, ruff check and format; venv and caches outside the clone
-pwsh -NoProfile -File test.ps1 -Full   # also the end-to-end tests on the lab windows
-uv run python bench/bench.py           # technique benchmark (when nobody is using the PC)
+./test.ps1    # dotnet test (engine, launcher, installers) then node --test (Codex adapter), offline
 ```
+
+Build and test outputs go to `%USERPROFILE%\.nexus\build\nexuswindows`, never into the source tree.
 
 ## Licence
 

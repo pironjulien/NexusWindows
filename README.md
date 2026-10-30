@@ -16,32 +16,48 @@ publish, delete) held for your explicit yes. One repository, one common engine, 
 
 ## Install
 
+Windows 10 or 11, x64 or ARM64; nothing else to install (one self-contained native program, no Python, Node.js or .NET
+runtime needed).
+
 Let your AI install it: NexusSystem detects your AI apps and sets up the right profile.
 
 ```text
 Install Nexus for me by following https://raw.githubusercontent.com/pironjulien/NexusSystem/main/INSTALL-AI.md
 ```
 
-Or get the [NexusSystem app](https://apps.microsoft.com/detail/9NSH2P3QLWT1) from the Microsoft Store. Each profile's
-folder also documents a manual install.
+Or get the [NexusSystem app](https://apps.microsoft.com/detail/9NSH2P3QLWT1) from the Microsoft Store, or run in
+PowerShell (no administrator rights):
+
+```powershell
+irm https://raw.githubusercontent.com/pironjulien/NexusWindows/main/get.ps1 | iex
+```
+
+get.ps1 downloads `NexusWindows-win-x64.zip` or `NexusWindows-win-arm64.zip` from the latest release, checks its
+SHA-256 against `SHA256SUMS.txt`, installs the engine under `%USERPROFILE%\.nexus\nexus-windows` and declares it to
+Claude Code, Claude Desktop, Codex and Antigravity when they are present. Every client starts the same stable path,
+`%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe --mcp --agent <claude|codex|antigravity>`; updates never change
+it. Release files carry a build provenance attestation (`gh attestation verify <file> --repo pironjulien/NexusWindows`).
+The Claude Desktop extension is `nexus-windows-claude.mcpb` in each release.
 
 ## Layout
 
 - `codex/native/`: the common C# (.NET 10) engine, `NexusWindows.exe`, serving the three profiles as MCP stdio
-  servers (`--mcp --agent claude|codex|antigravity`). Each profile keeps its host's guides and policies.
-- `commun/`: the shared safety policy (`garde-fous.json`, `garde_fous.py`), the foreground lock and the native
-  runtime publisher (`native-runtime.ps1`), embedded by every profile.
-- `claude/`, `agy/` (Python) and `codex/` (Node.js): each profile's adapter, guides and earlier engine, kept as an
-  explicit fallback while the native engine is qualified.
+  servers (`--mcp --agent claude|codex|antigravity`) and declaring itself to them (`--register`).
+- `commun/`: the shared safety policy (`garde-fous.json`), the stable launcher (`launcher/`), the workstation
+  installer of the immutable engine (`native-runtime.ps1`) and the release packaging (`package.ps1`).
+- `claude/`, `agy/`, `codex/`: each profile's guides, plugin and documentation; `codex/` also keeps the Node.js
+  adapter of the Codex REPL guide (`lib/`, npm package `nexus-windows-codex`).
+- `tests/`: xUnit tests of the engine, the launcher and the installers.
 
 ## Development
 
 ```powershell
-./test.ps1    # shared policy tests, then each profile's own test.ps1 (offline)
+./test.ps1    # dotnet test (xUnit), then node --test of the Codex adapter; offline, same command as the CI
 ```
 
-The three profiles were separate repositories until 30 October 2026 (`NexusWindows-Claude`, `NexusWindows-Codex`,
-`NexusWindows-Antigravity`, now archived); their release history stays there.
+Build and test outputs go to `%USERPROFILE%\.nexus\build\nexuswindows`. The three profiles were separate repositories
+until 30 October 2026 (`NexusWindows-Claude`, `NexusWindows-Codex`, `NexusWindows-Antigravity`, now archived); their
+release history stays there.
 
 ## Privacy
 

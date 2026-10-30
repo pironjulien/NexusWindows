@@ -1,3 +1,5 @@
+# Offline checks on every push to main and pull request: exactly test.ps1 (dotnet test of the engine, its launcher and
+# installers; node --test of the Codex adapter), on Windows. Actions pinned by commit SHA; Dependabot keeps them current.
 name: Tests
 
 on:
@@ -9,89 +11,19 @@ permissions:
   contents: read
 
 jobs:
-  commun:
+  test:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - name: Shared policy tests (standard library only)
-        shell: pwsh
-        run: python -B -m unittest discover -s commun/tests
-
-  claude:
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: claude
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884  # v10.3.0
-      - name: claude/test.ps1 (unit tests, ruff; offline)
-        shell: pwsh
-        run: ./test.ps1
-
-  codex:
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: codex
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
-        with:
-          node-version: 22
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
         with:
           dotnet-version: 10.0.x
-      - name: codex/test.ps1 (node tests, native engine build; offline)
-        shell: pwsh
-        run: ./test.ps1
-
-  antigravity:
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: agy
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884  # v10.3.0
-      - name: Test environment (the Python environment install.ps1 creates, without registering the server)
-        shell: pwsh
-        run: |
-          . ./scripts/runtime.ps1
-          uv sync --frozen --quiet
-      - name: agy/test.ps1 (ruff, pyright, unit tests; offline)
-        shell: pwsh
-        run: ./test.ps1
-
-  startup-linux:
-    # The MCP servers start and list their tools in a Linux container, as MCP directories check.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884  # v10.3.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
           node-version: 22
-      - name: "claude: initialize + tools/list over stdio"
-        working-directory: claude
-        run: |
-          uv sync --frozen --quiet
-          uv run --frozen pytest -q --noconftest tests/test_startup.py
-      - name: "agy: initialize + tools/list over stdio"
-        working-directory: agy
-        run: |
-          uv sync --frozen --quiet
-          uv run --frozen pytest -q --noconftest -p no:cacheprovider tests/test_startup.py
-      - name: "codex: initialize + tools/list over stdio"
-        working-directory: codex
-        run: node --test tests/startup.test.mjs tests/mcp.test.mjs
+          package-manager-cache: false
+      - name: test.ps1
+        shell: pwsh
+        run: ./test.ps1

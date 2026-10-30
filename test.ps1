@@ -1,19 +1,11 @@
-# Full offline check of NexusWindows: the shared policy (commun/tests, standard library only), then each profile's own
-# test.ps1 in its environment outside the repository. Exit code 0 when everything passes.
-# -Full is passed to the profiles (end-to-end tests on real windows, slower).
+# Full offline check of NexusWindows, the same command as the CI: the engine, its launcher and installers (xUnit,
+# dotnet test from the global.json folder), then the Codex adapter's JavaScript (codex/test.ps1: node --test).
+# Build and test outputs go to %USERPROFILE%\.nexus\build\nexuswindows. -Full also runs the Codex live tests.
 param([switch]$Full)
 $ErrorActionPreference = 'Stop'
-$env:PYTHONDONTWRITEBYTECODE = '1'
-$python = (Get-Command py -ErrorAction SilentlyContinue).Source
-$pyArgs = @('-3')
-if (-not $python) { $python = (Get-Command python -ErrorAction Stop).Source; $pyArgs = @() }
-& $python @pyArgs -B -m unittest discover -s (Join-Path $PSScriptRoot 'commun\tests')
-if ($LASTEXITCODE) { throw 'Shared policy: tests failed.' }
-$failed = @()
-foreach ($profileName in 'claude', 'agy', 'codex') {
-    Write-Host "== $profileName" -ForegroundColor Cyan
-    & pwsh -NoProfile -File (Join-Path $PSScriptRoot "$profileName\test.ps1") -Full:$Full
-    if ($LASTEXITCODE) { $failed += $profileName }
-}
-if ($failed) { throw "Failed: $($failed -join ', ')." }
+$env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
+Push-Location $PSScriptRoot
+try { dotnet test --project tests; if ($LASTEXITCODE) { throw 'dotnet test failed.' } } finally { Pop-Location }
+& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'codex\test.ps1') -Full:$Full
+if ($LASTEXITCODE) { throw 'codex/test.ps1 failed.' }
 Write-Host 'NexusWindows: all checks passed.'

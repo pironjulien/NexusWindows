@@ -212,7 +212,7 @@ static class Win32
         return false;
     }
 
-    // Surgissante transitoire d'apres styles et classe (fonction pure, testee hors ligne : --popup-selftest).
+    // Surgissante transitoire d'apres styles et classe (fonction pure, testee hors ligne : tests/CdpTests.cs).
     public static bool IsTransientPopupStyle(uint style, uint ex, string cls, bool menuRole = false, bool linked = false)
     {
         if (string.Equals(cls, "ComboLBox", StringComparison.OrdinalIgnoreCase)) return true;

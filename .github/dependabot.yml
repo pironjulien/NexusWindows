@@ -10,14 +10,6 @@ updates:
     groups:
       actions:
         patterns: ["*"]
-  - package-ecosystem: uv
-    directories:
-      - /claude
-      - /agy
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 7
   - package-ecosystem: npm
     directory: /codex
     schedule:
@@ -25,7 +17,10 @@ updates:
     cooldown:
       default-days: 7
   - package-ecosystem: nuget
-    directory: /codex/native
+    directories:
+      - /codex/native
+      - /commun/launcher
+      - /tests
     schedule:
       interval: weekly
     cooldown:

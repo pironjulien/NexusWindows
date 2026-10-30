@@ -287,7 +287,7 @@ static partial class Cdp
 
     // Envoi UNIQUE de la molette : arret d'urgence verifie au dernier moment (un arret survenu pendant la preparation, preuve
     // ou mesures, n'envoie rien) ; reponse absente apres l'envoi = issue inconnue, jamais rejouee ni suivie d'une autre
-    // technique (traces D de la relecture de Codex du 22/10, --wheel-trace-selftest).
+    // technique (traces D de la relecture de Codex du 22/10, tests/CdpTests.cs).
     static void Dispatch(Func<string, object, JsonElement> call, object wheel, Action started)
     {
         EmergencyStop.ThrowIfStopped();

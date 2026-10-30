@@ -14,6 +14,9 @@ static partial class Program
     static readonly HashSet<string> ReadOnlyOperations = new(StringComparer.Ordinal) { "inspect", "capture", "ocr", "related", "windows", "probe", "alive" };
     static readonly HashSet<string> ActionOperations = new(StringComparer.Ordinal) { "click", "setValue", "secondary", "select", "typeText", "physical", "focus", "realizeNamed", "key" };
     static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    // This engine's own executable, started again for its helper children (--com-worker, --steam-startup-info,
+    // --stop-guard). The in-process xUnit tests point it at the built engine instead of the test host.
+    internal static string HelperExecutable { get; set; } = Environment.ProcessPath ?? "";
     static string Text(JsonElement e, string key, string fallback = "") => e.TryGetProperty(key, out var v) ? v.GetString() ?? fallback : fallback;
     // Blocage dur : politique commune garde-fous.json (GardeFous.cs). Consoles, terminaux et outils d'administration sont
     // libres depuis l'accord du 18/10 ; seuls restent bloques le bureau securise, les identifiants Windows, les
@@ -70,49 +73,10 @@ static partial class Program
         }
         // Processus des motifs UI Automation (voir Background.cs).
         if (args.SequenceEqual(new[] { "--com-worker" })) return ComWorker.Run();
-        if (args.SequenceEqual(new[] { "--store-parity-selftest" })) return StorePackages.SelfTest();
-        if (args.SequenceEqual(new[] { "--virtualization-selftest" })) return ComWorker.VirtualizationSelfTest();
-        if (args.SequenceEqual(new[] { "--routine-compat-selftest" })) return McpServer.RoutineCompatibilitySelfTest();
-        if (args.SequenceEqual(new[] { "--launch-compat-selftest" })) return McpServer.LaunchCompatibilitySelfTest();
-        if (args.SequenceEqual(new[] { "--mcp-logs-selftest" })) return McpServer.LogsSelfTest();
-        if (args.SequenceEqual(new[] { "--shell-compat-selftest" })) return McpServer.ShellCompatibilitySelfTest();
-        if (args.SequenceEqual(new[] { "--key-sequence-selftest" })) return McpServer.KeySequenceSelfTest();
-        if (args.SequenceEqual(new[] { "--claude-cdp-selftest" })) return Cdp.ClaudeInputSelfTest();
-        if (args.SequenceEqual(new[] { "--cdp-selftest" })) return Cdp.SelfTest(); // tests : choix de page et port, hors ligne
-        if (args.SequenceEqual(new[] { "--surface-selftest" })) return Cdp.SurfaceSelfTest(); // tests : zone de rendu de la page, hors ligne
-        if (args.SequenceEqual(new[] { "--prove-selftest" })) return Cdp.ProveSelfTest(); // tests : preuve par le titre simulee, hors ligne
-        if (args.SequenceEqual(new[] { "--session-selftest" })) return Cdp.SessionSelfTest(); // tests : nettoyage de secours par la vraie connexion, serveur local
-        if (args.SequenceEqual(new[] { "--wheel-trace-selftest" })) return Cdp.WheelTraceSelfTest(); // tests : ACK perdu, arret pendant la preparation
-        if (args.SequenceEqual(new[] { "--prove-live-selftest" })) return Cdp.ProveLiveSelfTest(); // banc : preuve par le titre sur un vrai navigateur, ruptures provoquees
-        if (args.SequenceEqual(new[] { "--wheel-selftest" })) return ScrollPlan.SelfTest(); // tests : sens et extremites, hors ligne
-        if (args.SequenceEqual(new[] { "--tk-cover-selftest" })) return TkWheel.SelfTest(); // tests : couverture exacte, hors ligne
-        if (args.SequenceEqual(new[] { "--popup-selftest" })) return Win32.PopupSelfTest(); // tests : surgissantes transitoires, hors ligne
-        if (args.SequenceEqual(new[] { "--ocr-selftest" })) return Ocr.SelfTest(); // tests : vrai moteur OCR sur une image en memoire, hors ecran
-        if (args.SequenceEqual(new[] { "--wgc-selftest" })) return Wgc.SelfTest(); // tests : vraie capture WGC d'une fenetre hors ecran, handles mesures
-        if (args.Length == 2 && args[0] == "--wgc-probe" && long.TryParse(args[1], out var probed)) return Wgc.Probe((nint)probed); // banc : WGC d'une fenetre donnee, rien d'envoye
-        if (args.SequenceEqual(new[] { "--menu-selftest" })) return MenuSearch.SelfTest(); // tests : chemin de menu, hors ligne
-        if (args.SequenceEqual(new[] { "--collapse-selftest" })) return ComWorker.CollapseSelfTest(); // tests : repli relu, hors ligne
-        if (args.SequenceEqual(new[] { "--expand-selftest" })) return ComWorker.ExpandSelfTest(); // tests : Expand refuse relu, hors ligne
-        if (args.SequenceEqual(new[] { "--modal-selftest" })) return ModalSelfTest(); // tests : cible dans la boite modale, hors ligne
-        if (args.SequenceEqual(new[] { "--center-selftest" })) return CenterSelfTest(); // tests : centre visible dans la fenetre d'action, hors ligne
-        if (args.SequenceEqual(new[] { "--chromium-selftest" })) return ChromiumInput.SelfTest(); // tests : unites et comparaison, hors ligne
-        if (args.SequenceEqual(new[] { "--scroll-choice-selftest" })) return ScrollChoice.SelfTest(); // tests : choix du conteneur, hors ligne
-        if (args.SequenceEqual(new[] { "--launch-selftest" })) return LaunchSelfTest(); // tests : programme, arguments et refus d'un lancement, rien n'est lance
-        if (args.SequenceEqual(new[] { "--steam-selftest" })) return Steam.SelfTest(); // contrats Steam, processus et CDP simules ; rien n'est lance
         if (args.Length == 2 && args[0] == "--steam-startup-info") return Steam.WriteStartupInfo(args[1]); // enfant du banc sans GUI
-        if (args.SequenceEqual(new[] { "--process-identity-selftest" }))
-        {
-            Write(new { pid = Environment.ProcessId, processStartedUtc = ProcessStartedUtc((uint)Environment.ProcessId), unknown = ProcessStartedUtc(0) }); return 0;
-        }
-        if (args.SequenceEqual(new[] { "--window-selftest" })) return WindowManagement.SelfTest(); // contrats de placement, sans GUI
-        if (args.SequenceEqual(new[] { "--physical-target-selftest" })) return Physical.TargetSelfTest();
-        if (args.SequenceEqual(new[] { "--garde-fous-selftest" })) return GardeFous.SelfTest();
-        if (args.SequenceEqual(new[] { "--journal-selftest" })) return Journal.SelfTest();
-        if (args.SequenceEqual(new[] { "--routines-selftest" })) return Routines.SelfTest();
-        if (args.SequenceEqual(new[] { "--notifications-selftest" })) return Notifications.SelfTest();
-        if (args.SequenceEqual(new[] { "--migration-selftest" })) return McpServer.MigrationSelfTest();
         if (args.Length == 1 && args[0] == "--migrate-routines") return McpServer.MigrateRoutines();
-        if (args.SequenceEqual(new[] { "--mcp-selftest" })) return McpServer.SelfTest();
+        // Declaration to the MCP clients (Registration.cs): installers and get.ps1, never a session.
+        if (args.Length >= 2 && args[0] == "--register") return Registration.Command(args);
         if (args.Length >= 1 && args[0] == "--mcp")
         {
             var agent = "codex";
@@ -665,7 +629,7 @@ static partial class Program
     }
     // Chaine racine..cible (fenetre native, desactive) : indice du noeud de la boite modale `box` sur cette chaine, la racine
     // (proprietaire) etant desactivee et la boite non ; -1 sinon (cible hors de la boite, ou pas de boite). Fonction pure,
-    // testee hors ligne (--modal-selftest).
+    // testee hors ligne (tests/ProgramTests.cs).
     internal static int ModalBoxIndex(IReadOnlyList<(long NativeWindow, bool Disabled)> chain, long box)
     {
         if (box == 0 || chain.Count < 2 || !chain[0].Disabled) return -1;
@@ -673,7 +637,7 @@ static partial class Program
             if (chain[i].NativeWindow == box) return chain[i].Disabled ? -1 : i;
         return -1;
     }
-    static int ModalSelfTest()
+    internal static int ModalSelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
         var results = input.RootElement.EnumerateArray().Select(c => ModalBoxIndex(
@@ -683,7 +647,7 @@ static partial class Program
         return 0;
     }
     // Centre visible d'une cible dans le rectangle de la fenetre d'action (racine de l'arbre, ou boite modale), hors ligne.
-    static int CenterSelfTest()
+    internal static int CenterSelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
         var results = new List<object>();
@@ -1023,7 +987,7 @@ static partial class Program
     }
 
     // Lancement prepare, sans rien lancer : programme, arguments et refus (chemin, adresse, arguments), lu aussi par
-    // --launch-selftest.
+    // tests/LaunchTests.cs.
     internal sealed record LaunchPlan(string Target, string Args, string Start, bool IsPath, bool Aumid, bool IsExe, string Stem, string? ExePath);
     internal static LaunchPlan PlanLaunch(string raw, string rawArgs)
     {
@@ -1054,7 +1018,7 @@ static partial class Program
         }
         return new LaunchPlan(target, args, start, isPath, aumid, isExe, stem, exePath);
     }
-    static int LaunchSelfTest()
+    internal static int LaunchSelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
         var results = new List<object>();

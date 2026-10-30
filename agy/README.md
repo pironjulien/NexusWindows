@@ -8,8 +8,7 @@
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/pironjulien/NexusWindows/badge)](https://scorecard.dev/viewer/?uri=github.com/pironjulien/NexusWindows)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusWindows/blob/main/agy/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/nexus-windows-antigravity)](https://pypi.org/project/nexus-windows-antigravity/)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white)](https://github.com/pironjulien/NexusWindows/blob/main/agy/pyproject.toml)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://github.com/pironjulien/NexusWindows/tree/main/codex/native)
 [![MCP](https://img.shields.io/badge/MCP-server-7ee2a8)](https://modelcontextprotocol.io)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](#installation)
 
@@ -22,7 +21,7 @@ Antigravity (Gemini) see and operate Windows desktop applications while the user
 foreground window. Built for a fast model: one look, then one batch of steps with label targets, and every reply
 says what to do next.
 
-Version 3.6.0 · Windows 10/11 · Python 3.11+ · MIT licence
+Version 3.9.0 · Windows 10/11 (x64, ARM64) · native .NET 10, nothing else to install · MIT licence
 
 Part of the Nexus family: [NexusWindows](https://julienpiron.fr/nexuswindows/)
 ([Claude](https://github.com/pironjulien/NexusWindows) ·
@@ -46,8 +45,8 @@ promise: the user keeps their mouse, keyboard and foreground window, and every a
 
 | | Claude | Codex | Antigravity |
 |---|---|---|---|
-| Install | `uvx --python 3.14 nexus-windows-claude` | `npx -y nexus-windows-codex` | `uvx --python 3.14 nexus-windows-antigravity` |
-| Package | [PyPI](https://pypi.org/project/nexus-windows-claude/) | [npm](https://www.npmjs.com/package/nexus-windows-codex) | [PyPI](https://pypi.org/project/nexus-windows-antigravity/) |
+| Install | `get.ps1` (one engine, three profiles) | `get.ps1`, or `npx -y nexus-windows-codex` for the Codex REPL guide | `get.ps1` |
+| Package | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) | [npm](https://www.npmjs.com/package/nexus-windows-codex) | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) |
 | Tools | `windows` `look` `act` `launch` `window`, plus `notifications` and `logs` | `windows` `look` `act` `launch` `window` | `windows` `look` `act` `launch` `window` |
 | Repository | [NexusWindows-Claude](https://github.com/pironjulien/NexusWindows) | [NexusWindows-Codex](https://github.com/pironjulien/NexusWindows) | [NexusWindows-Antigravity](https://github.com/pironjulien/NexusWindows) |
 
@@ -57,74 +56,41 @@ bench.
 
 ## Installation
 
-Requirements: Windows 10 or 11 and [Google Antigravity](https://antigravity.google/download). Nothing else to
-install by hand: the command below installs [uv](https://docs.astral.sh/uv/) with winget (Windows' own package
-manager, package `astral-sh.uv`), which brings Python 3.14 and the server from
-[PyPI](https://pypi.org/project/nexus-windows-antigravity/). No script is downloaded and run.
+Windows 10 or 11, x64 or ARM64. Nothing else to install: NexusWindows is one self-contained native program
+(C#, .NET 10); no Python, Node.js or .NET runtime is needed.
 
-1. Open **PowerShell** (Start menu, type `PowerShell`, Enter).
-2. Paste this line and press Enter:
+**Let your AI install it**: NexusSystem detects your AI apps and sets up every profile.
 
-   ```powershell
-   winget install --id astral-sh.uv -e --accept-source-agreements --accept-package-agreements; $env:Path = [Environment]::GetEnvironmentVariable('Path','User') + ';' + [Environment]::GetEnvironmentVariable('Path','Machine'); uvx --python 3.14 nexus-windows-antigravity@latest install
-   ```
-
-   (uv already installed: `uvx --python 3.14 nexus-windows-antigravity@latest install` is enough.)
-
-3. Restart Antigravity. The `nexus-windows` plugin appears under **Customizations > Installed**, with its five tools
-   and the agent guide. Ask for example: *"In Notepad, behind my window, type a shopping list and save it on the
-   desktop."*
-
-What the `install` command does: it writes the `nexus-windows` plugin into
-`%USERPROFILE%\.gemini\config\plugins\nexus-windows`, the folder Antigravity loads plugins from: the agent guide
-([`SKILL.md`](https://github.com/pironjulien/NexusWindows/blob/main/agy/plugins/nexus-windows/skills/nexus-windows/SKILL.md)),
-the plugin manifest, and `mcp_config.json`, which declares the server once at its latest version
-(`uvx --python 3.14 nexus-windows-antigravity@latest`): each Antigravity start runs the newest published version. It
-removes an older manual declaration of the same server
-from the global `mcp_config.json`; other servers, plugins and Antigravity settings are never touched. A plugin is
-enabled by default; if you turned it off, it says so and leaves your choice.
-
-- **Update**: automatic, at the next Antigravity start. Installed with 3.1.4 to 3.1.7 (pinned version): run the line
-  once more.
-- **Check**: `uvx --python 3.14 nexus-windows-antigravity install --check` (writes nothing).
-- **Remove**: `uvx --python 3.14 nexus-windows-antigravity uninstall`.
-
-<details>
-<summary>Without the plugin: declare the server yourself</summary>
-
-Edit `%USERPROFILE%\.gemini\config\mcp_config.json` (in the Antigravity IDE: agent panel **…** > **MCP Servers** >
-**Manage MCP Servers** > **View raw config**):
-
-```json
-{
-  "mcpServers": {
-    "nexus-windows-antigravity": {
-      "command": "uvx",
-      "args": ["--python", "3.14", "nexus-windows-antigravity"],
-      "env": { "PYTHONUTF8": "1" }
-    }
-  }
-}
+```text
+Install Nexus for me by following https://raw.githubusercontent.com/pironjulien/NexusSystem/main/INSTALL-AI.md
 ```
 
-The agent then has the tools but not the guide; the plugin is the recommended way.
-</details>
-
-<details>
-<summary>From a clone (development)</summary>
-
-With [Git](https://git-scm.com/) and [PowerShell 7](https://aka.ms/powershell):
+**One line in PowerShell** (no administrator rights):
 
 ```powershell
-git clone https://github.com/pironjulien/NexusWindows.git
-cd NexusWindows-Antigravity
-pwsh -NoProfile -File install.ps1
+irm https://raw.githubusercontent.com/pironjulien/NexusWindows/main/get.ps1 | iex
 ```
 
-The Python environment, logs and screenshots then live in `%USERPROFILE%\.nexusagy` (outside the clone), and the
-plugin's `mcp_config.json` starts the server from the clone (`scripts/start-computer-mcp.ps1`). `verify.ps1` (or
-`install.ps1 -CheckOnly`) checks the environment and the plugin without changing anything.
-</details>
+It downloads `NexusWindows-win-x64.zip` or `NexusWindows-win-arm64.zip` from the latest release, checks it against the
+release's `SHA256SUMS.txt`, installs the engine under `%USERPROFILE%\.nexus\nexus-windows`, and declares it to Claude
+Code (or its nexus-windows plugin), Claude Desktop, Codex and Antigravity when they are on the PC. Run it again to
+update; sessions already running keep their version. Remove it with
+`& ([scriptblock]::Create((irm https://raw.githubusercontent.com/pironjulien/NexusWindows/main/get.ps1))) -Remove`.
+Every release file has a build provenance attestation: `gh attestation verify <file> --repo pironjulien/NexusWindows`.
+
+**Claude Desktop extension**: `nexus-windows-claude.mcpb` from the
+[latest release](https://github.com/pironjulien/NexusWindows/releases/latest) (Settings, Extensions, Install extension).
+
+**By hand**: every client declares the same stable command,
+`%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe --mcp --agent <claude|codex|antigravity>`, for example in
+JSON (`claude_desktop_config.json`, `mcp_config.json`):
+
+```json
+{ "mcpServers": { "nexus-windows": { "command": "C:\\Users\\you\\.nexus\\nexus-windows\\NexusWindows.exe", "args": ["--mcp", "--agent", "antigravity"] } } }
+```
+
+`NexusWindows.exe --register claude|codex|antigravity|all [--check] [--remove]` writes (or checks, or removes) these
+declarations; an entry of your own is never changed.
 
 ## Tools
 
@@ -183,7 +149,7 @@ Tool descriptions, server instructions, tool and parameter names are in English;
 - **Agent at work**: while an action runs (`act`, opening, closing, focusing and the action aliases; never
   the reads), a small logo spins on itself in the bottom-right corner of the driven window's screen, like a game
   loading screen (the logo and its shadow only, no halo), and goes away 1.6 s after the last action. Always on top, borderless,
-  click-through, never activated, absent from the taskbar and excluded from screen captures (`busy_indicator.py`).
+  click-through, never activated, absent from the taskbar and excluded from screen captures.
   `NEXUS_WINDOWS_INDICATOR=0` turns it off.
 - **Shared with the other desktop agents of the PC**: foreground token (`%USERPROFILE%\.nexus\foreground.lock`) and
   emergency stop (Ctrl+Alt+Shift+Esc, `%USERPROFILE%\.nexus\stop`), the same file protocols as
@@ -212,41 +178,29 @@ tools; the lab is fixed and Electron will count at the next run. A comparison wi
 
 ## Architecture
 
-| Path | Role |
-| --- | --- |
-| `client/mcp_server.py` | MCP server `nexus-windows-antigravity` (stdio), started by `scripts/start-computer-mcp.ps1` |
-| `client/computer_client.py` | Windows engine: windows, UI Automation, Win32 messages, capture, actions and read-back |
-| `client/uia_fast.py`, `client/win32_controls.py` | One-round-trip UI Automation reads, native control messages |
-| `client/physical_input.py`, `client/agent_guard.py`, `client/emergency_stop.py` | The user's presence (Raw Input), batch guard, shared emergency stop |
-| `client/foreground_lock.py`, `client/garde_fous.py`, `client/garde-fous.json` | Shared foreground token and guard-rail policy, common to the author's desktop agents (also used by NexusWindows for Claude). Vendored in the public copy; in the author's setup they live in a sibling `commun` folder |
-| `plugins/nexus-windows/` | Antigravity plugin and the agent guide (`SKILL.md`), installed by `nexus-windows-antigravity install` (`client/install_antigravity.py`) |
-| `tests/` | Unit tests (pytest) and the real desktop validation |
+The Antigravity profile is served by the common C# (.NET 10) engine (`codex/native/`, started as
+`NexusWindows.exe --mcp --agent antigravity` through the stable launcher `commun/launcher/`), with the shared safety
+policy `commun/garde-fous.json`. `plugins/nexus-windows/` holds the Antigravity plugin and its agent guide
+(`SKILL.md`), installed by `NexusWindows.exe --register antigravity`.
 
 ## Privacy
 
-NexusWindows for Antigravity runs entirely on your PC. It has no account, no telemetry and no analytics. Its only network
-request of its own is a version check: at most once a day, a GET of `https://pypi.org/pypi/nexus-windows-antigravity/json`
-(nothing about you or your PC is sent); `NEXUS_UPDATE_CHECK=off` in the server environment turns it off.
+NexusWindows for Antigravity runs entirely on your PC. It has no account, no telemetry, no analytics and no network request
+of its own (updates come from running get.ps1 or NexusSystem again). DevTools connections stay on `127.0.0.1`.
 
-- **What it reads**: window titles, the accessibility tree and window images of the applications the agent works
-  in, only when a tool is called. Password managers are neither read nor driven.
-- **Where it goes**: tool results are returned to Antigravity, which may send them to Google under its own privacy
-  policy; this server sends nothing anywhere else.
-- **What it stores**, under `~/.nexusagy/`: the Python environment (clone install only; `uvx` keeps its own in the
-  uv cache), an action log `computer.log` (action, method,
-  window, duration, outcome and short details such as a target label, coordinates, key names, a menu path or the
-  number of characters typed, never the typed or expected text; rotated at 5 MB, three backups) and screenshots (at
-  most 50 after each capture; those older than 24 hours are purged at the next capture and at server start, so a
-  stopped server can leave its last screenshots until it starts again). Under `~/.nexus/`: the shared foreground token and emergency-stop state,
-  and `status/windows-antigravity.json` (installed version, latest version, time of the last check), read by the
-  Nexus app.
-  Under `%LOCALAPPDATA%\NexusJournal\windows\antigravity\` (or `NEXUS_JOURNAL_HOME`): a short monthly JSONL journal,
-  in the same format as the other NexusWindows tools (app executable name, action, technique, outcome, duration,
-  whether the foreground was used, and the first words of an error, cut before any quote, colon or bracket); never
-  typed text, screen text, labels, titles or paths. The server never deletes it.
-- **Removing it**: `uvx --python 3.14 nexus-windows-antigravity uninstall` (or remove the server from Antigravity's
-  MCP settings), then delete `~/.nexusagy/`, `~/.nexus/status/windows-antigravity.json` (and
-  `%LOCALAPPDATA%\NexusJournal`).
+- **What it reads**: window titles, the UI Automation tree and window images of the applications the agent works in,
+  only when a tool is called. Password managers and the secure desktop are never inspected nor driven. The OCR
+  fallback uses the Windows built-in engine on the PC; no image leaves it. The `notifications` tool reads the Windows
+  notification database read-only, masking security codes.
+- **Where it goes**: tool results are returned to Antigravity, which may send them to Google under its own privacy policy;
+  NexusWindows sends nothing anywhere else.
+- **What it stores**, under `%USERPROFILE%\.nexus\`: the engine and its stable launcher (`nexus-windows\`), per-agent
+  state (debug log without typed text, routines you chose to remember, throwaway browser profiles deleted
+  afterwards), the shared foreground token and emergency-stop state, and a short monthly journal
+  (`journal\windows\<agent>\`: app executable name, action, technique, outcome, duration; never typed text, screen
+  text, labels, titles or paths).
+- **Removing it**: run get.ps1 with `-Remove` (declarations removed, engine files deleted), then delete
+  `%USERPROFILE%\.nexus\journal\windows` if you want the journal gone too.
 
 Questions or concerns: open an issue on this repository.
 
@@ -267,13 +221,13 @@ Questions or concerns: open an issue on this repository.
 
 ## Development
 
+From the repository root (the folder of `global.json`):
+
 ```powershell
-pwsh -NoProfile -File test.ps1         # offline: ruff, Pyright, pytest
-pwsh -NoProfile -File test.ps1 -Full   # plus the real desktop validation on its own Win32, WinForms and WPF windows
+./test.ps1    # dotnet test (engine, launcher, installers) then node --test (Codex adapter), offline
 ```
 
-The real validation shows its test windows without activation and closes them at the end; real mouse and keyboard
-checks run only when the PC has been idle for 120 s, otherwise they are reported as skipped.
+Build and test outputs go to `%USERPROFILE%\.nexus\build\nexuswindows`, never into the source tree.
 
 ## Licence
 

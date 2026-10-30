@@ -25,8 +25,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - language: python
-            build-mode: none
           - language: javascript-typescript
             build-mode: none
           - language: csharp

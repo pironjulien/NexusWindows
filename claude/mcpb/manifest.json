@@ -2,9 +2,9 @@
   "manifest_version": "0.4",
   "name": "nexus-windows-claude",
   "display_name": "NexusWindows for Claude",
-  "version": "3.7.4",
+  "version": "3.9.0",
   "description": "Windows computer use in the background: see and drive desktop apps without taking your mouse, keyboard or foreground, every action read back.",
-  "long_description": "NexusWindows for Claude lets Claude use your Windows desktop applications **in the background**: it reads a window (UI Automation list, image when needed), clicks, types, picks, uses menus and shortcuts and launches apps while you keep working, without taking your mouse, keyboard or foreground. Every action is read back and reported as verified, already done, unknown or failed.\n\n- Win32, WinForms, WPF, UWP/WinUI, Chromium/Electron and Tk, each with the safe technique for it\n- Irreversible or outward gestures (send, pay, publish, delete) need your explicit yes\n- Emergency stop: Ctrl+Alt+Shift+Esc stops every action for two minutes\n- Runs entirely on your PC: no account, no telemetry\n\nSource, safeguards and privacy: https://github.com/pironjulien/NexusWindows",
+  "long_description": "NexusWindows for Claude lets Claude use your Windows desktop applications **in the background**: it reads a window (UI Automation list, image when needed), clicks, types, picks, uses menus and shortcuts and launches apps while you keep working, without taking your mouse, keyboard or foreground. Every action is read back and reported as verified, already done, unknown or failed.\n\n- Win32, WinForms, WPF, UWP/WinUI, Chromium/Electron and Tk, each with the safe technique for it\n- Irreversible or outward gestures (send, pay, publish, delete) need your explicit yes\n- Emergency stop: Ctrl+Alt+Shift+Esc stops every action for two minutes\n- Runs entirely on your PC (one native .NET program, nothing else to install): no account, no telemetry\n\nSource, safeguards and privacy: https://github.com/pironjulien/NexusWindows",
   "author": {
     "name": "Julien Piron",
     "url": "https://github.com/pironjulien"
@@ -18,14 +18,11 @@
   "support": "https://github.com/pironjulien/NexusWindows/issues",
   "icon": "icon.png",
   "server": {
-    "type": "uv",
-    "entry_point": "server/main.py",
+    "type": "binary",
+    "entry_point": "server/NexusWindows.exe",
     "mcp_config": {
-      "command": "uv",
-      "args": ["--directory", "${__dirname}", "run", "--frozen", "python", "server/main.py"],
-      "env": {
-        "PYTHONUTF8": "1"
-      }
+      "command": "${__dirname}/server/NexusWindows.exe",
+      "args": ["--mcp", "--agent", "claude"]
     }
   },
   "tools": [
@@ -41,9 +38,6 @@
   "license": "MIT",
   "privacy_policies": ["https://github.com/pironjulien/NexusWindows/tree/main/claude#privacy"],
   "compatibility": {
-    "platforms": ["win32"],
-    "runtimes": {
-      "python": ">=3.14,<3.15"
-    }
+    "platforms": ["win32"]
   }
 }

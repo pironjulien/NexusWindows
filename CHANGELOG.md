@@ -11,6 +11,33 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 
 ## [Unreleased]
 
+## [3.9.0] - 2026-10-30
+
+### Added
+- Native release files for Windows x64 and ARM64: `NexusWindows-win-x64.zip` and `NexusWindows-win-arm64.zip`
+  (self-contained engine, nothing else to install), `SHA256SUMS.txt` and a Sigstore build provenance attestation
+  (`gh attestation verify <file> --repo pironjulien/NexusWindows`).
+- `get.ps1`: one-line installer and updater (`irm .../get.ps1 | iex`, `-Remove` to uninstall) that picks the PC's
+  architecture, checks the SHA-256 and declares NexusWindows to the clients present.
+- Stable launcher `%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe`: every client declares this one path; it runs
+  the engine version recorded in `installation.json` after checking its SHA-256, passes stdin, stdout and the exit
+  code through, and is replaced safely while sessions run (they keep their version, the next one gets the new one).
+- `NexusWindows.exe --register claude|codex|antigravity|all [--check] [--remove]`: declarations for Claude Code (or
+  its nexus-windows plugin), Claude Desktop, Codex (`config.toml`) and Antigravity (plugin), replacing the Python
+  installers; an entry of your own or a disabled one is never changed.
+- Claude Desktop extension `nexus-windows-claude.mcpb` built on the native engine, published to the MCP registry as
+  `io.github.pironjulien/nexus-windows`.
+- xUnit test suite (`tests/`, `dotnet test`), and secret (gitleaks) and workflow (zizmor) checks in the CI.
+
+### Changed
+- The native engine is the only engine: `test.ps1` and the CI run `dotnet test` and the Codex adapter's
+  `node --test`; the engine's `--*-selftest` options became xUnit tests.
+
+### Removed
+- The Python engines and their tooling (Claude `src/`, Antigravity `client/`, shared `garde_fous.py`, pyproject,
+  uv.lock, Python tests, bench and lab) and the uv-based setup scripts. Earlier PyPI packages stay available but are
+  no longer updated.
+
 ## [3.8.0] - 2026-10-30
 
 ### Changed

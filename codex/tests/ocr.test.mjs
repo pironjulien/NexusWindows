@@ -1,10 +1,9 @@
 // OCR en secours d'un arbre trop pauvre (Tk, canevas, jeu) et capture Windows.Graphics.Capture d'une image PrintWindow
 // vide (3.6.0) : lignes ramenées en pixels de l'image et ciblables au point + screenshotId, image déjà prise relue sans
-// recapture, arbre riche sans OCR, image vide dite indisponible (jamais une copie de l'écran). Fournisseurs factices ;
-// autotests du vrai helper (moteur OCR, capture WGC hors de vue, handles) quand il est fourni (NEXUS_FOREGROUND_EXE).
+// recapture, arbre riche sans OCR, image vide dite indisponible (jamais une copie de l'écran). Fournisseurs factices
+// (moteur OCR et capture WGC réels du moteur natif : tests/WindowTests.cs, xUnit).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -387,18 +386,4 @@ test('point d une ligne OCR : vise l écran au centre de la ligne (même convers
   // ligne écran 300..500 x 250..290 → image 100..200 x 100..120, centre (150, 110) → écran (401, 271), dans la ligne.
   const at = nativeScreen({ width: 400, height: 300, frame }, { x: 150, y: 110 });
   assert.ok(at.x >= 300 && at.x < 500 && at.y >= 250 && at.y < 290, JSON.stringify(at));
-});
-
-const executable = process.env.NEXUS_FOREGROUND_EXE;
-const skip = !executable && 'NEXUS_FOREGROUND_EXE absent';
-
-test('helper : vrai moteur OCR sur une image en mémoire (texte et rectangle)', { skip }, () => {
-  const out = execFileSync(executable, ['--ocr-selftest'], { windowsHide: true }).toString().trim().split(/\r?\n/);
-  for (const line of out) assert.match(line, /^ok /);
-});
-
-test('helper : capture WGC d une fenêtre recouverte, relue par OCR, sans handle perdu', { skip }, () => {
-  const out = execFileSync(executable, ['--wgc-selftest'], { windowsHide: true, timeout: 30000 }).toString().trim().split(/\r?\n/);
-  assert.equal(out.length, 3);
-  for (const line of out) assert.match(line, /^ok /);
 });
