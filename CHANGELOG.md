@@ -11,6 +11,20 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 
 ## [Unreleased]
 
+## [3.9.2] - 2026-10-30
+
+### Fixed
+- The public installer works in Windows PowerShell 5.1 started from PowerShell 7: its built-in module directory
+  takes precedence over inherited Core modules, so checksum validation and file unblocking remain available.
+  Existing custom module paths are preserved. A child-process regression checks the real bootstrap and hash helper.
+- Workstation source setup preserves an explicit public `nexus-windows@nexus-plugins` choice, including disablement,
+  rather than recreating a personal plugin. It checks the registered catalog and exact installed cache; missing or
+  changed files remain a reported repair without rewriting plugin choices or custom MCP declarations.
+
+### Added
+- Release installation check on an isolated Windows profile, including checksum verification, client declarations,
+  stable-launcher MCP startup and a second installation of the published package.
+
 ## [3.9.1] - 2026-10-30
 
 ### Added

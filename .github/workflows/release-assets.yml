@@ -76,6 +76,23 @@ jobs:
           $lines[($start + 1)..($end - 1)] | Set-Content notes.md -Encoding utf8NoBOM
           gh release create $env:TAG (Get-ChildItem dist -File).FullName --title "NexusWindows $version" --notes-file notes.md --verify-tag
 
+  install-from-release:
+    needs: release
+    if: github.repository == 'pironjulien/NexusWindows' && github.event_name == 'push'
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install and verify the published release in an isolated profile
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: ./.github/scripts/verify-release.ps1 -Tag $env:TAG -Work (Join-Path $env:RUNNER_TEMP ('nexuswindows-release-' + [guid]::NewGuid().ToString('N')))
+
   registry:
     # server.json to the official MCP registry, with the extension just published. mcp-publisher pinned by version and
     # SHA-256; no token stored, no manual login.

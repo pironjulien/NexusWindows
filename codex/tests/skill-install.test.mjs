@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { installSkill, pluginState } from '../lib/skill-install.mjs';
-import { configurationState } from '../lib/plugin-state.mjs';
+import { configurationState, sourceInstallationState, verifyPublicInstallation } from '../lib/plugin-state.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const run = promisify(execFile);
@@ -34,6 +34,45 @@ test('comments and multiline strings never declare a plugin or MCP server', () =
   }
   assert.equal(pluginState('# [plugins."nexus-windows@public"]\n# enabled = true\n'), 'absent');
   assert.equal(pluginState('[unrelated]\n"[plugins.\\"nexus-windows@public\\"]" = "enabled = true"\n'), 'absent');
+});
+
+test('source setup keeps the public choice separate from personal activation and preserves direct MCP state', () => {
+  const config = `[plugins.'nexus-windows@personal']\nenabled=true\n[plugins.'nexus-windows@nexus-plugins']\nenabled=false\n[mcp_servers.nexus-windows]\ncommand='custom.exe'\nenabled=false\n`;
+  assert.deepEqual(sourceInstallationState(config), { plugin: 'disabled', mcp: 'disabled', route: 'public' });
+  assert.deepEqual(configurationState(config, { marketplace: 'nexus-plugins' }), { plugin: 'disabled', mcp: 'disabled' });
+  assert.deepEqual(sourceInstallationState(config.replace('enabled=false\n[mcp_servers', 'enabled=true\n[mcp_servers')),
+    { plugin: 'enabled', mcp: 'disabled', route: 'public' });
+  assert.equal(sourceInstallationState("[plugins.'nexus-windows@personal']\nenabled=false\n").route, 'personal');
+  assert.equal(sourceInstallationState("notes='''\n[plugins.'nexus-windows@nexus-plugins']\nenabled=true\n'''\n").route, 'personal');
+});
+
+test('public source setup verifies the registered catalog and exact cache without creating a personal plugin', async t => {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'nexus-windows-public-'));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const catalog = path.join(temporary, 'catalog'), home = path.join(temporary, 'codex');
+  const source = path.join(catalog, 'codex', 'nexus-windows');
+  const cache = path.join(home, 'plugins', 'cache', 'nexus-plugins', 'nexus-windows', '3.9.2');
+  for (const folder of [path.join(catalog, '.agents', 'plugins'), path.join(source, '.codex-plugin'), path.join(source, 'skills', 'nexus-windows')]) await mkdir(folder, { recursive: true });
+  const metadata = { name: 'nexus-plugins', plugins: [{ name: 'nexus-windows', source: { source: 'local', path: './codex/nexus-windows' } }] };
+  const catalogFile = path.join(catalog, '.agents', 'plugins', 'marketplace.json');
+  await writeFile(catalogFile, JSON.stringify(metadata));
+  await writeFile(path.join(source, '.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'nexus-windows', version: '3.9.2', skills: './skills/', mcpServers: './.mcp.json' }));
+  await writeFile(path.join(source, '.mcp.json'), JSON.stringify({ mcpServers: { 'nexus-windows': { command: 'fixture-native.exe' } } }));
+  await writeFile(path.join(source, 'skills', 'nexus-windows', 'SKILL.md'), 'fixture guide');
+  await assert.rejects(verifyPublicInstallation(home, catalog), /ENOENT/);
+  await cp(source, cache, { recursive: true });
+  const config = "[plugins.'nexus-windows@nexus-plugins']\nenabled=false\n[mcp_servers.nexus-windows]\ncommand='custom.exe'\n";
+  await writeFile(path.join(home, 'config.toml'), config);
+  for (let i = 0; i < 2; i++) assert.deepEqual(await verifyPublicInstallation(home, catalog), { state: 'verified', version: '3.9.2' });
+  assert.equal(await readFile(path.join(home, 'config.toml'), 'utf8'), config);
+  assert.equal(existsSync(path.join(home, 'plugins', 'nexus-windows')), false);
+  assert.equal(existsSync(path.join(home, 'plugins', 'cache', 'personal')), false);
+  await writeFile(path.join(cache, 'skills', 'nexus-windows', 'SKILL.md'), 'damaged cache');
+  await assert.rejects(verifyPublicInstallation(home, catalog), /differs/);
+  await cp(source, cache, { recursive: true });
+  metadata.plugins.push(metadata.plugins[0]);
+  await writeFile(catalogFile, JSON.stringify(metadata));
+  await assert.rejects(verifyPublicInstallation(home, catalog), /unique/);
 });
 
 async function fixture(t) {

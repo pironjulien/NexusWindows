@@ -22,6 +22,14 @@
 param([switch]$Remove, [switch]$Real)
 
 $ErrorActionPreference = 'Stop'
+# A Windows PowerShell child of PowerShell 7 inherits Core-only module folders ahead of its own modules.
+# Restore this host's built-in modules first (Get-FileHash, Unblock-File...), preserving all other module paths.
+if ($PSVersionTable.PSEdition -eq 'Desktop') {
+    $desktopModules = Join-Path $PSHOME 'Modules'
+    $env:PSModulePath = (@($desktopModules) + @($env:PSModulePath -split ';' | Where-Object {
+        $_ -and $_.TrimEnd('\') -ine $desktopModules.TrimEnd('\')
+    })) -join ';'
+}
 $ProgressPreference = 'SilentlyContinue'  # Invoke-WebRequest is many times slower with its progress bar
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
