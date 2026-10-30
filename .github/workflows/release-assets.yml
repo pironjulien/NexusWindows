@@ -11,7 +11,12 @@ name: Release
 on:
   push:
     tags: ["v*.*.*"]
-  workflow_dispatch:  # registry only, for a release already published (server.json of the chosen ref)
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Verify installation of this published tag; leave empty to republish the registry entry'
+        required: false
+        type: string
 
 permissions: {}
 
@@ -78,7 +83,7 @@ jobs:
 
   install-from-release:
     needs: release
-    if: github.repository == 'pironjulien/NexusWindows' && github.event_name == 'push'
+    if: always() && github.repository == 'pironjulien/NexusWindows' && ((github.event_name == 'push' && needs.release.result == 'success') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != ''))
     runs-on: windows-latest
     permissions:
       contents: read
@@ -90,14 +95,14 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
         run: ./.github/scripts/verify-release.ps1 -Tag $env:TAG -Work (Join-Path $env:RUNNER_TEMP ('nexuswindows-release-' + [guid]::NewGuid().ToString('N')))
 
   registry:
     # server.json to the official MCP registry, with the extension just published. mcp-publisher pinned by version and
     # SHA-256; no token stored, no manual login.
     needs: release
-    if: always() && github.repository == 'pironjulien/NexusWindows' && (needs.release.result == 'success' || github.event_name == 'workflow_dispatch')
+    if: always() && github.repository == 'pironjulien/NexusWindows' && (needs.release.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.release_tag == ''))
     runs-on: ubuntu-latest
     permissions:
       id-token: write

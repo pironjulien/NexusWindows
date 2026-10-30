@@ -28,6 +28,8 @@ $testProfile = Join-Path $Work 'profile'
 foreach ($folder in '.claude', '.codex', '.gemini', 'AppData\Roaming\Claude') {
     New-Item -ItemType Directory -Force -Path (Join-Path $testProfile $folder) | Out-Null
 }
+# Without a Claude CLI, the existing user configuration is the evidence that Claude Code is present.
+[IO.File]::WriteAllText((Join-Path $testProfile '.claude.json'), '{}', [Text.UTF8Encoding]::new($false))
 $env:NEXUS_WINDOWS_PROFILE = $testProfile
 $env:NEXUS_WINDOWS_SOURCE = Join-Path $files 'NexusWindows-win-x64.zip'
 $env:NEXUS_PACK = '1'

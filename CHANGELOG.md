@@ -11,6 +11,11 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 
 ## [Unreleased]
 
+### Fixed
+- Release-installation fixture now represents an installed Claude Code with its existing `.claude.json`, so the
+  all-client check tests the same clients as installation. Published tags can be checked again without rebuilding
+  or republishing their assets.
+
 ## [3.9.2] - 2026-10-30
 
 ### Fixed
