@@ -1,0 +1,15 @@
+# Python, Node.js and .NET outputs; caches live outside the repository.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+node_modules/
+build/
+dist/
+bin/
+obj/
+*.log
+*.tmp
+@AutomationLog.txt

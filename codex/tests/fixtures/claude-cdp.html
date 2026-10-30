@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nexus Claude CDP fixture</title>
+<style>
+body{font:18px system-ui;margin:24px;max-width:800px}label{display:block;margin-top:12px}
+textarea,[contenteditable]{box-sizing:border-box;width:680px;min-height:72px;border:1px solid #777;padding:8px;white-space:pre-wrap}
+#drag{width:64px;height:48px;background:#4682b4;color:white;display:grid;place-items:center;user-select:none}
+#drop{width:240px;height:72px;border:2px dashed #777;margin-top:12px}#hover{margin:16px 0;padding:12px;background:#eee}
+pre{font-size:12px;max-height:100px;overflow:auto}
+</style>
+<h1>Fixture CDP locale</h1>
+<p>Aucun compte, formulaire, destinataire ou service externe.</p>
+<label for="notes">Notes</label><textarea id="notes" aria-label="Notes"></textarea>
+<label id="editor-label">Éditeur</label><div id="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="editor-label"></div>
+<div id="shadow-host"></div>
+<label for="color">Couleur</label><select id="color"><option value="red">Rouge</option><option value="sky">Bleu ciel</option><option value="blue">Bleu</option><option value="green">Vert</option></select>
+<div id="hover" role="button" tabindex="0" aria-label="Survol">Survol</div>
+<div id="drag" role="button" tabindex="0" aria-label="Départ">Départ</div><div id="drop" role="button" tabindex="0" aria-label="Arrivée">Arrivée</div>
+<p id="status" role="status">Prêt</p><pre id="journal" aria-label="Journal"></pre>
+<script>
+// The local harness receives an independent event oracle. No application data or remote destination is involved.
+const events=[];
+const notes=document.querySelector('#notes'),editor=document.querySelector('#editor'),color=document.querySelector('#color'),hover=document.querySelector('#hover'),drag=document.querySelector('#drag'),drop=document.querySelector('#drop'),statusNode=document.querySelector('#status');
+const shadow=document.querySelector('#shadow-host').attachShadow({mode:'open'});
+shadow.innerHTML='<label for="shadow-notes">Notes ombre</label><textarea id="shadow-notes" aria-label="Notes ombre" style="width:680px;height:56px"></textarea>';
+const shadowNotes=shadow.querySelector('textarea');
+function richSnapshot(){
+  const glyphs=[],breaks=[];
+  const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT);
+  for(let node=walker.nextNode();node;node=walker.nextNode())for(let offset=0;offset<node.data.length;){
+    const value=String.fromCodePoint(node.data.codePointAt(offset)),range=document.createRange();
+    range.setStart(node,offset);range.setEnd(node,offset+value.length);
+    for(const rect of range.getClientRects())if(rect.height>0){
+      const item={value,left:rect.left,top:rect.top,width:rect.width,height:rect.height};
+      if(value==='\n'||value==='\r')breaks.push(item);else if(rect.width>0)glyphs.push(item);
+    }
+    offset+=value.length;
+  }
+  const paragraphs=[...editor.querySelectorAll('div,p,br')].map(node=>{
+    const rect=node.getBoundingClientRect(),style=getComputedStyle(node);
+    if(node.tagName==='BR'){const range=document.createRange();range.selectNode(node);for(const r of range.getClientRects())if(r.height>0)breaks.push({value:'<br>',left:r.left,top:r.top,width:r.width,height:r.height});}
+    return {tag:node.tagName,textContent:node.textContent,innerText:node.innerText,html:node.innerHTML,display:style.display,whiteSpace:style.whiteSpace,rect:{left:rect.left,top:rect.top,width:rect.width,height:rect.height}};
+  });
+  const lines=new Map();
+  for(const item of [...glyphs,...breaks]){
+    if(!lines.has(item.top))lines.set(item.top,{top:item.top,height:item.height,text:'',breaks:0});
+    const line=lines.get(item.top);if(item.value==='\n'||item.value==='\r'||item.value==='<br>')line.breaks++;else line.text+=item.value;
+  }
+  return {innerHTML:editor.innerHTML,innerText:editor.innerText,textContent:editor.textContent,whiteSpace:getComputedStyle(editor).whiteSpace,
+    paragraphCount:paragraphs.filter(node=>node.tag!=='BR').length,paragraphs,renderedLines:[...lines.values()].sort((a,b)=>a.top-b.top),glyphs,breaks};
+}
+function record(kind,event,extra={}){
+  const item={kind,target:event.target.id,trusted:event.isTrusted,...extra};
+  if(event.target===editor)item.richSnapshot=richSnapshot();
+  events.push(item);
+  document.querySelector('#journal').textContent=JSON.stringify(events,null,2);
+  fetch('/oracle',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(item)}).catch(()=>{});
+}
+for(const element of [notes,editor,color])for(const kind of ['beforeinput','input','change'])element.addEventListener(kind,e=>record(kind,e,{value:element.value??element.innerText,inputType:e.inputType??null,data:e.data??null}));
+for(const kind of ['beforeinput','input'])shadowNotes.addEventListener(kind,e=>record(kind,e,{value:shadowNotes.value,inputType:e.inputType??null,data:e.data??null}));
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey&&e.key.toLowerCase()==='k'){e.preventDefault();statusNode.textContent='Ctrl+K reçu';record('shortcut',e,{key:e.key,ctrl:e.ctrlKey});}
+  else if(e.altKey||e.metaKey||/^F\d+$/.test(e.key)){e.preventDefault();statusNode.textContent=e.altKey&&e.key==='F24'?'Alt+F24 reçu':`${e.key} reçu`;record('key',e,{key:e.key,alt:e.altKey,meta:e.metaKey});}
+});
+hover.addEventListener('mouseenter',e=>{statusNode.textContent='Survol reçu';record('hover',e);});
+let down=false;
+drag.addEventListener('mousedown',e=>{down=true;record('drag-down',e);});
+drop.addEventListener('mouseup',e=>{if(down){down=false;statusNode.textContent='Déplacement reçu';record('drag-up',e);}});
+window.fixtureSnapshot=()=>({notes:notes.value,editor:richSnapshot(),color:color.value,events:[...events]});
+fetch('/ready',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({run:'__NEXUS_FIXTURE_RUN__',href:location.href,title:document.title})}).catch(()=>{});
+</script>
+</html>

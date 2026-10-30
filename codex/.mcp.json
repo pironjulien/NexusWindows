@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "nexus-windows": {
+      "command": "npx",
+      "args": ["-y", "nexus-windows-codex@latest"],
+      "startup_timeout_sec": 120
+    }
+  }
+}

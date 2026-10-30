@@ -1,0 +1,80 @@
+[project]
+name = "nexus-windows-claude"
+version = "3.7.4"
+description = "Background Windows desktop control for Claude: an MCP server that sees and acts without taking the user's mouse, keyboard or foreground"
+authors = [{ name = "Julien Piron" }]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.14"
+keywords = ["mcp", "mcp-server", "windows", "computer-use", "ui-automation", "desktop-automation", "claude"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Desktop Environment",
+]
+dependencies = [
+    # Bureau Windows seulement : ailleurs, le serveur démarre et liste ses outils (offwindows) sans ces dépendances.
+    "comtypes>=1.4.17; sys_platform == 'win32'",
+    "mcp>=2.3.0",
+    "pillow>=13.0.0",
+    "websockets>=17.2",
+    "windows-capture>=2.0.1; sys_platform == 'win32'",
+    # OCR Windows natif en secours d'une fenêtre sans arbre UI Automation (Tk, canevas) : moteur du système, local.
+    "winrt-runtime>=3.2.1; sys_platform == 'win32'",
+    "winrt-windows-foundation>=3.2.1; sys_platform == 'win32'",
+    "winrt-windows-foundation-collections>=3.2.1; sys_platform == 'win32'",
+    "winrt-windows-globalization>=3.2.1; sys_platform == 'win32'",
+    "winrt-windows-graphics-imaging>=3.2.1; sys_platform == 'win32'",
+    "winrt-windows-media-ocr>=3.2.1; sys_platform == 'win32'",
+    "winrt-windows-storage-streams>=3.2.1; sys_platform == 'win32'",
+]
+
+[project.urls]
+Homepage = "https://julienpiron.fr/nexuswindows/claude/"
+Repository = "https://github.com/pironjulien/NexusWindows"
+Changelog = "https://github.com/pironjulien/NexusWindows/blob/main/CHANGELOG.md"
+Issues = "https://github.com/pironjulien/NexusWindows/issues"
+
+[project.scripts]
+nexus-windows-claude = "nexus_windows.reloader:main"
+nexus-windows = "nexus_windows.reloader:main"
+claude-windows-computer-use = "nexus_windows.reloader:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.14.0"]
+build-backend = "uv_build"
+
+# Paquet nexus-windows-claude, module Python nexus_windows (nom d'import inchangé depuis 0.x).
+[tool.uv.build-backend]
+module-name = "nexus_windows"
+
+[dependency-groups]
+dev = [
+    "pyright==1.1.414",
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+# Caches hors de OneDrive (sources synchronisées) : rien de généré dans le dépôt.
+cache-dir = "~/.claude/nexus-claude/cache/ruff"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "E731", "B023"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: tests sur de vraies fenêtres (labo), lents"]
+addopts = "-m 'not live' -p no:cacheprovider"
+
+[tool.pyright]
+# Même contrôle de types que NexusAGY (zéro erreur attendue) : sources, tests, banc et labo.
+include = ["src", "tests", "bench", "lab"]
+pythonVersion = "3.14"
+# Les tests importent leurs voisins (test_contract, test_fix_b…, tests/live/drive) ; labo et banc, leurs modules frères.
+extraPaths = ["src", "tests", "tests/live", "lab", "bench", "../commun"]

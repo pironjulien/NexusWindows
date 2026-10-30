@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>NexusCodex.UIA</AssemblyName>
+    <Version>3.8.0</Version>
+    <!-- Le contenu du runtime est identifié par ses SHA-256 ; ne pas lui attribuer le dernier commit
+         si une qualification est construite depuis le worktree courant. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Sorties d'une compilation faite dans ce dossier (obj, bin) : jamais compilees comme sources quand l'installeur
+         deporte BaseIntermediateOutputPath hors de OneDrive (AssemblyInfo en double, relecture de Codex du 24/10). -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Logo de l'indicateur « agent au travail » (BusyIndicator.cs), lu a cote de l'executable. -->
+    <None Include="logo.png" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="NativeSchemas.json" LogicalName="NexusWindows.Contracts" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+ xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" IgnorableNamespaces="uap">
+ <Identity Name="__FIXTURE_NAME__" Publisher="CN=NexusPrivateQualification" Version="1.0.0.0" ProcessorArchitecture="x64"/>
+ <Properties>
+  <DisplayName>Nexus private UWP qualification</DisplayName>
+  <PublisherDisplayName>Nexus private local test</PublisherDisplayName>
+  <Logo>Assets\StoreLogo.png</Logo>
+ </Properties>
+ <Dependencies>
+  <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26300.0"/>
+  <PackageDependency Name="Microsoft.VCLibs.140.00" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" MinVersion="14.0.33519.0"/>
+ </Dependencies>
+ <Resources><Resource Language="en-us"/></Resources>
+ <Applications>
+  <Application Id="App" Executable="NexusUwpFixture.exe" EntryPoint="NexusPrivateQualification.App">
+   <uap:VisualElements DisplayName="Nexus private UWP qualification" Description="Isolated local lifecycle test"
+    BackgroundColor="transparent" Square150x150Logo="Assets\Square150.png" Square44x44Logo="Assets\Square44.png"/>
+  </Application>
+ </Applications>
+</Package>

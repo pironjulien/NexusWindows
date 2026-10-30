@@ -1,0 +1,48 @@
+{
+  "name": "nexus-windows-codex",
+  "version": "3.8.0",
+  "description": "NexusWindows for Codex: Windows computer use in the background for OpenAI Codex (MCP server and Codex skill).",
+  "type": "module",
+  "license": "MIT",
+  "author": "Julien Piron",
+  "mcpName": "io.github.pironjulien/nexus-windows-codex",
+  "homepage": "https://julienpiron.fr/nexuswindows/codex/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pironjulien/NexusWindows.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pironjulien/NexusWindows/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "codex",
+    "windows",
+    "computer-use",
+    "ui-automation"
+  ],
+  "bin": {
+    "nexus-windows-codex": "bin/nexus-windows-codex.mjs"
+  },
+  "files": [
+    ".codex-plugin/",
+    ".mcp.json",
+    "assets/",
+    "skills/",
+    "bin/",
+    "lib/",
+    "native/bin/",
+    "garde-fous.json",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "SECURITY.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}

@@ -1,0 +1,32 @@
+# Dependabot: weekly updates of the pinned GitHub Actions and of each profile's dependencies, with a 7-day cooldown.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: uv
+    directories:
+      - /claude
+      - /agy
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  - package-ecosystem: npm
+    directory: /codex
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  - package-ecosystem: nuget
+    directory: /codex/native
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7

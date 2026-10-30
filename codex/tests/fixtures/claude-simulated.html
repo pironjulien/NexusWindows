@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<title>Nexus simulated __NEXUS_FIXTURE_RUN__</title>
+<style>
+body{font:18px system-ui;margin:24px}label{display:block;margin-top:12px}
+textarea,[contenteditable]{box-sizing:border-box;width:680px;min-height:80px;border:1px solid #777;padding:8px;white-space:pre-wrap}
+</style>
+<h1>Qualification locale sans DevTools</h1>
+<p>Aucun service externe.</p>
+<label for="notes">Notes</label><textarea id="notes" aria-label="Notes"></textarea>
+<label id="editor-label">Éditeur</label><div id="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="editor-label"></div>
+<label for="adversary">Brouillon adversaire</label><textarea id="adversary" aria-label="Brouillon adversaire"></textarea>
+<button id="send" hidden>Envoyer</button>
+<script>
+const notes=document.querySelector('#notes'),editor=document.querySelector('#editor'),adversary=document.querySelector('#adversary'),send=document.querySelector('#send');
+const adversaryCounts={input:0,enter:0,submit:0};
+// Read-only renderer oracle, identical to the CDP fixture: no selection, focus or page edits.
+function richSnapshot(){
+  const glyphs=[],breaks=[];
+  const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT);
+  for(let node=walker.nextNode();node;node=walker.nextNode())for(let offset=0;offset<node.data.length;){
+    const value=String.fromCodePoint(node.data.codePointAt(offset)),range=document.createRange();
+    range.setStart(node,offset);range.setEnd(node,offset+value.length);
+    for(const rect of range.getClientRects())if(rect.height>0){
+      const item={value,left:rect.left,top:rect.top,width:rect.width,height:rect.height};
+      if(value==='\n'||value==='\r')breaks.push(item);else if(rect.width>0)glyphs.push(item);
+    }
+    offset+=value.length;
+  }
+  const paragraphs=[...editor.querySelectorAll('div,p,br')].map(node=>{
+    const rect=node.getBoundingClientRect(),style=getComputedStyle(node);
+    if(node.tagName==='BR'){const range=document.createRange();range.selectNode(node);for(const r of range.getClientRects())if(r.height>0)breaks.push({value:'<br>',left:r.left,top:r.top,width:r.width,height:r.height});}
+    return {tag:node.tagName,textContent:node.textContent,innerText:node.innerText,html:node.innerHTML,display:style.display,whiteSpace:style.whiteSpace,rect:{left:rect.left,top:rect.top,width:rect.width,height:rect.height}};
+  });
+  const lines=new Map();
+  for(const item of [...glyphs,...breaks]){
+    if(!lines.has(item.top))lines.set(item.top,{top:item.top,height:item.height,text:'',breaks:0});
+    const line=lines.get(item.top);if(item.value==='\n'||item.value==='\r'||item.value==='<br>')line.breaks++;else line.text+=item.value;
+  }
+  return {innerHTML:editor.innerHTML,innerText:editor.innerText,textContent:editor.textContent,whiteSpace:getComputedStyle(editor).whiteSpace,
+    paragraphCount:paragraphs.filter(node=>node.tag!=='BR').length,paragraphs,renderedLines:[...lines.values()].sort((a,b)=>a.top-b.top),glyphs,breaks};
+}
+function record(kind,event,extra={}){
+  const item={kind,target:event.target.id,trusted:event.isTrusted,...extra};
+  if(event.target===editor)item.richSnapshot=richSnapshot();
+  fetch('/oracle',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(item)}).catch(()=>{});
+}
+for(const element of [notes,editor,adversary])for(const kind of ['beforeinput','input','change'])element.addEventListener(kind,e=>record(kind,e,{value:element.value??element.innerText,inputType:e.inputType??null,data:e.data??null}));
+adversary.addEventListener('input',e=>{adversaryCounts.input++;if(adversary.value.startsWith('A')&&send.hidden){send.hidden=false;record('send-revealed',e,{value:adversary.value});}});
+adversary.addEventListener('keydown',e=>{if(e.key==='Enter'){adversaryCounts.enter++;record('enter',e,{value:adversary.value});if(!send.hidden){e.preventDefault();adversaryCounts.submit++;record('adversary-submit',e,{value:adversary.value});}}});
+send.addEventListener('click',e=>{adversaryCounts.submit++;record('adversary-submit',e,{value:adversary.value});});
+fetch('/ready',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({run:'__NEXUS_FIXTURE_RUN__',href:location.href,title:document.title})}).catch(()=>{});
+// A fresh read-only checkpoint requested after the MCP result proves negative event assertions without
+// assuming the independent POSTs arrive in order or adding a sleep to hide an unacknowledged key.
+let lastCheckpoint=0;
+async function checkpoint(){
+  try{
+    const request=await(await fetch('/checkpoint')).json();
+    if(request.sequence>lastCheckpoint){
+      lastCheckpoint=request.sequence;
+      await fetch('/checkpoint',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({run:'__NEXUS_FIXTURE_RUN__',sequence:lastCheckpoint,value:adversary.value,sendVisible:!send.hidden,counts:{...adversaryCounts}})});
+    }
+  }catch{}finally{setTimeout(checkpoint,161);}
+}
+checkpoint();
+</script>
+</html>

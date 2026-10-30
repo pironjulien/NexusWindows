@@ -1,0 +1,29 @@
+{
+  "name": "nexus-windows",
+  "version": "3.8.0",
+  "description": "NexusWindows for Codex: Windows desktop apps operated in the background, every action read back.",
+  "author": {
+    "name": "Julien Piron",
+    "url": "https://julienpiron.fr"
+  },
+  "homepage": "https://julienpiron.fr/nexuswindows/codex/",
+  "repository": "https://github.com/pironjulien/NexusWindows",
+  "license": "MIT",
+  "keywords": [
+    "windows",
+    "computer-use",
+    "ui-automation",
+    "mcp"
+  ],
+  "mcpServers": "./.mcp.json",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "NexusWindows",
+    "shortDescription": "Windows apps in the background, every action read back",
+    "developerName": "Julien Piron",
+    "category": "Productivity",
+    "websiteURL": "https://julienpiron.fr/nexuswindows/codex/",
+    "composerIcon": "./assets/composer-icon.png",
+    "logo": "./assets/logo.png"
+  }
+}
