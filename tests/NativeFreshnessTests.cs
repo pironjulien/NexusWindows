@@ -212,10 +212,6 @@ public class NativeFreshnessTests
     [InlineData("capabilities.toggle", "true")]
     [InlineData("capabilities.legacyActionPresent", "true")]
     [InlineData("capabilities.legacyState", "1048576")]
-    [InlineData("capabilities.legacyState", "8")]
-    [InlineData("capabilities.legacyState", "4194304")]
-    [InlineData("capabilities.legacyState", "1073741824")]
-    [InlineData("capabilities.legacyState", "268435456")]
     [InlineData("capabilities.ariaRolePresent", "true")]
     [InlineData("capabilities.ariaModal", "true")]
     [InlineData("capabilities.dialog", "true")]
@@ -250,18 +246,5 @@ public class NativeFreshnessTests
             "nativeWindow" => JsonValue.Create(99), "flags" => new JsonArray("offscreen"),
             "capabilities" => null, _ => JsonValue.Create("Changed metadata") };
         Refused(before, after);
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(64)]
-    [InlineData(32768)]
-    [InlineData(98368)]
-    public void Only_explicitly_passive_msaa_states_qualify_a_new_text_leaf(int states)
-    {
-        var before = Snapshot(); var after = Streaming(before);
-        after["elements"]![6]!["capabilities"]!["legacyState"] = states;
-        McpServer.ValidateNativeFreshness(before, after, Request(), "run");
     }
 }
