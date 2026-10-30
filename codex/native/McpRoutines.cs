@@ -22,7 +22,10 @@ static partial class McpServer
             var name = Str(e, "name");
             if (role == "tab" && !string.IsNullOrEmpty(name))
             {
-                name = Regex.Replace(name, @"\s*-\s*Utilisation de la mémoire\s*-\s*\d+[\s\u00A0]*(?:Mo|Ko|Go|MB|KB|GB)", "", RegexOptions.IgnoreCase);
+                // Chromium appends this localized AX metric, including decimal values below 100 units.
+                // Match its complete suffix only: page-title text and other controls retain their strict hash.
+                name = Regex.Replace(name, @"\s+-\s+(?:Utilisation (?:élevée )?de la mémoire|(?:High )?memory usage)\s+-\s+[0-9]+(?:[.,][0-9]+)?\s*(?:[KMGTPE](?:o|B))\z", "",
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             }
             a.Add(new JsonArray(e["depth"]?.DeepClone(), e["role"]?.DeepClone(), e["automationId"]?.DeepClone(),
                 JsonValue.Create(role is "button" or "tab" or "menuitem" or "checkbox" or "radio" or "combobox" ? name : "")));

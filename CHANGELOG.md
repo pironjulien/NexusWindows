@@ -16,6 +16,12 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
   The candidate and qualification work are preserved on branch `codex/native-freshness-3.9.3`; public behavior remains 3.9.2.
 
 ### Fixed
+- Classic editable combo boxes, including the common file picker, expose their live edit text as the combo value.
+  Empty text also replaces a stale provider value, so a background write can be verified against the same control.
+  Hidden Win32 control regressions cover file paths, clearing the field, selected options and synthetic edit input.
+- Chrome tab structure checks ignore only the terminal memory-usage metric in French and English, including high
+  memory and localized decimal values. Actual tab titles, group names, control identities and other controls remain
+  part of the strict structure hash; title text that resembles a metric in the middle is preserved.
 - Release-installation fixture now represents an installed Claude Code with its existing `.claude.json`, so the
   all-client check tests the same clients as installation. Published tags can be checked again without rebuilding
   or republishing their assets.

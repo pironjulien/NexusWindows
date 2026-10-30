@@ -367,11 +367,15 @@ unsafe sealed partial class ComUia
         };
         int[] under = [.. combo.Ancestors, combo.Index];
         var edit = Win32.FindWindowExW(hwnd, 0, "Edit", null);
+        var editValueRead = false;
         if (edit != 0)
         {
             var field = Child("edit", combo.Name, SyntheticEdit, 0, combo.Depth + 1, under);
             field.NativeWindow = edit;
             field.Value = Win32.SendGetText(edit, Win32.WM_GETTEXTLENGTH, Win32.WM_GETTEXT, 0, false);
+            // Editable combos (notably the common file dialog) can expose an empty or stale UIA Value.
+            // The live Edit text is authoritative, including an intentionally cleared field.
+            if (!combo.Password && field.Value != null) { combo.Value = field.Value; editValueRead = true; }
             field.Disabled = combo.Disabled || !Win32.IsWindowEnabled(edit);
             tree.Add(field);
         }
@@ -384,7 +388,7 @@ unsafe sealed partial class ComUia
             var text = Win32.SendGetText(hwnd, Win32.CB_GETLBTEXTLEN, Win32.CB_GETLBTEXT, i, true) ?? "";
             var item = tree.Add(Child("listitem", text, SyntheticItem, i, combo.Depth + 2, [.. under, list.Index]));
             item.Selected = i == chosen;
-            if (i == chosen && string.IsNullOrEmpty(combo.Value)) combo.Value = text;
+            if (!editValueRead && i == chosen && string.IsNullOrEmpty(combo.Value)) combo.Value = text;
         }
     }
 
