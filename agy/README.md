@@ -21,7 +21,7 @@ Antigravity (Gemini) see and operate Windows desktop applications while the user
 foreground window. Built for a fast model: one look, then one batch of steps with label targets, and every reply
 says what to do next.
 
-Version 3.9.2 · Windows 10/11 (x64, ARM64) · native .NET 10, nothing else to install · MIT licence
+Version 3.9.3 · Windows 10/11 (x64, ARM64) · native .NET 10, nothing else to install · MIT licence
 
 Part of the Nexus family: [NexusWindows](https://julienpiron.fr/nexuswindows/)
 ([Claude](https://github.com/pironjulien/NexusWindows) ·

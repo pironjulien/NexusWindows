@@ -568,7 +568,8 @@ static partial class Program
                 value = n.Value, valueTruncated = n.ValueTruncated, description = n.Description, disabled = n.Disabled, selected = n.Selected, @checked = n.Checked,
                 expanded = n.Expanded, focused = n.Focused, visible = !n.Offscreen && n.Bounds.Length == 4 && n.Bounds[2] > 0 && n.Bounds[3] > 0, password = n.Password, actions = n.Actions, ancestors = n.Ancestors, runtimeId = n.RuntimeId,
                 nativeWindow = (long)n.NativeWindow, bounds = n.Bounds,
-                accessKey = n.AccessKey, isDefault = n.IsDefault, invoke = n.HasInvoke, flags = n.Offscreen ? new[] { "offscreen" } : Array.Empty<string>() }).ToList() }; // avant la liberation de l'arbre
+                accessKey = n.AccessKey, isDefault = n.IsDefault, invoke = n.HasInvoke, capabilities = n.Capabilities,
+                flags = n.Offscreen ? new[] { "offscreen" } : Array.Empty<string>() }).ToList() }; // avant la liberation de l'arbre
     }
 
     // Une continuation doit refuser une identite manquante ; ni le PID ni un runtime UIA ne distinguent seuls un

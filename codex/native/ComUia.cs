@@ -29,7 +29,10 @@ unsafe sealed partial class ComUia
         HelpTextProperty = 30013, IsPasswordProperty = 30019, NativeWindowHandleProperty = 30020, IsOffscreenProperty = 30022, FrameworkIdProperty = 30024,
         IsExpandCollapseAvailable = 30028, IsInvokeAvailable = 30031, IsSelectionItemAvailable = 30036, IsSelectionAvailable = 30037,
         IsTextAvailable = 30040, IsToggleAvailable = 30041, IsValueAvailable = 30043, ValueValueProperty = 30045,
-        ExpandCollapseStateProperty = 30070, SelectionItemIsSelectedProperty = 30079, ToggleStateProperty = 30086;
+        ExpandCollapseStateProperty = 30070, SelectionItemIsSelectedProperty = 30079, ToggleStateProperty = 30086,
+        IsKeyboardFocusableProperty = 30009, IsRangeValueAvailable = 30033, IsScrollAvailable = 30034,
+        IsLegacyAvailable = 30090, LegacyDefaultActionProperty = 30100, AriaRoleProperty = 30101, AriaPropertiesProperty = 30102,
+        IsDialogProperty = 30174, WindowIsModalProperty = 30077;
     static readonly int[] TreeProperties =
     [
         RuntimeIdProperty, BoundingRectangleProperty, ProcessIdProperty, ControlTypeProperty, NameProperty, HasKeyboardFocusProperty,
@@ -37,6 +40,8 @@ unsafe sealed partial class ComUia
         IsExpandCollapseAvailable, IsInvokeAvailable, IsSelectionItemAvailable, IsSelectionAvailable, IsTextAvailable, IsToggleAvailable,
         IsValueAvailable, ValueValueProperty, ExpandCollapseStateProperty, SelectionItemIsSelectedProperty, ToggleStateProperty,
         AccessKeyProperty, LegacyIAccessibleStateProperty, // garde-fous : raccourci Alt et bouton par defaut (STATE_SYSTEM_DEFAULT)
+        IsKeyboardFocusableProperty, IsRangeValueAvailable, IsScrollAvailable, IsLegacyAvailable,
+        LegacyDefaultActionProperty, AriaRoleProperty, AriaPropertiesProperty, IsDialogProperty, WindowIsModalProperty,
     ];
     const int TreeScopeElement = 1, TreeScopeChildren = 2, TreeScopeSubtree = 7;
     const ushort VT_I4 = 3, VT_R8 = 5, VT_BSTR = 8, VT_BOOL = 11, VT_ARRAY = 0x2000;
@@ -501,6 +506,19 @@ unsafe sealed partial class ComUia
             HasInvoke = CachedBool(element, IsInvokeAvailable) == true, HasToggle = CachedBool(element, IsToggleAvailable) == true,
             HasText = hasText, Bounds = Bounds(element), Offscreen = CachedBool(element, IsOffscreenProperty) == true,
             AccessKey = CachedString(element, AccessKeyProperty) ?? "", IsDefault = ((CachedInt(element, LegacyIAccessibleStateProperty) ?? 0) & 0x100) != 0,
+            // Preserve unsupported values as null: absence is not evidence that a changing text control is passive.
+            Capabilities = new {
+                focusable = CachedBool(element, IsKeyboardFocusableProperty), focused = CachedBool(element, HasKeyboardFocusProperty),
+                invoke = CachedBool(element, IsInvokeAvailable), toggle = CachedBool(element, IsToggleAvailable),
+                selectionItem = CachedBool(element, IsSelectionItemAvailable), selection = CachedBool(element, IsSelectionAvailable),
+                expandCollapse = CachedBool(element, IsExpandCollapseAvailable), value = CachedBool(element, IsValueAvailable),
+                rangeValue = CachedBool(element, IsRangeValueAvailable), scroll = CachedBool(element, IsScrollAvailable),
+                legacy = CachedBool(element, IsLegacyAvailable), legacyActionPresent = Present(CachedString(element, LegacyDefaultActionProperty)),
+                legacyState = CachedInt(element, LegacyIAccessibleStateProperty), accessKeyPresent = Present(CachedString(element, AccessKeyProperty)),
+                ariaRolePresent = Present(CachedString(element, AriaRoleProperty)), ariaPropertiesPresent = Present(CachedString(element, AriaPropertiesProperty)),
+                ariaModal = AriaModal(CachedString(element, AriaPropertiesProperty)),
+                dialog = CachedBool(element, IsDialogProperty), modal = CachedBool(element, WindowIsModalProperty),
+            },
         };
         if (CachedBool(element, IsExpandCollapseAvailable) == true)
         {
@@ -512,6 +530,19 @@ unsafe sealed partial class ComUia
             }
         }
         return node;
+    }
+    static bool? Present(string? value) => value == null ? null : value.Length > 0;
+    static bool? AriaModal(string? properties)
+    {
+        if (properties == null || properties.Contains('\\')) return null;
+        foreach (var property in properties.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pair = property.Split('=', 2);
+            if (pair.Length != 2) return null;
+            if (pair[0].Trim().Equals("modal", StringComparison.OrdinalIgnoreCase))
+                return bool.TryParse(pair[1], out var modal) ? modal : null;
+        }
+        return false;
     }
     double[] Bounds(nint element)
     {
@@ -939,6 +970,7 @@ sealed class Node
     public required int[] RuntimeId, Ancestors;
     public required double[] Bounds;
     public List<string> Actions = new();
+    public object? Capabilities;
 }
 
 sealed class UiTree : IDisposable
