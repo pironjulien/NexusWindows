@@ -14,6 +14,7 @@ public class McpStdioTests
     {
         readonly Process process;
         int id;
+        bool disposed;
         public int Pid => process.Id;
 
         public Server(string[] arguments, IDictionary<string, string>? environment = null)
@@ -48,6 +49,8 @@ public class McpStdioTests
 
         public void Dispose()
         {
+            if (disposed) return;
+            disposed = true;
             try { process.StandardInput.Close(); if (!process.WaitForExit(5000)) process.Kill(true); } catch (InvalidOperationException) { }
             process.Dispose();
         }
@@ -62,6 +65,13 @@ public class McpStdioTests
         using var server = new Server(["--mcp", "--agent", agent]);
         var discover = server.Rpc("server/discover");
         Assert.Equal($"nexus-windows-{agent}", discover["result"]!["_meta"]!["io.modelcontextprotocol/serverInfo"]!["name"].S());
+        var runtime = discover["result"]!["_meta"]![RuntimeReceipt.MetadataKey]!;
+        Assert.Equal(server.Pid, runtime["pid"].I());
+        Assert.Equal(agent, runtime["agent"].S());
+        Assert.Equal(Version, runtime["version"].S());
+        Assert.Matches("^[a-f0-9]{64}$", runtime["assemblySha256"].S());
+        var initialized = server.Rpc("initialize", new { protocolVersion = "2025-11-25", capabilities = new { }, clientInfo = new { name = "receipt-test", version = "1" } });
+        SelfTest.Same(runtime.ToJsonString(), initialized["result"]!["_meta"]![RuntimeReceipt.MetadataKey]);
         var names = server.Rpc("tools/list")["result"]!["tools"]!.AsArray().Select(t => t!["name"].S());
         Assert.Equal(agent == "claude" ? ["windows", "look", "act", "launch", "window", "logs", "notifications"] : ["windows", "look", "act", "launch", "window"], names);
         var call = server.Rpc("tools/call", new
@@ -72,6 +82,10 @@ public class McpStdioTests
         });
         Assert.Equal("complete", call["result"]!["resultType"].S());
         Assert.IsType<JsonArray>(call["result"]!["structuredContent"]!["windows"]);
+        var receiptFile = Directory.GetFiles(Path.Combine(TestEnvironment.SharedHome, "status", "runtime"), $"windows-{agent}-{server.Pid}-*.json").Single();
+        Assert.Equal("idle", JsonNode.Parse(File.ReadAllText(receiptFile))!["state"].S());
+        server.Dispose();
+        Assert.Equal("stopped", JsonNode.Parse(File.ReadAllText(receiptFile))!["state"].S());
     }
 
     [Fact]

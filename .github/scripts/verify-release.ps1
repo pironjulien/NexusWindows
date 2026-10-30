@@ -39,6 +39,22 @@ foreach ($pass in 1..2) {
     & $shell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $installer
     if ($LASTEXITCODE) { throw "Release installation failed on pass $pass." }
 }
+if ([version]$Tag.TrimStart('v') -ge [version]'3.9.5') {
+    # A maintenance pass must not register clients or rewrite configuration, even when those clients are present.
+    $clientFiles = @()
+    foreach ($relative in '.claude', '.codex', '.gemini', 'AppData\Roaming\Claude') {
+        $clientFiles += @(Get-ChildItem -LiteralPath (Join-Path $testProfile $relative) -Recurse -File)
+    }
+    if (Test-Path -LiteralPath (Join-Path $testProfile '.claude.json')) { $clientFiles += Get-Item -LiteralPath (Join-Path $testProfile '.claude.json') }
+    $beforeMaintenance = @{}
+    foreach ($file in $clientFiles) { $beforeMaintenance[$file.FullName] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash }
+    $env:NEXUS_PACK_TARGETS = 'codex,claude-code,antigravity'
+    & $shell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $installer -UpdateOnly -RefreshExistingProfiles
+    if ($LASTEXITCODE) { throw 'Release maintenance failed.' }
+    foreach ($path in $beforeMaintenance.Keys) {
+        if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -cne $beforeMaintenance[$path]) { throw "Maintenance changed existing client file: $path" }
+    }
+}
 $stable = Join-Path $testProfile '.nexus\nexus-windows\NexusWindows.exe'
 $runtime = Get-Content -LiteralPath (Join-Path $testProfile '.nexus\nexus-windows\installation.json') -Raw | ConvertFrom-Json
 if ($runtime.Version -ne $Tag.TrimStart('v')) { throw 'The installed version differs from the release.' }

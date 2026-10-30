@@ -47,6 +47,17 @@ Claude Code, Claude Desktop, Codex and Antigravity when they are present. Every 
 it. Release files carry a build provenance attestation (`gh attestation verify <file> --repo pironjulien/NexusWindows`).
 The Claude Desktop extension is `nexus-windows-claude.mcpb` in each release.
 
+For unattended maintenance of an existing installation, NexusSystem calls `get.ps1 -UpdateOnly`: it updates only
+the installed engine and stable launcher, without registering or enabling clients. `-RefreshExistingProfiles`
+additionally refreshes the shipped files of an already installed, active Antigravity plugin. Disabled or custom
+declarations and client configuration remain unchanged. Running sessions keep their engine; new connections use
+the new version. The launcher itself never downloads updates.
+
+Each MCP session writes an atomic runtime receipt under `%USERPROFILE%\.nexus\status\runtime`, with its actual PID,
+process birth, loaded executable, assembly SHA-256, version and idle/busy/stopped lifecycle. MCP initialization and
+discovery expose the same identity. A receipt must be checked against the live process and its AI host before it
+can establish that a particular AI uses the installed version; an installation manifest alone cannot prove this.
+
 ## Layout
 
 - `codex/native/`: the common C# (.NET 10) engine, `NexusWindows.exe`, serving the three profiles as MCP stdio

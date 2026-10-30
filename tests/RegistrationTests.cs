@@ -215,4 +215,50 @@ public sealed class RegistrationTests : IDisposable
         Assert.Equal("C:\\mine.exe", (string)Read(Path.Combine(target, "mcp_config.json"))["mcpServers"]!["nexus-windows"]!["command"]!);
         Assert.Equal("guide", File.ReadAllText(Path.Combine(target, @"skills\nexus-windows\SKILL.md")));
     }
+
+    [Fact]
+    public void Maintenance_refreshes_only_an_existing_active_plugin_without_changing_any_configuration()
+    {
+        var source = AntigravitySource();
+        var target = Path.Combine(profile.Home, @".gemini\config\plugins\nexus-windows");
+        Assert.Equal("absent (not created)", Registration.RefreshInstalled(profile, source));
+        Assert.False(Directory.Exists(target));
+        Run("antigravity", source: source);
+        var config = Path.Combine(profile.Home, @".gemini\config\config.json");
+        var global = Path.Combine(profile.Home, @".gemini\config\mcp_config.json");
+        Put(config, """{"plugins":{"nexus-windows":{"enabled":true}},"custom":"kept"}""");
+        Put(global, """{"mcpServers":{"mine":{"command":"custom.exe"}}}""");
+        var declaration = Path.Combine(target, "mcp_config.json");
+        var unchanged = new[] { config, global, declaration }.ToDictionary(p => p, File.ReadAllBytes);
+        Put(Path.Combine(source, @"skills\nexus-windows\SKILL.md"), "updated guide");
+        Put(Path.Combine(target, "my-notes.txt"), "custom asset");
+        Assert.StartsWith("updated", Registration.RefreshInstalled(profile, source));
+        Assert.Equal("updated guide", File.ReadAllText(Path.Combine(target, @"skills\nexus-windows\SKILL.md")));
+        Assert.Equal("custom asset", File.ReadAllText(Path.Combine(target, "my-notes.txt")));
+        foreach (var (path, content) in unchanged) Assert.Equal(content, File.ReadAllBytes(path));
+        Assert.Equal("already up to date", Registration.RefreshInstalled(profile, source));
+    }
+
+    [Theory]
+    [InlineData("{\"plugins\":{\"nexus-windows\":{\"enabled\":false}}}", false, false)]
+    [InlineData("{\"plugins\":{\"nexus-windows\":false}}", false, false)]
+    [InlineData("{}", true, false)]
+    [InlineData("{}", false, true)]
+    public void Maintenance_keeps_disabled_or_custom_plugins_exactly(string settings, bool disabled, bool custom)
+    {
+        var source = AntigravitySource();
+        Run("antigravity", source: source);
+        var target = Path.Combine(profile.Home, @".gemini\config\plugins\nexus-windows");
+        Put(Path.Combine(profile.Home, @".gemini\config\config.json"), settings);
+        var file = Path.Combine(target, "mcp_config.json");
+        var declaration = Read(file);
+        var server = declaration["mcpServers"]!["nexus-windows"]!;
+        if (disabled) server["disabled"] = true;
+        if (custom) server["command"] = "mine.exe";
+        Put(file, declaration.ToJsonString());
+        var before = Directory.GetFiles(target, "*", SearchOption.AllDirectories).ToDictionary(p => p, File.ReadAllBytes);
+        Put(Path.Combine(source, @"skills\nexus-windows\SKILL.md"), "new guide");
+        Assert.StartsWith("kept", Registration.RefreshInstalled(profile, source));
+        foreach (var (path, content) in before) Assert.Equal(content, File.ReadAllBytes(path));
+    }
 }

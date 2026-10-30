@@ -15,6 +15,20 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 - Deferred experimental native freshness reconciliation until unsupported UIA properties provide reliable proof.
   The candidate and qualification work are preserved on branch `codex/native-freshness-3.9.3`; this experimental work is not included in 3.9.4.
 
+## [3.9.5] - 2026-10-30
+
+### Added
+- Public `get.ps1 -UpdateOnly` maintenance installs the engine alongside running sessions without registering,
+  enabling or creating any client. Optional `-RefreshExistingProfiles` refreshes an already active Antigravity
+  plugin's shipped files while preserving all configuration, disabled/custom declarations and unrelated assets.
+- MCP discovery and initialization expose the actual process identity and assembly SHA-256. Atomic runtime
+  receipts record each session's PID, exact process birth, agent, version, loaded executable and assembly hash,
+  with idle/busy/stopped lifecycle. A saved receipt alone is not proof that an AI host loaded the engine.
+
+### Fixed
+- Public and source installers share installation exclusion, preventing concurrent launcher/manifest swaps.
+  Existing MCP sessions continue with their current engine; new connections use the installed version.
+
 ## [3.9.4] - 2026-10-30
 
 ### Changed

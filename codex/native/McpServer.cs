@@ -12,7 +12,7 @@ using System.Text.Json.Nodes;
 // - Applique les garde-fous communs (GardeFous.cs), journalise chaque action (Journal.cs) et pilote Windows en processus via Program.Execute.
 static partial class McpServer
 {
-    public const string Version = "3.9.4";
+    public const string Version = "3.9.5";
     static readonly string[] ModernProtocolVersions = ["2026-07-28"];
     static readonly string[] LegacyProtocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
     const string ProtocolVersionMeta = "io.modelcontextprotocol/protocolVersion";
@@ -621,7 +621,11 @@ static partial class McpServer
                         ["ttlMs"] = 0,
                         ["cacheScope"] = "private",
                         ["resultType"] = "complete",
-                        ["_meta"] = new JsonObject { [ServerInfoMeta] = serverInfo.DeepClone() },
+                        ["_meta"] = new JsonObject
+                        {
+                            [ServerInfoMeta] = serverInfo.DeepClone(),
+                            [RuntimeReceipt.MetadataKey] = RuntimeReceipt.Identity(state.Agent, state.SessionId),
+                        },
                     },
                 };
 
@@ -643,6 +647,7 @@ static partial class McpServer
                     ["capabilities"] = new JsonObject { ["tools"] = new JsonObject { ["listChanged"] = false } },
                     ["serverInfo"] = serverInfo.DeepClone(),
                     ["instructions"] = instructions,
+                    ["_meta"] = new JsonObject { [RuntimeReceipt.MetadataKey] = RuntimeReceipt.Identity(state.Agent, state.SessionId) },
                 });
             }
 
@@ -725,10 +730,10 @@ static partial class McpServer
         Environment.SetEnvironmentVariable("NEXUS_AGENT", normalizedAgent);
         GardeFous.EnsureDefaultPolicy();
         EmergencyStop.Watch();
+        var state = new SessionState(normalizedAgent);
+        using var receipt = new RuntimeReceipt(normalizedAgent, state.SessionId);
         using var nativeGuard = NativeMcpGuard.Start(Version);
         WriteStatusFile(normalizedAgent);
-
-        var state = new SessionState(normalizedAgent);
         // stdin est lu par un fil dedie pendant qu'une requete s'execute : une notifications/cancelled visant la requete
         // en cours l'arrete a sa prochaine garde (RequestCancellation). Les requetes restent traitees une a une, dans
         // l'ordre ; EOF apres un lot laisse finir ce qui est deja recu (verify-native-profiles.py, sondes).
@@ -753,8 +758,9 @@ static partial class McpServer
         {
             RequestCancellation.Begin(RequestId(message));
             JsonObject? response;
+            receipt.Write("busy");
             try { response = HandleMessage(state, message); }
-            finally { RequestCancellation.End(); }
+            finally { RequestCancellation.End(); receipt.Write("idle"); }
             if (response != null)
             {
                 Console.WriteLine(response.ToJsonString(JsonOut));

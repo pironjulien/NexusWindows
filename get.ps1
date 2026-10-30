@@ -12,6 +12,8 @@
 # Running sessions keep their engine; new ones get the new version. Finally the clients found on this PC are declared:
 # Claude Code (or its nexus-windows plugin), Claude Desktop, Codex, Antigravity. An entry of your own is kept.
 # Run it again to update.
+# -UpdateOnly updates an existing engine without creating or changing client declarations. NexusSystem uses this
+# for unattended maintenance; -RefreshExistingProfiles also refreshes an already active Antigravity plugin's files.
 # NEXUS_PACK=1 (the Nexus pack, get-nexus.ps1): no question, no window; exit code 0 on success; a last
 # "NEXUS_PACK_RESULT ..." line.
 # For tests only: NEXUS_WINDOWS_SOURCE (a local NexusWindows-win-<arch>.zip instead of the latest release) and
@@ -19,7 +21,7 @@
 # the real profile and the Claude CLI are never touched). A local package aimed at the real profile is refused unless
 # -Real is given.
 [CmdletBinding()]
-param([switch]$Remove, [switch]$Real)
+param([switch]$Remove, [switch]$Real, [switch]$UpdateOnly, [switch]$RefreshExistingProfiles)
 
 $ErrorActionPreference = 'Stop'
 # A Windows PowerShell child of PowerShell 7 inherits Core-only module folders ahead of its own modules.
@@ -35,6 +37,7 @@ $ProgressPreference = 'SilentlyContinue'  # Invoke-WebRequest is many times slow
 
 $Repo = 'pironjulien/NexusWindows'
 $Pack = $env:NEXUS_PACK -eq '1'
+$RefreshAntigravity = $RefreshExistingProfiles -and (-not $Pack -or @($env:NEXUS_PACK_TARGETS -split ',' | ForEach-Object { $_.Trim().ToLowerInvariant() }) -contains 'antigravity')
 $Sandbox = [bool]$env:NEXUS_WINDOWS_PROFILE
 $ProfileRoot = if ($Sandbox) { $env:NEXUS_WINDOWS_PROFILE } else { $env:USERPROFILE }
 $Home_ = Join-Path $ProfileRoot '.nexus\nexus-windows'
@@ -150,7 +153,8 @@ function Install-NexusWindows {
         if (-not (Test-Path -LiteralPath (Join-Path $target 'runtime.json'))) {
             if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }  # an interrupted copy
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
-            $staging = "$target.$([guid]::NewGuid().ToString('N')).tmp"
+            # Keep staging short for Windows PowerShell 5.1's legacy path limit; the final hash directory remains immutable.
+            $staging = Join-Path $Home_ ('stage-' + [guid]::NewGuid().ToString('N'))
             Copy-Item -LiteralPath $engine -Destination $staging -Recurse
             $artifacts = [ordered]@{}
             foreach ($file in Get-ChildItem -LiteralPath $staging -File) { $artifacts[$file.Name] = Sha256 $file.FullName }
@@ -162,6 +166,20 @@ function Install-NexusWindows {
         foreach ($name in 'NexusWindows.exe', 'NexusWindows.dll') {
             if ((Sha256 (Join-Path $target $name)) -ne $runtime.NativeArtifacts.$name) { throw "Installed engine file $name was altered: delete $target and run this again." }
         }
+        # Profile refresh uses the immutable package's plugin assets. Validate those too against this verified ZIP;
+        # an unchanged engine hash is not proof that a nested guide or manifest has not been edited since installation.
+        if ($RefreshAntigravity) {
+            $pluginRoot = Join-Path $engine 'plugins\antigravity'
+            if (Test-Path -LiteralPath $pluginRoot -PathType Container) {
+                foreach ($file in Get-ChildItem -LiteralPath $pluginRoot -Recurse -File) {
+                    $relative = $file.FullName.Substring($engine.Length + 1)
+                    $installedFile = Join-Path $target $relative
+                    if (-not (Test-Path -LiteralPath $installedFile -PathType Leaf) -or (Sha256 $installedFile) -ne (Sha256 $file.FullName)) {
+                        throw "Installed plugin asset $relative differs from the verified package: profile refresh refused."
+                    }
+                }
+            }
+        }
         # 2. installation.json, then the stable launcher: a new session never pairs the new launcher with an old engine.
         Write-Json (Join-Path $Home_ 'installation.json') $runtime
         Update-Launcher $launcher
@@ -170,7 +188,12 @@ function Install-NexusWindows {
     } finally {
         Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
     }
-    # 3. The clients found on this PC.
+    # 3. Maintenance never registers clients or creates a plugin. Existing sessions keep their own engine.
+    if ($UpdateOnly) {
+        if ($RefreshAntigravity) { return Invoke-Register @('--refresh-installed', 'antigravity') }
+        return [pscustomobject]@{ Code = 0; Result = @('NEXUS_PACK_RESULT NexusWindows=updated') }
+    }
+    # A first installation declares the clients found on this PC.
     $registered = Invoke-Register @('--register', 'all')
     if (-not $Pack) {
         Say ''
@@ -194,11 +217,22 @@ function Remove-NexusWindows {
 
 $code = 1
 $result = $null
+$installationMutex = $null
+$installationHeld = $false
 try {
+    if ($Remove -and $UpdateOnly) { throw '-Remove and -UpdateOnly cannot be combined.' }
+    if ($RefreshExistingProfiles -and -not $UpdateOnly) { throw '-RefreshExistingProfiles requires -UpdateOnly.' }
+    if ($UpdateOnly -and (-not (Test-Path -LiteralPath $Stable -PathType Leaf) -or -not (Test-Path -LiteralPath (Join-Path $Home_ 'installation.json') -PathType Leaf))) {
+        throw '-UpdateOnly requires an existing NexusWindows installation.'
+    }
     if ($env:NEXUS_WINDOWS_SOURCE -and -not $Sandbox -and -not $Real) {
         throw 'NEXUS_WINDOWS_SOURCE (a test package) is set but NEXUS_WINDOWS_PROFILE is not: refusing to touch the real profile. Set NEXUS_WINDOWS_PROFILE to a test folder, or pass -Real.'
     }
     if ($env:OS -ne 'Windows_NT') { throw 'NexusWindows runs on Windows 10 or 11 only.' }
+    # Same exclusion as the source installer. No concurrent manifest/launcher swap or removal.
+    $installationMutex = New-Object Threading.Mutex($false, 'Local\NexusWindows-CommonRuntime')
+    try { $installationHeld = $installationMutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $installationHeld = $true }
+    if (-not $installationHeld) { throw 'Another NexusWindows installation is in progress; retry later.' }
     $outcome = if ($Remove) { Remove-NexusWindows } else { Install-NexusWindows }
     $code = $outcome.Code
     $result = $outcome.Result
@@ -207,6 +241,9 @@ try {
     if ($Pack) { Write-Host "NexusWindows: $($_.Exception.Message)" }
     $result = 'NEXUS_PACK_RESULT NexusWindows=failed'
     $code = 1
+} finally {
+    if ($installationHeld) { $installationMutex.ReleaseMutex() }
+    if ($installationMutex) { $installationMutex.Dispose() }
 }
 if ($Pack -and $result) { Write-Output $result }
 # Run as a file (-File): its exit code. Dot-sourced or run as a script block: never `exit`, which would close the

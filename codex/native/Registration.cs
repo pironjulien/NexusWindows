@@ -100,6 +100,25 @@ static class Registration
         return results;
     }
 
+    // Unattended maintenance of plugin assets only: no migration, registration, enablement or configuration write.
+    internal static int RefreshInstalledCommand()
+    {
+        try
+        {
+            var state = RefreshInstalled(Profile.Current(), Path.Combine(AppContext.BaseDirectory, "plugins", "antigravity"));
+            Console.WriteLine("NEXUS_PACK_RESULT NexusWindows=updated; Antigravity=" + state);
+            return 0;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
+        {
+            Console.Error.WriteLine("NexusWindows: " + error.Message);
+            return 1;
+        }
+    }
+
+    internal static string RefreshInstalled(Profile profile, string source, string? guide = null) =>
+        Antigravity(profile, Mode.Install, source, guide, refreshExisting: true);
+
     // ---------------------------------------------------------------- ownership of an existing declaration
 
     static readonly Regex Hash = new("^[a-f0-9]{64}$", RegexOptions.CultureInvariant);
@@ -414,10 +433,22 @@ static class Registration
     static readonly string[] GlobalDuplicates = [Name, "nexus-computer", "nexus-windows-antigravity"];
     const string Guide = @"skills\nexus-windows\SKILL.md";
 
-    static string Antigravity(Profile profile, Mode mode, string source, string? guide)
+    static string Antigravity(Profile profile, Mode mode, string source, string? guide, bool refreshExisting = false)
     {
         var root = Path.Combine(profile.Home, ".gemini", "config");
         var target = Path.Combine(root, "plugins", Name);
+        if (refreshExisting)
+        {
+            if (!File.Exists(Path.Combine(target, "plugin.json")) || ReadObject(Path.Combine(target, "plugin.json"))["name"]?.GetValue<string>() != Name)
+                return "absent (not created)";
+            var choices = ReadObject(Path.Combine(root, "config.json"));
+            var choice = choices["plugins"]?[Name];
+            if (choice is JsonValue value && value.TryGetValue<bool>(out var on) && !on ||
+                choice is JsonObject choiceEntry && choiceEntry["enabled"] is JsonValue enabled && enabled.TryGetValue<bool>(out var active) && !active)
+                return "kept (turned off)";
+            var current = ReadObject(Path.Combine(target, "mcp_config.json"))["mcpServers"]?[Name];
+            if (!Owned(profile, current, "antigravity")) return "kept (custom or disabled declaration)";
+        }
         if (mode == Mode.Remove)
         {
             var removed = false;
@@ -454,13 +485,13 @@ static class Registration
         var settings = Path.Combine(root, "config.json");
         JsonObject? config = null;
         try { config = File.Exists(settings) ? ReadObject(settings) : null; } catch (JsonException) { }
-        if (config?["plugins"] is JsonObject plugins && !plugins.ContainsKey(Name) &&
+        if (!refreshExisting && config?["plugins"] is JsonObject plugins && !plugins.ContainsKey(Name) &&
             LegacyPlugins.Any(n => plugins[n] is JsonObject p && p["enabled"] is JsonValue v && v.TryGetValue<bool>(out var on) && !on))
         {
             plugins[Name] = new JsonObject { ["enabled"] = false };
             Put(settings, Utf8.GetBytes(Serialize(config)));
         }
-        foreach (var legacy in LegacyPlugins.Select(n => Path.Combine(root, "plugins", n)).Where(Directory.Exists))
+        foreach (var legacy in LegacyPlugins.Select(n => Path.Combine(root, "plugins", n)).Where(d => !refreshExisting && Directory.Exists(d)))
         {
             if (Directory.EnumerateFiles(legacy, "*", SearchOption.AllDirectories).Any())
             {
@@ -479,6 +510,7 @@ static class Registration
             Put(Path.Combine(target, relative), guide is not null && relative.Equals(Guide, StringComparison.OrdinalIgnoreCase) ? File.ReadAllBytes(guide) : File.ReadAllBytes(file));
         }
         if (!shipped.Contains("plugin.json") || !shipped.Contains(Guide)) throw new FileNotFoundException("plugin files not readable in " + source);
+        if (refreshExisting) return changes > 0 ? "updated (activation pending in existing sessions)" : "already up to date";
         if (Directory.Exists(target))
         {
             foreach (var file in Directory.EnumerateFiles(target, "*", SearchOption.AllDirectories).ToList())
