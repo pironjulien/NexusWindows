@@ -11,9 +11,9 @@ Module pur (aucun appel Windows) : testé hors ligne.
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import threading
-import time
 from typing import Any
 
 REPEAT_WINDOW_S = 10.0  # argument historique conservé ; le temps seul ne réautorise jamais une entrée
@@ -209,11 +209,12 @@ class RepeatGuard:
         self.window_s = window_s  # compatibilité des appelants, sans expiration des refus
         self._sent: dict[tuple[int, str], float] = {}
         self._lock = threading.Lock()
+        self._order = itertools.count(1)
 
     def observed(self, window: int, now: float | None = None) -> None:
-        # perf_counter : monotone et fin ; monotonic() n'avance que toutes les ~15 ms sous Windows, une lecture juste
-        # après l'envoi tombait au même instant et n'était pas prise pour une observation nouvelle.
-        observed_at = time.perf_counter() if now is None else now
+        # Ordre des événements par un compteur, pas par une horloge : monotonic() n'avance que toutes les ~15 ms sous
+        # Windows, et une lecture juste après l'envoi tombait au même instant, sans être prise pour nouvelle.
+        observed_at = next(self._order) if now is None else now
         window = int(window or 0)
         with self._lock:
             # Une lecture ancienne (ou notée au même instant que l'envoi) n'est pas une nouvelle observation.
@@ -224,7 +225,7 @@ class RepeatGuard:
 
     def check(self, kind: str, window: int, payload: Any, repeat: bool = False, now: float | None = None):
         """None si l'appel peut partir (il est alors noté), sinon le message de refus."""
-        now = time.perf_counter() if now is None else now
+        now = next(self._order) if now is None else now
         key = (int(window or 0), signature(kind, payload))
         with self._lock:
             if key in self._sent:
