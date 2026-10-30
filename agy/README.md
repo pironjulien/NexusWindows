@@ -148,6 +148,11 @@ Tool descriptions, server instructions, tool and parameter names are in English;
   the sign-in screen, lock screen and UAC prompt are refused. An action labelled pay, buy, order, transfer money,
   send, publish, delete permanently, uninstall, format, reset, cancel a subscription, erase data or make a repository
   public needs `confirm: true` on the step, and so does any key, `submit` or coordinate click that would trigger one.
+  The current explicit end-to-end request or approval covers preparation and confirmation dialogs for the same
+  operation: compare fresh action summaries and use fresh exact single-use tokens without another user question
+  when covered. Otherwise ask at most once for the missing decision; a material scope change is separate. This
+  preserves token matching/expiry and does not whitelist update buttons. Existing public extension updates retain
+  their authorized package, visibility and review/automatic-publication mode; see the [approval cookbook](../commun/mcp-cookbook.md#one-user-approval-for-one-complete-operation).
 - **Clipboard**: saved in all its formats and restored; the text put there is excluded from Win+V history and cloud
   clipboard. Used only as a last resort for typing (multi-line or more than 300 characters).
 - **Agent at work**: while an action runs (`act`, opening, closing, focusing and the action aliases; never

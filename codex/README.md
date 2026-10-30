@@ -309,6 +309,13 @@ break, a menu command, a secondary action other than expand, collapse, toggle, s
 (`error.confirmationRequired`) sends nothing; a batch stops at that step. A learned recipe never carries
 `confirm`. Direct calls to Sky bypass this layer: always go through the session.
 
+An explicit current request or approval for one complete operation also covers its preparation and application
+confirmation dialog; do not ask again for each technical token. Compare every fresh action summary with that scope,
+and use its fresh single-use token with `confirm:true` when covered. Ask at most once if a decision is missing;
+materially changed account, item, artifact, destination, visibility or execution mode requires a separate decision.
+An existing public extension update is not first publication or new visibility, but review and automatic-publication
+modes must stay authorized. See the [approval example](../commun/mcp-cookbook.md#one-user-approval-for-one-complete-operation).
+
 ### The user's presence (Raw Input)
 
 A long-lived `--stop-guard` process registers Raw Input (`RIDEV_INPUTSINK`, message-only window, no hook). It reports

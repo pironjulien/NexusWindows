@@ -390,8 +390,12 @@ it), and a `click` on a closed WPF list is `~` where `expand` is `✓`.
   DevTools pages and Win32 menus. A routine never records nor replays `confirm`.
 - **Approval bound to the exact action**: an outward gesture (sending, calling, paying, publishing, transferring) also
   needs `accord: "<token>"`. The first try is refused before any input with a summary of the exact action (trigger,
-  process, window title, values of the window's editable fields) and a single-use token; only after the user's own
-  yes is the same step sent again with `confirm: true` and that token. Any change in between voids it.
+  process, window title, values of the window's editable fields) and a single-use token. The user's current explicit
+  end-to-end request or approval covers preparation and the confirmation dialog for that same operation: compare
+  the fresh summary and use its token without another question when the scope is already authorized. Otherwise ask
+  at most once for the missing decision; materially changed scope is a separate decision. Token matching, expiry
+  and single use still apply to every gesture. See [one-operation approval](../commun/mcp-cookbook.md#one-user-approval-for-one-complete-operation),
+  including an existing public extension's exact package, visibility and review/automatic-publication mode.
 - **Prompt injection signal**: text read on screen that looks like instructions aimed at an AI gets a warning appended
   to the response (a signal only; it can never authorise an action).
 - **Launch**: a browser never gets a profile chosen by the model, a DevTools port or a loaded extension (`devtools=true`
