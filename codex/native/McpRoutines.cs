@@ -17,8 +17,16 @@ static partial class McpServer
     {
         var a = new JsonArray();
         foreach (var e in Elements(snapshot).OfType<JsonObject>().Where(e => !Bool(e, "ocr")))
+        {
+            var role = Str(e, "role");
+            var name = Str(e, "name");
+            if (role == "tab" && !string.IsNullOrEmpty(name))
+            {
+                name = Regex.Replace(name, @"\s*-\s*Utilisation de la mémoire\s*-\s*\d+[\s\u00A0]*(?:Mo|Ko|Go|MB|KB|GB)", "", RegexOptions.IgnoreCase);
+            }
             a.Add(new JsonArray(e["depth"]?.DeepClone(), e["role"]?.DeepClone(), e["automationId"]?.DeepClone(),
-                JsonValue.Create(Str(e, "role") is "button" or "tab" or "menuitem" or "checkbox" or "radio" or "combobox" ? Str(e, "name") : "")));
+                JsonValue.Create(role is "button" or "tab" or "menuitem" or "checkbox" or "radio" or "combobox" ? name : "")));
+        }
         return Routines.Digest(a.ToJsonString(JsonOut));
     }
     static string BoundaryNative(JsonObject snapshot)
