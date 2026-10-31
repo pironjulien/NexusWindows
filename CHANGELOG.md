@@ -10,13 +10,30 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.10.0] - 2026-10-31
+
+### Added
+- Claude: `look(within=N)` lists only element N and its descendants. When a dense window's list is cut (chat apps,
+  IDEs), the summary names its regions (`[N] list "Messages" (340)`), like agent-desktop's `--skeleton`/`--root`.
+- Claude: `clipboard` tool. `read` (default) returns the copied text (security codes masked), the copied file paths
+  and whether an image is there. Content that a password manager marked private (`ExcludeClipboardContentFromMonitorProcessing`,
+  `CanIncludeInClipboardHistory` = 0) is never read. `write` replaces it with text and reads it back.
+
 ### Changed
+- Claude: `look` no longer lists unnamed layout wrappers (pane/group/custom with no name, id, value or focus that hold
+  other elements); the summary counts them, and `detail="full"` lists everything.
+- Claude: listed elements are compact in the structured result, without default values (null, false, empty) or internal
+  identities (`runtimeId`, `nativeWindow`; the ancestor chain becomes `parent`). Acts still resolve against the full
+  observation. On the Claude desktop window: 150 elements in about 22,000 characters instead of about 60,000.
 - Docs: profile READMEs point to this repository only (release badge, family table); the Codex README installs the
   native engine only, without the npm package or the removed `NexusWindows-Codex` plugin marketplace.
 - Release: a push whose version is not released yet becomes the stable release right after its development build
   (same files); "Run workflow" still promotes by hand.
 - Deferred experimental native freshness reconciliation until unsupported UIA properties provide reliable proof.
   The candidate and qualification work are archived outside the repository; this experimental work is not included in 3.9.4.
+
+### Fixed
+- Claude: `look` with the id that `windows` gives for the taskbar or the desktop was refused ("No window matches").
 
 ### Security
 - CodeQL (GitHub default setup) and the OpenSSF Scorecard workflow run again on every push to main.

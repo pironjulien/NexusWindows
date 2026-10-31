@@ -53,7 +53,7 @@ file dialogs, UTF-8 stdio and diagnosing blank Chromium content.
 |---|---|---|---|
 | Install | `get.ps1` (one engine, three profiles) | `get.ps1` | `get.ps1` |
 | Package | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) |
-| Tools | `windows` `look` `act` `launch` `window`, plus `notifications` and `logs` | `windows` `look` `act` `launch` `window` | `windows` `look` `act` `launch` `window` |
+| Tools | `windows` `look` `act` `launch` `window`, plus `notifications`, `clipboard` and `logs` | `windows` `look` `act` `launch` `window` | `windows` `look` `act` `launch` `window` |
 | Folder | [`claude/`](../claude/README.md) | [`codex/`](../codex/README.md) | [`agy/`](../agy/README.md) |
 
 Every step reports ✓ verified, = already done, ~ unknown (never replayed) or ✗ failed or refused. The three share the
@@ -107,7 +107,7 @@ declarations; an entry of your own is never changed.
 | Tool | Purpose |
 |---|---|
 | `windows(filter)` | Application windows, front to back: hwnd, title, process, UI family, size; `[hidden]` Store apps launched in the background (never shown, still drivable); then the taskbar and the desktop |
-| `look(window, show, query, region, detail, marks)` | Numbered `[N]` elements (role, name, value, state, position), without bringing the window forward; text first: the image only when the tree is too thin or after an unverified step (`show="both"` always attaches it); also `window="taskbar"`, `"desktop"`, and `"screen"` (the whole screen with each window's place) |
+| `look(window, show, query, within, region, detail, marks)` | Numbered `[N]` elements (role, name, value, state, position), without bringing the window forward; dense windows list a skeleton without layout wrappers and name their regions for `within=N`; text first: the image only when the tree is too thin or after an unverified step (`show="both"` always attaches it); also `window="taskbar"`, `"desktop"`, and `"screen"` (the whole screen with each window's place) |
 | `act(steps, window, then, foreground, remember, routine, params)` | Several steps in one call, each read back, then the updated state; Windows panels `"quick settings"`, `"notifications"`, `"start"` with `foreground=true` |
 | `launch(app, args, devtools, restart)` | Start an application (Start menu name, Store app, executable), a folder, a document or an address (`ms-settings:<page>`, `mailto:`, `https:`) without giving it focus; the opening is verified |
 | `window(action, ...)` | Restore behind, minimize, maximize, close, move, resize |

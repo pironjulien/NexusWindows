@@ -138,7 +138,7 @@ static partial class McpServer
             var unresolved = status is "unknown" or "unverified" or "unmet" or "refused" or "interrupted" or "stopped" or "deferred" or "confirmation-required" or "sent-unconfirmed";
             var ok = error == null && !Bool(response, "isError") && (paused || !explicitFailure && !unresolved);
             var tool = CanonicalNormalizeToolName(name);
-            if (!new[] { "windows", "look", "act", "launch", "window", "notifications", "logs" }.Contains(tool)) tool = "invalid";
+            if (!new[] { "windows", "look", "act", "launch", "window", "notifications", "clipboard", "logs" }.Contains(tool)) tool = "invalid";
             var raw = new JsonObject { ["ts"] = DateTimeOffset.UtcNow.ToString("O"), ["tool"] = tool, ["ms"] = milliseconds, ["ok"] = ok,
                 ["error"] = error != null ? error.GetType().Name : ok ? null : DebugDiagnostic(Str(data, "status", "Unverified result")), ["args"] = args.DeepClone(), ["steps"] = data?["steps"]?.DeepClone() ?? new JsonArray() };
             var record = DebugRecord(raw);

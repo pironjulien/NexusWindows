@@ -105,6 +105,42 @@ static partial class McpServer
         foreach (var pair in before) if (!after.ContainsKey(pair.Key)) result.Add("- " + pair.Value);
         return result.Count == 0 ? ["No visible element change since the previous look."] : result;
     }
+    // Number of descendants of each element, from the ancestor chains every element carries.
+    static Dictionary<int, int> ParentCounts(JsonObject snapshot)
+    {
+        var counts = new Dictionary<int, int>();
+        foreach (var element in Elements(snapshot).OfType<JsonObject>())
+            foreach (var ancestor in element["ancestors"] as JsonArray ?? new()) { var key = ancestor!.GetValue<int>(); counts[key] = counts.GetValueOrDefault(key) + 1; }
+        return counts;
+    }
+    // A layout wrapper: an unnamed pane/group/custom with no id, value or focus, which only holds other elements.
+    static bool EmptyContainer(JsonObject element, Dictionary<int, int> descendants)
+        => Str(element, "role") is "pane" or "group" or "custom" && Str(element, "name").Length == 0 && Str(element, "automationId").Length == 0
+            && element["value"] == null && !Bool(element, "focused") && !Bool(element, "ocr") && descendants.GetValueOrDefault((int)Number(element, "index", -1)) > 0;
+    // Named containers holding a large part of the window: the places worth a look within=N.
+    static List<string> Regions(JsonObject snapshot, Dictionary<int, int> descendants)
+    {
+        var all = Elements(snapshot).OfType<JsonObject>().ToList();
+        var regions = all.Select((e, order) => (Element: e, Order: order, Count: descendants.GetValueOrDefault((int)Number(e, "index", -1))))
+            .Where(r => r.Count >= 8 && r.Count < all.Count * 9 / 10 && (Str(r.Element, "name").Length > 0 || Str(r.Element, "automationId").Length > 0))
+            .OrderByDescending(r => r.Count).Take(12).OrderBy(r => r.Order);
+        return regions.Select(r => $"[{r.Element["index"]}] {r.Element["role"]} \"{Truncate(Str(r.Element, "name").Length > 0 ? Str(r.Element, "name") : Str(r.Element, "automationId"), 40)}\" ({r.Count})").ToList();
+    }
+    static string Truncate(string text, int length) => text.Length <= length ? text.ReplaceLineEndings(" ") : text[..length].ReplaceLineEndings(" ") + "…";
+    // Claude's listed elements without defaults (null, false, empty) nor internal identities: the full record stays in the
+    // observation acts resolve against, and with detail="full" (31/10: ~400 characters per element, mostly empty fields).
+    static JsonObject CompactElement(JsonObject element)
+    {
+        var compact = new JsonObject { ["index"] = element["index"]?.DeepClone(), ["role"] = element["role"]?.DeepClone() };
+        foreach (var field in new[] { "name", "automationId", "description", "accessKey" }) if (Str(element, field).Length > 0) compact[field] = Str(element, field);
+        if (element["value"] != null && !Bool(element, "password")) compact["value"] = element["value"]!.DeepClone();
+        foreach (var field in new[] { "checked", "selected", "expanded" }) if (element[field] is JsonValue state) compact[field] = state.DeepClone();
+        foreach (var field in new[] { "disabled", "focused", "password", "valueTruncated", "isDefault", "invoke", "ocr" }) if (Bool(element, field)) compact[field] = true;
+        foreach (var field in new[] { "actions", "flags" }) if (element[field] is JsonArray { Count: > 0 } list) compact[field] = list.DeepClone();
+        if (element["bounds"] is JsonArray { Count: 4 } bounds) compact["bounds"] = bounds.DeepClone();
+        if (element["ancestors"] is JsonArray { Count: > 0 } ancestors) compact["parent"] = ancestors[^1]!.DeepClone();
+        return compact;
+    }
     static JsonObject ObserveBoundNative(SessionState state, JsonObject args, bool modern, (long Id, string App, string Title, long Pid) expected, string birth)
     {
         var previous = BoundObservationIdentity;
@@ -170,12 +206,22 @@ static partial class McpServer
         var query = Str(args, "query");
         var maximum = (int)Math.Clamp(Number(args, "max_elements", state.Agent == "claude" ? 150 : 2000), state.Agent == "claude" ? 10 : 1, state.Agent == "claude" ? 600 : 2000);
         bool Wanted(JsonObject e) => query.Length == 0 || Str(e, "name").Contains(query, StringComparison.OrdinalIgnoreCase) || Str(e, "value").Contains(query, StringComparison.OrdinalIgnoreCase);
+        // Dense windows (Claude, Slack, Teams: hundreds of nested unnamed panes): Claude reads a skeleton first, then one
+        // region with within=N, like agent-desktop's --skeleton/--root (31/10). Unnamed containers stay targetable by name
+        // of their children and come back with detail="full".
+        var within = state.Agent == "claude" && args["within"] != null ? (int)Number(args, "within") : -1;
+        if (within >= 0 && !Elements(snapshot).OfType<JsonObject>().Any(e => Number(e, "index", -1) == within)) throw new ActionRefusedException("within: element absent from current observation; look again");
+        var parents = ParentCounts(snapshot);
+        var skeleton = state.Agent == "claude" && Str(args, "detail") != "full";
+        bool Inside(JsonObject e) => within < 0 || Number(e, "index", -1) == within || (e["ancestors"] as JsonArray)?.Any(i => i!.GetValue<int>() == within) == true;
+        bool Noise(JsonObject e) => skeleton && EmptyContainer(e, parents);
+        var hidden = Elements(snapshot).OfType<JsonObject>().Count(e => Wanted(e) && Inside(e) && Noise(e));
         // Every element's line is remembered, whatever this look lists: "changes" then compares the whole window state,
         // even after a narrow query (31/10: a filtered look followed by changes listed everything as new).
         var allLines = Elements(snapshot).OfType<JsonObject>().ToDictionary(e => (int)Number(e, "index"), e => NativeLine(e, reference));
         var previousLines = memory.Lines;
         var changed = show == "changes" && previousLines.Count > 0;
-        var candidates = Elements(snapshot).OfType<JsonObject>().Where(Wanted)
+        var candidates = Elements(snapshot).OfType<JsonObject>().Where(e => Wanted(e) && Inside(e) && !Noise(e))
             .Where(e => !changed || !previousLines.TryGetValue((int)Number(e, "index"), out var old) || old != allLines[(int)Number(e, "index")]).ToList();
         var listed = candidates.Take(maximum).ToList();
         var lines = listed.ToDictionary(e => (int)Number(e, "index"), e => allLines[(int)Number(e, "index")]);
@@ -192,7 +238,7 @@ static partial class McpServer
         // The structured result is what a client such as Claude Code shows the model, image included: the full tree and
         // document text (~25,000 tokens on a long web page, Chrome Web Store dashboard, 31/10) only with detail="full" or
         // show="text"; an image or a filtered look carries only the elements it lists and a short summary.
-        data["elements"] = new JsonArray((show is "none" or "image" ? [] : listed).Select(e => e.DeepClone()).ToArray());
+        data["elements"] = new JsonArray((show is "none" or "image" ? [] : listed).Select(e => state.Agent == "claude" && Str(args, "detail") != "full" ? CompactElement(e) : e.DeepClone()).ToArray());
         if (Str(args, "detail") != "full" && show != "text" && data["accessibility"] is JsonObject accessibility)
         {
             accessibility.Remove("tree"); accessibility.Remove("document_text"); accessibility.Remove("document_truncated");
@@ -200,7 +246,10 @@ static partial class McpServer
         var total = Elements(snapshot).Count;
         data["summary"] = (show is "none" or "image" ? $"{total} elements in the window, none listed with show=\"{show}\""
             : changed ? $"{listed.Count} added or changed element(s), {removed.Count} removed" : $"{listed.Count} of {total} element(s) listed")
-            + (query.Length > 0 ? $" for query \"{query}\"" : "") + (candidates.Count > listed.Count ? $"; {candidates.Count - listed.Count} more: narrow with query or raise max_elements" : "")
+            + (query.Length > 0 ? $" for query \"{query}\"" : "") + (within >= 0 ? $" within [{within}]" : "")
+            + (hidden > 0 ? $"; {hidden} empty container(s) hidden" : "")
+            + (candidates.Count > listed.Count ? $"; {candidates.Count - listed.Count} more: narrow with query, within or max_elements" : "")
+            + (skeleton && within < 0 && query.Length == 0 && candidates.Count > listed.Count && Regions(snapshot, parents) is { Count: > 0 } regions ? "; regions (look within=N): " + string.Join(", ", regions) : "")
             + (show == "text" || Str(args, "detail") == "full" ? "" : "; full tree and document text with detail=\"full\"") + ".";
         var routineInfo = Str(args, "routine_info"); if (routineInfo.Length > 0) { var entry = routines.Read(routineInfo) ?? throw new InvalidOperationException("Routine not found"); data["routineDefinition"] = entry.DeepClone(); state.ReviewedRoutines[ReviewKey(target.App, routineInfo)] = RoutineStamp(entry); }
         var text = $"window {target.Id} \"{target.Title}\" · observation {id}\n" + string.Join('\n', rendered);
@@ -404,6 +453,17 @@ static partial class McpServer
         Check(ExpectationHolds(claude, checkSnapshot, normalizedCheck), "legacy contains is case-insensitive and whitespace normalized");
         memory.Shown.Clear();
         Check(Refused(() => CheckShownExpectationIndices(state, numeric["expect"]!.AsObject())), "numeric postcondition also requires a displayed index");
+        // Skeleton: a layout wrapper is hidden, a named list with many items is a region, a leaf is never a wrapper (31/10).
+        var dense = JsonNode.Parse("""{"elements":[{"index":0,"role":"window","name":"Chat","ancestors":[]},{"index":1,"role":"pane","name":"","automationId":"","ancestors":[0]},{"index":2,"role":"list","name":"Messages","ancestors":[0,1]},{"index":3,"role":"group","name":"","ancestors":[0]}]}""")!.AsObject();
+        for (var i = 0; i < 10; i++) dense["elements"]!.AsArray().Add(new JsonObject { ["index"] = 10 + i, ["role"] = "listitem", ["name"] = $"m{i}", ["ancestors"] = new JsonArray(0, 1, 2) });
+        var counts = ParentCounts(dense); var items = Elements(dense).OfType<JsonObject>().ToList();
+        Check(EmptyContainer(items[1], counts) && !EmptyContainer(items[2], counts) && !EmptyContainer(items[3], counts), "only an unnamed container holding elements is a layout wrapper");
+        Check(Regions(dense, counts).SequenceEqual(new[] { "[2] list \"Messages\" (10)" }), "a named container with most items is the region to look within");
+        var full = JsonNode.Parse("""{"index":7,"role":"button","name":"OK","automationId":"","value":null,"disabled":false,"focused":true,"checked":null,"selected":false,"password":false,"runtimeId":[42,7],"nativeWindow":5,"ancestors":[1,4],"bounds":[1,2,3,4],"actions":[],"flags":["offscreen"]}""")!.AsObject();
+        var compact = CompactElement(full);
+        Check(JsonNode.DeepEquals(compact, JsonNode.Parse("""{"index":7,"role":"button","name":"OK","selected":false,"focused":true,"flags":["offscreen"],"bounds":[1,2,3,4],"parent":4}""")), "compact element keeps states and drops defaults and internal identities");
+        var secret = full.DeepClone().AsObject(); secret["password"] = true; secret["value"] = "hunter2";
+        Check(CompactElement(secret)["value"] == null, "a password value is never listed");
         return assertions;
     }
 }

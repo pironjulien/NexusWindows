@@ -73,7 +73,7 @@ public class McpStdioTests
         var initialized = server.Rpc("initialize", new { protocolVersion = "2025-11-25", capabilities = new { }, clientInfo = new { name = "receipt-test", version = "1" } });
         SelfTest.Same(runtime.ToJsonString(), initialized["result"]!["_meta"]![RuntimeReceipt.MetadataKey]);
         var names = server.Rpc("tools/list")["result"]!["tools"]!.AsArray().Select(t => t!["name"].S());
-        Assert.Equal(agent == "claude" ? ["windows", "look", "act", "launch", "window", "logs", "notifications"] : ["windows", "look", "act", "launch", "window"], names);
+        Assert.Equal(agent == "claude" ? ["windows", "look", "act", "launch", "window", "logs", "notifications", "clipboard"] : ["windows", "look", "act", "launch", "window"], names);
         var call = server.Rpc("tools/call", new
         {
             name = agent == "antigravity" ? "computer_list_windows" : "windows",
