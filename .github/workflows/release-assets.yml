@@ -6,7 +6,8 @@
 #   nexus-windows-claude-arm64.mcpb, get.ps1 and SHA256SUMS.txt. product-dev-release attests them (Sigstore, keyless:
 #   `gh attestation verify <file> --repo pironjulien/NexusWindows --signer-repo pironjulien/NexusSystem`, bundle
 #   NexusWindows-X.Y.Z.intoto.jsonl) and publishes the pre-release vX.Y.Z-dev.N (NexusSystem's development channel).
-# - Stable: "Run workflow" (promote: a vX.Y.Z-dev.N, or empty for the newest) runs product-promote: the SAME files
+# - Stable: right after that build when its version is not released yet, or "Run workflow" (promote: a vX.Y.Z-dev.N,
+#   or empty for the newest), product-promote runs: the SAME files
 #   become the release "NexusWindows X.Y.Z" with the CHANGELOG section, then server.json goes to the official MCP
 #   registry. registry: only re-send a stable release's server.json. get.ps1 installs from releases/latest.
 # - Each published build (development and stable) is then installed from its release files in an isolated profile
@@ -101,20 +102,22 @@ jobs:
       contents: write
       id-token: write
       attestations: write
-    uses: pironjulien/NexusSystem/.github/workflows/product-dev-release.yml@a409925bafd1184acc207dd90ca4a43ba987d0e3  # v1.6.39
+    uses: pironjulien/NexusSystem/.github/workflows/product-dev-release.yml@9cf03f2ac93e207307351b393130ff1cfe2aef7b  # v1.6.40
     with:
       product: NexusWindows
       version: ${{ needs.build.outputs.version }}
 
   promote:
-    if: github.repository == 'pironjulien/NexusWindows' && github.event_name == 'workflow_dispatch'
+    # Right after the push that built a new version (same files), or by hand ("Run workflow").
+    needs: dev
+    if: always() && github.repository == 'pironjulien/NexusWindows' && (needs.dev.result == 'success' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: write
       id-token: write
-    uses: pironjulien/NexusSystem/.github/workflows/product-promote.yml@a409925bafd1184acc207dd90ca4a43ba987d0e3  # v1.6.39
+    uses: pironjulien/NexusSystem/.github/workflows/product-promote.yml@9cf03f2ac93e207307351b393130ff1cfe2aef7b  # v1.6.40
     with:
       product: NexusWindows
-      promote: ${{ inputs.promote }}
+      promote: ${{ inputs.promote || needs.dev.outputs.tag }}
       registry-only: ${{ inputs.registry }}
       mcp-package: nexus-windows-claude.mcpb
 
