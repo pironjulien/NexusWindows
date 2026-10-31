@@ -89,6 +89,14 @@ static class Pointer
         return GetGUIThreadInfo(thread, ref info) ? new { capture = (long)info.Capture, focus = (long)info.Focus, active = (long)info.Active } : null;
     }
 
+    // Interfaces where a posted click has no effect (WPF, UWP/WinUI, Firefox; measured): a click at a point there is either
+    // the UIA gesture of the single actionable element under it (McpSession) or the brief foreground input.
+    internal static bool IgnoresPostedClick(nint window)
+    {
+        var cls = ClassOf(window);
+        return cls.StartsWith("HwndWrapper") || cls == "ApplicationFrameWindow" || cls.StartsWith("Windows.UI.") || cls.StartsWith("Mozilla");
+    }
+
     public static Outcome Act(nint window, string action, int x, int y, int[] frame, string button, int count, int deltaY, int deltaX, Action started)
     {
         // Pixels reels de chaque ecran, comme la capture (Capture.cs) : point, cadre et repere client dans le meme espace.

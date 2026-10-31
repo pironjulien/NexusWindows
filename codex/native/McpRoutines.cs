@@ -108,6 +108,8 @@ static partial class McpServer
             return NativeResponse(data);
         }
         if (operation is not ("run" or "continue")) throw new InvalidOperationException("Unsupported routine operation");
+        // One agent at a time on this window for the whole batch (WindowLock.cs); another one waits, then is refused.
+        using var windowLock = WindowLock.Acquire(named.Id, state.Agent);
         if (state.CurrentObservation == null || state.CurrentObservationId == null) throw new ActionRefusedException("Look at the named window before acting");
         if (DateTimeOffset.UtcNow - state.ObservedAt > TimeSpan.FromSeconds(60)) throw new ActionRefusedException("Observation expired after 60 seconds; look again");
         var obsArg = Str(args, "observation");

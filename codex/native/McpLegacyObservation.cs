@@ -117,6 +117,69 @@ static partial class McpServer
     static bool EmptyContainer(JsonObject element, Dictionary<int, int> descendants)
         => Str(element, "role") is "pane" or "group" or "custom" && Str(element, "name").Length == 0 && Str(element, "automationId").Length == 0
             && element["value"] == null && !Bool(element, "focused") && !Bool(element, "ocr") && descendants.GetValueOrDefault((int)Number(element, "index", -1)) > 0;
+    // show="table": headers then rows of the grid at or under element N (GridPattern/TablePattern, Explorer Details view,
+    // DataGridView, WPF DataGrid), or, without a grid (Task Manager), the rows of the observed tree: list, data or tree
+    // items under N, one cell per child.
+    static JsonObject NativeTable(SessionState state, JsonObject snapshot, int within, int maximum)
+    {
+        var all = Elements(snapshot).OfType<JsonObject>().ToList();
+        var root = all.First(e => Number(e, "index", -1) == within);
+        if (root["runtimeId"] is JsonArray { Count: > 0 } runtimeId)
+        {
+            var request = NativeRequest(state, "table");
+            request["runtimeId"] = runtimeId.DeepClone(); request["nativeWindow"] = root["nativeWindow"]?.DeepClone(); request["maxRows"] = maximum;
+            try
+            {
+                var read = ObjectOf(ExecuteInternal(request));
+                if (Bool(read, "grid"))
+                    return new JsonObject { ["source"] = "grid", ["headers"] = read["headers"]!.DeepClone(), ["rows"] = read["rows"]!.DeepClone(),
+                        ["rowCount"] = read["rowCount"]!.DeepClone(), ["columnCount"] = read["columnCount"]!.DeepClone() };
+            }
+            catch (Exception error) when (error is InvalidOperationException or System.Runtime.InteropServices.COMException && error is not ActionRefusedException) { }
+        }
+        return TreeTable(all, within, maximum);
+    }
+    internal static JsonObject TreeTable(List<JsonObject> all, int within, int maximum)
+    {
+        int Parent(JsonObject e) => e["ancestors"] is JsonArray { Count: > 0 } chain ? chain[^1]!.GetValue<int>() : -1;
+        bool Under(JsonObject e) => (e["ancestors"] as JsonArray)?.Any(i => i!.GetValue<int>() == within) == true;
+        string Text(JsonObject e) => Str(e, "value").Length > 0 && !Bool(e, "password") ? Str(e, "value") : Str(e, "name");
+        var items = all.Where(e => Under(e) && Str(e, "role") is "listitem" or "dataitem" or "treeitem").ToList();
+        var itemIndexes = items.Select(e => (int)Number(e, "index")).ToHashSet();
+        var rows = new List<List<string>>();
+        // Cells grouped in row containers (DataGridView: custom "Row 0" holding one data item per column), else one row
+        // per item with one cell per child (WinForms ListView, Task Manager).
+        var grouped = items.Where(e => Parent(e) != within && !itemIndexes.Contains(Parent(e))).GroupBy(Parent).ToList();
+        if (grouped.Count > 0 && grouped.All(g => g.Count() > 1) && grouped.Sum(g => g.Count()) == items.Count)
+            rows = grouped.Select(g => g.Select(Text).ToList()).ToList();
+        else foreach (var item in items)
+        {
+            var index = (int)Number(item, "index");
+            var cells = all.Where(e => Parent(e) == index && Str(e, "role") is not ("listitem" or "dataitem" or "treeitem" or "image")).Select(Text).ToList();
+            if (cells.Count == 0 || Str(item, "name").Length > 0 && !cells.Contains(Str(item, "name"))) cells.Insert(0, Text(item));
+            rows.Add(cells);
+        }
+        var columns = rows.Select(r => r.Count).DefaultIfEmpty(0).Max();
+        // Column headers: the first container of header items that holds no row (row headers sit inside their rows).
+        var rowParents = items.Select(Parent).ToHashSet();
+        var headers = all.Where(e => Under(e) && Str(e, "role") is "header" or "headeritem" && !rowParents.Contains(Parent(e)))
+            .GroupBy(Parent).Where(g => g.Count() > 1).Select(g => g.Select(e => Str(e, "name")).ToList()).FirstOrDefault() ?? [];
+        if (headers.Count == columns + 1) headers.RemoveAt(0); // top-left corner cell of a grid with row headers
+        return new JsonObject { ["source"] = "tree", ["headers"] = new JsonArray(headers.Select(h => (JsonNode)JsonValue.Create(h)!).ToArray()),
+            ["rows"] = new JsonArray(rows.Take(maximum).Select(r => (JsonNode)new JsonArray(r.Select(c => (JsonNode)JsonValue.Create(c)!).ToArray())).ToArray()),
+            ["rowCount"] = rows.Count, ["columnCount"] = Math.Max(headers.Count, columns) };
+    }
+    internal static List<string> TableLines(JsonObject table)
+    {
+        // Bidirectional marks (Explorer dates) are dropped: invisible, they only cost characters.
+        static string Cell(JsonNode? c) => Truncate(Regex.Replace(c?.GetValue<string>() ?? "", "[\u200E\u200F\u202A-\u202E]", ""), 60).Replace(" | ", " / ");
+        var lines = new List<string>();
+        if (table["headers"] is JsonArray { Count: > 0 } headers) lines.Add("headers: " + string.Join(" | ", headers.Select(Cell)));
+        var n = 0;
+        foreach (var row in table["rows"]!.AsArray().OfType<JsonArray>()) lines.Add($"{++n}. " + string.Join(" | ", row.Select(Cell)));
+        if (n == 0) lines.Add("No row.");
+        return lines;
+    }
     // Named containers holding a large part of the window: the places worth a look within=N.
     static List<string> Regions(JsonObject snapshot, Dictionary<int, int> descendants)
     {
@@ -159,7 +222,7 @@ static partial class McpServer
         if (state.Agent != "codex" && screen is "screen" or "écran" or "ecran") return FullScreenNative(state, args);
         var nativeText = state.Agent != "claude" && args["show"] == null && Str(args, "mode", "text") == "text";
         var show = nativeText ? "elements" : Str(args, "show", Str(args, "mode", "auto"));
-        if (show is not ("auto" or "both" or "image" or "elements" or "text" or "changes" or "none")) throw new InvalidOperationException("Unknown look presentation");
+        if (show is not ("auto" or "both" or "image" or "elements" or "text" or "changes" or "none" or "table")) throw new InvalidOperationException("Unknown look presentation");
         var prior = state.BoundWindow; var target = ResolveWindow(state, args, modern);
         if (expected is { } known && (target.Id != known.Id || target.Pid != known.Pid || !target.App.Equals(known.App, StringComparison.OrdinalIgnoreCase) || Program.ProcessStartedUtc((uint)target.Pid) != expectedBirth))
             throw new ActionRefusedException("The launched window/process was replaced before observation; no screen returned");
@@ -171,7 +234,7 @@ static partial class McpServer
         var nativeCount = Elements(snapshot).Count;
         var minimized = Win32.IsIconic((nint)target.Id);
         var wantsImage = !minimized && (show is "both" or "image" || args["region"] != null || args["zoom"] != null || Bool(args, "capture_screenshot") || Bool(args, "annotate") || args["output_path"] != null || (show == "auto" || nativeText) && nativeCount < 6 && !(args.ContainsKey("capture_screenshot") && !Bool(args, "capture_screenshot")));
-        var needsOcr = !minimized && nativeCount < 6 && show is not ("text" or "none");
+        var needsOcr = !minimized && nativeCount < 6 && show is not ("text" or "none" or "table");
         JsonObject? full = null, shot = null;
         if (wantsImage || needsOcr)
         {
@@ -230,8 +293,16 @@ static partial class McpServer
         if (changed && rendered.Count == 0) rendered = ["No visible element change since the previous look."];
         if (show == "text") rendered = [Str(snapshot["accessibility"], "document_text")];
         if (show is "none" or "image") rendered.Clear();
+        JsonObject? table = null;
+        if (show == "table")
+        {
+            if (within < 0) throw new ActionRefusedException("show=\"table\" needs within=N: the list, grid or table to read");
+            table = NativeTable(state, snapshot, within, maximum);
+            rendered = TableLines(table);
+            listed.Clear();
+        }
         // Indices displayed by an earlier look stay usable after a "changes" look that lists only what moved.
-        memory.Lines = allLines; memory.Shown = changed ? memory.Shown.Where(allLines.ContainsKey).Concat(lines.Keys).ToHashSet() : listed.Select(e => (int)Number(e, "index")).ToHashSet();
+        memory.Lines = allLines; memory.Shown = table != null ? [within] : changed ? memory.Shown.Where(allLines.ContainsKey).Concat(lines.Keys).ToHashSet() : listed.Select(e => (int)Number(e, "index")).ToHashSet();
         if (shot?["marks"]?["drawn"] is JsonArray drawn && wantsImage) foreach (var shown in drawn) memory.Shown.Add(shown!.GetValue<int>());
         var routines = new NativeRoutineMemory(state.Agent, target.App); routines.Sync();
         var data = snapshot.DeepClone().AsObject(); data["observation"] = id; data["window"] = target.Id; data["hwnd"] = target.Id; data["title"] = target.Title; data["routines"] = routines.List();
@@ -244,7 +315,9 @@ static partial class McpServer
             accessibility.Remove("tree"); accessibility.Remove("document_text"); accessibility.Remove("document_truncated");
         }
         var total = Elements(snapshot).Count;
-        data["summary"] = (show is "none" or "image" ? $"{total} elements in the window, none listed with show=\"{show}\""
+        if (table != null) data["table"] = table;
+        data["summary"] = table != null ? $"table [{within}]: {table["rows"]!.AsArray().Count} of {table["rowCount"]} row(s), {table["columnCount"]} column(s), read by {table["source"]}" +
+            (Number(table, "rowCount") > table["rows"]!.AsArray().Count ? "; more rows with max_elements" : "") + "." : (show is "none" or "image" ? $"{total} elements in the window, none listed with show=\"{show}\""
             : changed ? $"{listed.Count} added or changed element(s), {removed.Count} removed" : $"{listed.Count} of {total} element(s) listed")
             + (query.Length > 0 ? $" for query \"{query}\"" : "") + (within >= 0 ? $" within [{within}]" : "")
             + (hidden > 0 ? $"; {hidden} empty container(s) hidden" : "")

@@ -12,7 +12,7 @@ using System.Text.Json.Nodes;
 // - Applique les garde-fous communs (GardeFous.cs), journalise chaque action (Journal.cs) et pilote Windows en processus via Program.Execute.
 static partial class McpServer
 {
-    public const string Version = "3.11.0";
+    public const string Version = "3.12.0";
     static readonly string[] ModernProtocolVersions = ["2026-07-28"];
     static readonly string[] LegacyProtocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
     const string ProtocolVersionMeta = "io.modelcontextprotocol/protocolVersion";
@@ -228,7 +228,7 @@ static partial class McpServer
         lookProps["output_path"] = new JsonObject { ["type"] = "string" };
         foreach (var field in new[] { "show", "detail", "routine_info" }) lookProps[field] = new JsonObject { ["type"] = "string" };
         lookProps["max_elements"] = new JsonObject { ["type"] = "integer" };
-        lookProps["within"] = new JsonObject { ["type"] = "integer", ["description"] = "Index of an element: list only it and its descendants (a region named in the summary)" };
+        lookProps["within"] = new JsonObject { ["type"] = "integer", ["description"] = "Index of an element: list only it and its descendants (a region named in the summary); with show=\"table\", the list, grid or table read as headers then rows" };
         var actProps = tools[2]!["inputSchema"]!["properties"]!.AsObject();
         foreach (var field in new[] { "foreground", "repeat", "confirm" }) actProps[field] = new JsonObject { ["type"] = "boolean" };
         actProps["accord"] = new JsonObject { ["type"] = "string" };
@@ -697,11 +697,14 @@ static partial class McpServer
                 }
                 catch (Exception ex)
                 {
-                    return Reply(new JsonObject
+                    var failure = new JsonObject
                     {
                         ["content"] = new JsonArray { TextBlock(ex.Message) },
                         ["isError"] = true,
-                    });
+                    };
+                    // Common failure convention (NexusBrowser): a busy window received nothing, resend later as is.
+                    if (ex is WindowBusyException) failure["structuredContent"] = new JsonObject { ["error"] = ex.Message, ["retry_safe"] = true, ["outcome"] = "not_done" };
+                    return Reply(failure);
                 }
             }
 

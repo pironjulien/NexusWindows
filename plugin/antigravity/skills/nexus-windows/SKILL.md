@@ -24,6 +24,7 @@ accented labels and non-breaking spaces. Prefer the connected tools over creatin
 | Fill, check, choose, click, menu | `act(hwnd=..., steps=[...])`, `target="Label"` |
 | Long web page, field out of view | `look(hwnd=..., query="label")` lists only the matches with their `[N]` (full tree and document text: `detail="full"`); then one `act` with `set` + `click`: the engine scrolls an out-of-view target into view itself |
 | Dense window (chat app, IDE) | the summary names its regions `[N] … (count)`; `look(hwnd=..., within=N)` lists only that region; unnamed layout wrappers are not listed (`detail="full"` lists all) |
+| Table (Explorer Details view, Task Manager, grid) | `look(hwnd=..., within=N, show="table")`: column headers, then one line per row (`max_elements` rows at most) |
 | Taskbar, system icons, notifications | `look(hwnd="taskbar")`; `notifications(app=...)` reads the notification center without opening it |
 | Clipboard | `clipboard()` reads text (codes masked), copied files, image present; `clipboard(action="write", text=...)` borrows it, the user's content comes back after 61.8 s or with `action="restore"`; private content (password manager) never read |
 | The target has no label, only the image shows it | step with `box_2d` [ymin, xmin, ymax, xmax] (0-1000, from the image), or `x`/`y` (the `@x,y` of the look) |

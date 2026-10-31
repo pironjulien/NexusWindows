@@ -10,6 +10,22 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.12.0] - 2026-10-31
+
+### Added
+- `look(within=N, show="table")` reads a table: column headers, then one line per row (`max_elements` rows at most),
+  through UI Automation `GridPattern`/`TablePattern` (Explorer Details view, WinForms ListView), or from the observed
+  tree when the control has no grid (DataGridView: one row per row container; Task Manager: one cell per child).
+- A window is held by one agent at a time during an `act`: a file lock per window in `.nexus\windows`, held for the
+  whole batch like the foreground token and freed by Windows if its holder dies. Another agent waits up to 4.854 s,
+  then gets ✗ "Window busy: codex (pid …, for … s)" with `retry_safe: true` and `outcome: "not_done"` (nothing sent).
+
+### Changed
+- A click at a point (`"x,y"`) on an interface that ignores posted mouse input (WPF, UWP/WinUI, Firefox) is the UI
+  Automation gesture (Invoke, Toggle or SelectionItem) of the single enabled element under the point, in the
+  background, instead of the brief foreground input; the read-back and the confirmation safeguards are unchanged.
+  Several such elements under the point (a check box in a list item) keep the point.
+
 ### Fixed
 - Codex source installer: the public catalog check accepts NexusSystem's `git-subdir` entry (this repository at a
   release tag) and verifies the copy Codex installed (version, manifest-declared MCP file and guide). It only knew the

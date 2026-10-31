@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 // Client COM UI Automation (CUIAutomation8 / IUIAutomation2) : lecture de l'arbre ET motifs d'arriere-plan.
@@ -21,9 +22,11 @@ unsafe sealed partial class ComUia
     static readonly Guid IidScroll = new("88f4d42a-e881-459d-a77c-73bbbb7e02dc");
     static readonly Guid IidLegacy = new("828055ad-355b-4435-86d5-3b51c14a9b1b");
     static readonly Guid IidScrollItem = new("b488300f-d015-4f19-9c29-bb595e3645ef");
+    static readonly Guid IidGrid = new("414c3cdc-856b-4f5b-8538-3131c6302550");
+    static readonly Guid IidTable = new("620e691c-ea96-4710-a850-754b24ce2417");
     public const int InvokePatternId = 10000, SelectionPatternId = 10001, ValuePatternId = 10002, ExpandCollapsePatternId = 10005,
         SelectionItemPatternId = 10010, TextPatternId = 10014, TogglePatternId = 10015, ScrollPatternId = 10004,
-        ScrollItemPatternId = 10017, LegacyIAccessiblePatternId = 10018;
+        ScrollItemPatternId = 10017, LegacyIAccessiblePatternId = 10018, GridPatternId = 10006, TablePatternId = 10012;
     const int RuntimeIdProperty = 30000, BoundingRectangleProperty = 30001, ProcessIdProperty = 30002, ControlTypeProperty = 30003,
         NameProperty = 30005, AccessKeyProperty = 30007, HasKeyboardFocusProperty = 30008, LegacyIAccessibleStateProperty = 30096, IsEnabledProperty = 30010, AutomationIdProperty = 30011,
         HelpTextProperty = 30013, IsPasswordProperty = 30019, NativeWindowHandleProperty = 30020, IsOffscreenProperty = 30022, FrameworkIdProperty = 30024,
@@ -634,6 +637,80 @@ unsafe sealed partial class ComUia
         _ => "unknown",
     };
 
+    // ---- Tableaux (lecture seule) --------------------------------------------------------------------------------------
+    // Grille de l'element ou, sinon, la premiere de son sous-arbre (Explorateur vue Details, DataGridView, DataGrid WPF) :
+    // en-tetes par TablePattern, cellules par GridPattern.GetItem (realise aussi les lignes virtualisees). Texte d'une
+    // cellule : sa valeur (DataGridView, Explorateur), sinon son nom. Borne en lignes, colonnes et temps ; null sans grille.
+    public TableRead? ReadTable(nint window, int[] runtimeId, nint hint, int maxRows, int maxColumns = 24, int budgetMs = 3000)
+    {
+        var element = FindByRuntimeId(window, runtimeId, hint);
+        nint grid = 0, table = 0, owner = 0;
+        try
+        {
+            grid = Pattern(element, GridPatternId);
+            if (grid == 0)
+            {
+                var condition = Condition(30030 /* UIA_IsGridPatternAvailablePropertyId */, new Variant { Vt = VT_BOOL, Bool = -1 });
+                try { owner = FindFirst(element, condition); } finally { Release(condition); }
+                if (owner == 0) return null;
+                grid = Pattern(owner, GridPatternId);
+                if (grid == 0) return null;
+            }
+            var rowCount = ReadInt(grid, 4); var columnCount = ReadInt(grid, 5); // get_CurrentRowCount, get_CurrentColumnCount
+            var columns = Math.Clamp(columnCount, 0, maxColumns);
+            var headers = new List<string>();
+            table = Pattern(owner != 0 ? owner : element, TablePatternId);
+            if (table != 0) headers = ElementNames(table, 4); // GetCurrentColumnHeaders
+            var rows = new List<string[]>();
+            var clock = Stopwatch.StartNew();
+            for (var r = 0; r < Math.Min(rowCount, maxRows) && clock.ElapsedMilliseconds < budgetMs; r++)
+            {
+                var cells = new string[columns];
+                for (var c = 0; c < columns; c++)
+                {
+                    nint cell;
+                    if (((delegate* unmanaged[Stdcall]<nint, int, int, nint*, int>)Vt(grid)[3])(grid, r, c, &cell) < 0 || cell == 0) { cells[c] = ""; continue; }
+                    try { cells[c] = CellText(cell); } finally { Release(cell); }
+                }
+                rows.Add(cells);
+            }
+            return new TableRead(headers.Take(columns).ToList(), rows, rowCount, columnCount);
+        }
+        finally { Release(table); Release(grid); Release(owner); Release(element); }
+    }
+    static string CellText(nint cell)
+    {
+        var pattern = CurrentBool(cell, IsPasswordProperty) == true ? 0 : Pattern(cell, ValuePatternId);
+        try { if (pattern != 0 && Value(pattern) is { Length: > 0 } value) return value; } finally { Release(pattern); }
+        return CurrentName(cell);
+    }
+    static bool? CurrentBool(nint element, int property)
+    {
+        Variant value;
+        if (((delegate* unmanaged[Stdcall]<nint, int, Variant*, int>)Vt(element)[10])(element, property, &value) < 0) return null; // GetCurrentPropertyValue
+        try { return value.Vt == VT_BOOL ? value.Bool != 0 : null; } finally { VariantClear(ref value); }
+    }
+    // Noms d'un IUIAutomationElementArray rendu par la methode `slot` d'un motif (en-tetes de colonnes).
+    static List<string> ElementNames(nint pattern, int slot)
+    {
+        var names = new List<string>();
+        nint array;
+        if (((delegate* unmanaged[Stdcall]<nint, nint*, int>)Vt(pattern)[slot])(pattern, &array) < 0 || array == 0) return names;
+        try
+        {
+            int length;
+            Check(((delegate* unmanaged[Stdcall]<nint, int*, int>)Vt(array)[3])(array, &length));
+            for (var i = 0; i < length && i < 64; i++)
+            {
+                nint item;
+                if (((delegate* unmanaged[Stdcall]<nint, int, nint*, int>)Vt(array)[4])(array, i, &item) < 0 || item == 0) { names.Add(""); continue; }
+                try { names.Add(CurrentName(item)); } finally { Release(item); }
+            }
+        }
+        finally { Release(array); }
+        return names;
+    }
+
     // ---- Motifs ------------------------------------------------------------------------------------------------------
     // Motif courant (GetCurrentPatternAs) ou 0 s'il n'est pas pris en charge. A liberer.
     public static nint Pattern(nint element, int patternId)
@@ -643,7 +720,7 @@ unsafe sealed partial class ComUia
             InvokePatternId => IidInvoke, TogglePatternId => IidToggle, ValuePatternId => IidValue,
             SelectionItemPatternId => IidSelectionItem, ExpandCollapsePatternId => IidExpandCollapse,
             SelectionPatternId => IidSelection, TextPatternId => IidText, ScrollPatternId => IidScroll,
-            ScrollItemPatternId => IidScrollItem, LegacyIAccessiblePatternId => IidLegacy,
+            ScrollItemPatternId => IidScrollItem, LegacyIAccessiblePatternId => IidLegacy, GridPatternId => IidGrid, TablePatternId => IidTable,
             _ => throw new ArgumentOutOfRangeException(nameof(patternId)),
         };
         nint pattern;
@@ -926,6 +1003,8 @@ unsafe sealed partial class ComUia
         return items;
     }
 }
+
+sealed record TableRead(List<string> Headers, List<string[]> Rows, int RowCount, int ColumnCount);
 
 // Noeud de l'arbre lu : proprietes en cache, plus l'element COM (a liberer avec l'arbre) pour les lectures courantes.
 sealed class Node

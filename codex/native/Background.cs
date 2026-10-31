@@ -4,7 +4,7 @@ using System.Text.Json;
 // Aucune entree n'a ete envoyee : la session peut essayer la technique suivante (entree physique sous jeton).
 sealed class BackgroundNotApplicableException(string message) : InvalidOperationException(message);
 // Refus avant toute entree (mot de passe, application exclue, identite changee, commande desactivee) : aucun repli.
-sealed class ActionRefusedException(string message) : InvalidOperationException(message);
+class ActionRefusedException(string message) : InvalidOperationException(message);
 
 readonly record struct Outcome(string Technique, string Mechanism, string Effect);
 

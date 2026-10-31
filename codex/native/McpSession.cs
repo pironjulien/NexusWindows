@@ -402,6 +402,13 @@ static partial class McpServer
         }
         return assertions;
     }
+    // The one enabled element under a point that has its own UIA gesture, or null (none, or several nested: ambiguous).
+    internal static JsonObject? PointGesture(IEnumerable<JsonObject> hits)
+    {
+        var actionable = hits.Where(e => Bool(e, "visible") && !Bool(e, "disabled") && !Bool(e, "password") && Str(e, "role") != "window" &&
+            (Bool(e, "invoke") || e["checked"] is JsonValue || e["selected"] is JsonValue)).Take(2).ToList();
+        return actionable.Count == 1 ? actionable[0] : null;
+    }
     static void AddIdentity(JsonObject request, JsonObject element, JsonObject observation)
     {
         foreach (var field in new[] { "runtimeId", "nativeWindow" }) request[field] = element[field]?.DeepClone();
@@ -462,10 +469,17 @@ static partial class McpServer
         if (target == null && kind is "click" or "drag")
         {
             var at = NativePoint(state, step, snapshot, null);
-            target = Elements(snapshot).OfType<JsonObject>().Where(e => e["bounds"] is JsonArray b && b.Count == 4 &&
-                at.X >= b[0]!.GetValue<double>() && at.Y >= b[1]!.GetValue<double>() && at.X < b[0]!.GetValue<double>() + b[2]!.GetValue<double>() && at.Y < b[1]!.GetValue<double>() + b[3]!.GetValue<double>())
-                .OrderByDescending(e => Number(e, "depth")).FirstOrDefault();
-            // The coordinate remains the requested point; the hit element is read only for safeguards.
+            var hits = Elements(snapshot).OfType<JsonObject>().Where(e => e["bounds"] is JsonArray b && b.Count == 4 &&
+                at.X >= b[0]!.GetValue<double>() && at.Y >= b[1]!.GetValue<double>() && at.X < b[0]!.GetValue<double>() + b[2]!.GetValue<double>() && at.Y < b[1]!.GetValue<double>() + b[3]!.GetValue<double>()).ToList();
+            target = hits.OrderByDescending(e => Number(e, "depth")).FirstOrDefault();
+            // The coordinate remains the requested point; the hit element is read only for safeguards. Except where a posted
+            // click has no effect (WPF, UWP): the single element under the point that has its own UIA gesture (Invoke, Toggle,
+            // SelectionItem) gets it in the background instead of the foreground fallback, like trycua/cua (31/10).
+            if (kind == "click" && Str(step, "button", "left") == "left" && Number(step, "count", 1) <= 1 && PointGesture(hits) is { } gesture &&
+                Pointer.IgnoresPostedClick((nint)state.BoundWindow!.Value.Id))
+            {
+                target = semanticTarget = gesture; selector = SelectorOf(gesture);
+            }
         }
         if (kind == "key" && target != null && !Bool(target, "focused")) throw new ActionRefusedException("The named key target is not focused; first click it with a focused:true postcondition, then send the key");
         CheckGesture(state, step, snapshot, target, textSubmit);

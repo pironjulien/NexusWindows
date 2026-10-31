@@ -11,7 +11,7 @@ static partial class Program
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(nint hwnd, out uint pid);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern int GetApplicationUserModelId(nint process, ref uint length, StringBuilder? appId);
     // Lectures : permises pendant l'arret d'urgence, n'envoient aucune entree.
-    static readonly HashSet<string> ReadOnlyOperations = new(StringComparer.Ordinal) { "inspect", "capture", "ocr", "related", "windows", "probe", "alive" };
+    static readonly HashSet<string> ReadOnlyOperations = new(StringComparer.Ordinal) { "inspect", "capture", "ocr", "related", "windows", "probe", "alive", "table" };
     static readonly HashSet<string> ActionOperations = new(StringComparer.Ordinal) { "click", "setValue", "secondary", "select", "typeText", "physical", "focus", "realizeNamed", "key" };
     static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     // This engine's own executable, started again for its helper children (--com-worker, --steam-startup-info,
@@ -64,6 +64,7 @@ static partial class Program
             }
             catch (Exception error) when (!acquired) { Write(new { ok = false, error = error.GetType().Name, message = error.Message }); return 1; }
         }
+        if (args.Length is 3 or 4 && args[0] == "--window-lock") return WindowLock.Hold(args);
         if (args.Length == 2 && args[0] == "--stop-guard") return EmergencyStop.Guard(args[1]);
         // Images de l'indicateur (BGRA premultiplie, bout a bout) pour les tests, sans rien afficher.
         if (args.Length == 3 && args[0] == "--indicator-frames" && int.TryParse(args[1], out var diameter) && diameter is >= 24 and <= 512)
@@ -264,6 +265,15 @@ static partial class Program
             // OCR de la derniere capture de CETTE fenetre (chemin rendu par capture), lecture seule.
             if (op == "ocr") return Capture.Recognize(Text(request, "path"));
             if (op == "related") return Related(hwnd, pid);
+            if (op == "table")
+            {
+                var runtimeId = request.GetProperty("runtimeId").EnumerateArray().Select(v => v.GetInt32()).ToArray();
+                var hint = request.TryGetProperty("nativeWindow", out var nw) && nw.ValueKind == JsonValueKind.Number ? (nint)nw.GetInt64() : 0;
+                var maxRows = request.TryGetProperty("maxRows", out var mr) && mr.ValueKind == JsonValueKind.Number ? Math.Clamp(mr.GetInt32(), 1, 600) : 100;
+                var read = ComUia.Shared.ReadTable(hwnd, runtimeId, hint, maxRows);
+                return read == null ? new { ok = true, grid = false } :
+                    new { ok = true, grid = true, headers = read.Headers, rows = read.Rows, rowCount = read.RowCount, columnCount = read.ColumnCount };
+            }
             if (op == "menu") return MenuCommand(hwnd, Text(request, "path"));
             if (op == "key" && !request.TryGetProperty("selector", out _)) return KeyAction(hwnd, Text(request, "key"), request);
             if (op == "point") return PointAction(hwnd, request);
