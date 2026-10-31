@@ -14,11 +14,12 @@ and npm (`nexus-windows-codex`).
 - Docs: profile READMEs point to this repository only (release badge, family table); the Codex README installs the
   native engine only, without the npm package or the removed `NexusWindows-Codex` plugin marketplace.
 - Release: a push whose version is not released yet becomes the stable release right after its development build
-  (same files); "Run workflow" still promotes by hand. CodeQL and OpenSSF Scorecard workflows removed.
-
-### Changed
+  (same files); "Run workflow" still promotes by hand.
 - Deferred experimental native freshness reconciliation until unsupported UIA properties provide reliable proof.
-  The candidate and qualification work are preserved on branch `codex/native-freshness-3.9.3`; this experimental work is not included in 3.9.4.
+  The candidate and qualification work are archived outside the repository; this experimental work is not included in 3.9.4.
+
+### Security
+- CodeQL (GitHub default setup) and the OpenSSF Scorecard workflow run again on every push to main.
 
 ## [3.9.8] - 2026-10-31
 
