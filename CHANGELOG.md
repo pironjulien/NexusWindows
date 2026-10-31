@@ -15,6 +15,23 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 - Deferred experimental native freshness reconciliation until unsupported UIA properties provide reliable proof.
   The candidate and qualification work are preserved on branch `codex/native-freshness-3.9.3`; this experimental work is not included in 3.9.4.
 
+## [3.9.7] - 2026-10-31
+
+### Added
+- Development builds: every push to `main` checks one version everywhere, runs `test.ps1`, builds the same release
+  files and publishes them, attested, as the pre-release `vX.Y.Z-dev.N` (NexusSystem's development channel); each
+  published build is then installed from its release files in an isolated profile.
+- `get.ps1` honours `NEXUS_RELEASE_TAG` (a stable `vX.Y.Z` or a development `vX.Y.Z-dev.N`) to install that release
+  instead of the latest; its `SHA256SUMS.txt` still verifies everything.
+
+### Changed
+- A stable release is the promotion ("Run workflow") of a tested development build: the same files, unchanged,
+  become `vX.Y.Z` with this changelog's section, then `server.json` goes to the official MCP registry. Pushing a
+  version tag no longer releases anything.
+- The release workflow calls the shared NexusSystem workflows (`product-dev-release`, `product-promote`), pinned by
+  commit SHA. Provenance is now signed by them: `gh attestation verify <file> --repo pironjulien/NexusWindows
+  --signer-repo pironjulien/NexusSystem`.
+
 ## [3.9.6] - 2026-10-31
 
 ### Changed

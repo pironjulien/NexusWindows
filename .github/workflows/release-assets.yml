@@ -1,35 +1,47 @@
-# Release: on a vX.Y.Z tag (same version as codex/native, claude/mcpb/manifest.json, server.json and CHANGELOG.md), runs
-# test.ps1, builds (commun/package.ps1) NexusWindows-win-x64.zip and NexusWindows-win-arm64.zip (stable launcher, Native
-# AOT, + the self-contained engine: what get.ps1 installs), the Claude Desktop extension nexus-windows-claude.mcpb (x64,
-# the name NexusSystem downloads from the latest release) and nexus-windows-claude-arm64.mcpb, and get.ps1, attests their build provenance (Sigstore, keyless:
-# `gh attestation verify <file> --repo pironjulien/NexusWindows`), and publishes them with SHA256SUMS.txt and that
-# provenance (NexusWindows-X.Y.Z.intoto.jsonl, for `gh attestation verify <file> --bundle`) as the "NexusWindows X.Y.Z"
-# GitHub release. Then server.json, with the extension's URL and SHA-256, goes to the official MCP registry (GitHub OIDC
-# login, namespace io.github.pironjulien; no token stored). Actions pinned by commit SHA; Dependabot keeps them current.
+# Release, in two channels, with the shared Nexus release workflows of NexusSystem.
+# - Development: every push to main checks one version everywhere (codex/native, the launcher, server.json, the
+#   manifests and CHANGELOG.md), runs test.ps1 and builds (commun/package.ps1) NexusWindows-win-x64.zip and
+#   NexusWindows-win-arm64.zip (stable launcher, Native AOT, + the self-contained engine: what get.ps1 installs), the
+#   Claude Desktop extension nexus-windows-claude.mcpb (x64, the name NexusSystem and the MCP registry use) and
+#   nexus-windows-claude-arm64.mcpb, get.ps1 and SHA256SUMS.txt. product-dev-release attests them (Sigstore, keyless:
+#   `gh attestation verify <file> --repo pironjulien/NexusWindows --signer-repo pironjulien/NexusSystem`, bundle
+#   NexusWindows-X.Y.Z.intoto.jsonl) and publishes the pre-release vX.Y.Z-dev.N (NexusSystem's development channel).
+# - Stable: "Run workflow" (promote: a vX.Y.Z-dev.N, or empty for the newest) runs product-promote: the SAME files
+#   become the release "NexusWindows X.Y.Z" with the CHANGELOG section, then server.json goes to the official MCP
+#   registry. registry: only re-send a stable release's server.json. get.ps1 installs from releases/latest.
+# - Each published build (development and stable) is then installed from its release files in an isolated profile
+#   (.github/scripts/verify-release.ps1): checksums, provenance, two installations, maintenance, client checks, MCP.
+# Actions and shared workflows pinned by commit SHA; Dependabot (github-actions) keeps them up to date.
 name: Release
 
 on:
   push:
-    tags: ["v*.*.*"]
+    branches: [main]
   workflow_dispatch:
     inputs:
-      release_tag:
-        description: 'Verify installation of this published tag; leave empty to republish the registry entry'
+      promote:
+        description: Development build to publish as stable (vX.Y.Z-dev.N; empty = the newest)
         required: false
-        type: string
+        default: ''
+      registry:
+        description: Only send this stable release's server.json (vX.Y.Z) to the MCP registry again
+        required: false
+        default: ''
 
 permissions: {}
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  release:
+  build:
     if: github.repository == 'pironjulien/NexusWindows' && github.event_name == 'push'
     runs-on: windows-latest
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: read
     outputs:
-      mcpb-sha256: ${{ steps.packages.outputs.mcpb-sha256 }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -41,53 +53,76 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false  # a release job never restores a cache (cache poisoning)
+      - name: One version everywhere
+        id: version
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content codex/native/NexusCodex.UIA.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "codex/native/NexusCodex.UIA.csproj: no X.Y.Z version ($version)." }
+          $server = Get-Content server.json -Raw | ConvertFrom-Json
+          $found = [ordered]@{
+            'codex/native/McpServer.cs' = [regex]::Match((Get-Content codex/native/McpServer.cs -Raw), 'Version = "([^"]+)"').Groups[1].Value
+            'commun/launcher/NexusWindows.Launcher.csproj' = ([xml](Get-Content commun/launcher/NexusWindows.Launcher.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+            'commun/native-runtime.ps1' = [regex]::Match((Get-Content commun/native-runtime.ps1 -Raw), "Version='([^']+)'").Groups[1].Value
+            'codex/package.json' = (Get-Content codex/package.json -Raw | ConvertFrom-Json).version
+            'codex/.codex-plugin/plugin.json' = (Get-Content codex/.codex-plugin/plugin.json -Raw | ConvertFrom-Json).version
+            'claude/mcpb/manifest.json' = (Get-Content claude/mcpb/manifest.json -Raw | ConvertFrom-Json).version
+            'plugin/antigravity/plugin.json' = (Get-Content plugin/antigravity/plugin.json -Raw | ConvertFrom-Json).version
+            'plugin/.claude-plugin/plugin.json' = (Get-Content plugin/.claude-plugin/plugin.json -Raw | ConvertFrom-Json).version
+            'plugin/.codex-plugin/plugin.json' = (Get-Content plugin/.codex-plugin/plugin.json -Raw | ConvertFrom-Json).version
+            'server.json' = $server.version
+          }
+          $wrong = @($found.GetEnumerator() | Where-Object { $_.Value -ne $version } | ForEach-Object { "$($_.Key)=$($_.Value)" })
+          if ($wrong) { throw "Version $version expected: $($wrong -join ', ')" }
+          if ($server.packages[0].identifier -ne "https://github.com/pironjulien/NexusWindows/releases/download/v$version/nexus-windows-claude.mcpb") { throw 'server.json names another bundle.' }
+          if (-not (Select-String -Path CHANGELOG.md -SimpleMatch "## [$version]" -Quiet)) { throw "CHANGELOG.md has no [$version] section." }
+          "version=$version" >> $env:GITHUB_OUTPUT
       - name: Tests (test.ps1)
         shell: pwsh
         run: ./test.ps1
-      - name: Packages
-        id: packages
+      - name: Build and pack
         shell: pwsh
         env:
-          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          $version = $env:TAG.TrimStart('v')
-          $server = Get-Content server.json -Raw | ConvertFrom-Json
-          if ($server.version -ne $version) { throw "server.json has version $($server.version), not $version." }
-          foreach ($manifest in 'plugin/antigravity/plugin.json', 'plugin/.claude-plugin/plugin.json', 'plugin/.codex-plugin/plugin.json') {
-            $found = (Get-Content $manifest -Raw | ConvertFrom-Json).version
-            if ($found -ne $version) { throw "$manifest has version $found, not $version." }
-          }
-          if ($server.packages[0].identifier -ne "https://github.com/pironjulien/NexusWindows/releases/download/$($env:TAG)/nexus-windows-claude.mcpb") { throw 'server.json names another bundle.' }
-          ./commun/package.ps1 -Version $version -Out dist
-          "mcpb-sha256=$((Get-FileHash dist/nexus-windows-claude.mcpb -Algorithm SHA256).Hash.ToLowerInvariant())" >> $env:GITHUB_OUTPUT
-      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
-        id: provenance
+          # commun/package.ps1 also writes dist/SHA256SUMS.txt, listing every other dist file.
+          ./commun/package.ps1 -Version $env:VERSION -Out dist
+          Get-Content dist/SHA256SUMS.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
-          subject-path: dist/*
-      - name: Provenance bundle
-        shell: pwsh
-        env:
-          BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
-          TAG: ${{ github.ref_name }}
-        run: Copy-Item $env:BUNDLE "dist/NexusWindows-$($env:TAG.TrimStart('v')).intoto.jsonl"
-      - name: GitHub release
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-        run: |
-          $version = $env:TAG.TrimStart('v')
-          $lines = Get-Content CHANGELOG.md
-          $start = [Array]::FindIndex($lines, [Predicate[string]] { param($l) $l -like "## ``[$version``]*" })
-          if ($start -lt 0) { throw "CHANGELOG.md has no [$version] section." }
-          $end = [Array]::FindIndex($lines, $start + 1, [Predicate[string]] { param($l) $l -like '## *' })
-          if ($end -lt 0) { $end = $lines.Count }
-          $lines[($start + 1)..($end - 1)] | Set-Content notes.md -Encoding utf8NoBOM
-          gh release create $env:TAG (Get-ChildItem dist -File).FullName --title "NexusWindows $version" --notes-file notes.md --verify-tag
+          name: dist
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 3
+
+  dev:
+    needs: build
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    uses: pironjulien/NexusSystem/.github/workflows/product-dev-release.yml@a409925bafd1184acc207dd90ca4a43ba987d0e3  # v1.6.39
+    with:
+      product: NexusWindows
+      version: ${{ needs.build.outputs.version }}
+
+  promote:
+    if: github.repository == 'pironjulien/NexusWindows' && github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+      id-token: write
+    uses: pironjulien/NexusSystem/.github/workflows/product-promote.yml@a409925bafd1184acc207dd90ca4a43ba987d0e3  # v1.6.39
+    with:
+      product: NexusWindows
+      promote: ${{ inputs.promote }}
+      registry-only: ${{ inputs.registry }}
+      mcp-package: nexus-windows-claude.mcpb
 
   install-from-release:
-    needs: release
-    if: always() && github.repository == 'pironjulien/NexusWindows' && ((github.event_name == 'push' && needs.release.result == 'success') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != ''))
+    # Not covered by the shared workflows: install the build just published (development or stable) from its release
+    # files in an isolated profile; no real client is changed.
+    needs: [dev, promote]
+    if: always() && (needs.dev.result == 'success' || (needs.promote.result == 'success' && needs.promote.outputs.tag != ''))
     runs-on: windows-latest
     permissions:
       contents: read
@@ -99,42 +134,5 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.release_tag || github.ref_name }}
+          TAG: ${{ needs.dev.outputs.tag || needs.promote.outputs.tag }}
         run: ./.github/scripts/verify-release.ps1 -Tag $env:TAG -Work (Join-Path $env:RUNNER_TEMP ('nexuswindows-release-' + [guid]::NewGuid().ToString('N')))
-
-  registry:
-    # server.json to the official MCP registry, with the extension just published. mcp-publisher pinned by version and
-    # SHA-256; no token stored, no manual login.
-    needs: release
-    if: always() && github.repository == 'pironjulien/NexusWindows' && (needs.release.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.release_tag == ''))
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    env:
-      PUBLISHER_VERSION: v1.8.1
-      PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Bundle SHA-256 into server.json
-        env:
-          MCPB_SHA256: ${{ needs.release.outputs.mcpb-sha256 }}
-        run: |
-          set -euo pipefail
-          url=$(jq -r '.packages[0].identifier' server.json)
-          curl -fsSL -o bundle.mcpb "$url"
-          actual=$(sha256sum bundle.mcpb | cut -d' ' -f1)
-          # A push run checks the bundle against the hash its release job computed; a manual run takes the published one.
-          if [[ -n "$MCPB_SHA256" && "$MCPB_SHA256" != "$actual" ]]; then echo "Bundle SHA-256 mismatch"; exit 1; fi
-          jq --arg sha "$actual" '.packages[0].fileSha256 = $sha' server.json > server.tmp && mv server.tmp server.json
-      - name: Install mcp-publisher (pinned, checksum verified)
-        run: |
-          set -euo pipefail
-          curl -fsSL -o mcp-publisher.tar.gz \
-            "https://github.com/modelcontextprotocol/registry/releases/download/${PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
-          echo "${PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum --strict -c
-          tar xzf mcp-publisher.tar.gz mcp-publisher
-      - run: ./mcp-publisher login github-oidc
-      - run: ./mcp-publisher publish server.json

@@ -2,7 +2,8 @@
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$Tag, [Parameter(Mandatory)][string]$Work)
 $ErrorActionPreference = 'Stop'
-if ($Tag -notmatch '^v\d+\.\d+\.\d+$') { throw 'A versioned release tag is required.' }
+if ($Tag -notmatch '^v(\d+\.\d+\.\d+)(-dev\.\d+)?$') { throw 'A versioned release tag (vX.Y.Z or vX.Y.Z-dev.N) is required.' }
+$version = $Matches[1]
 New-Item -ItemType Directory -Force -Path $Work | Out-Null
 $files = Join-Path $Work 'release'
 New-Item -ItemType Directory -Force -Path $files | Out-Null
@@ -21,7 +22,7 @@ foreach ($required in 'get.ps1', 'NexusWindows-win-x64.zip', 'NexusWindows-win-a
     if (-not $verified.Contains($required)) { throw "Missing required checksum: $required" }
 }
 $installer = Join-Path $files 'get.ps1'
-gh attestation verify $installer --repo pironjulien/NexusWindows --bundle (Join-Path $files "NexusWindows-$($Tag.TrimStart('v')).intoto.jsonl")
+gh attestation verify $installer --repo pironjulien/NexusWindows --signer-repo pironjulien/NexusSystem --bundle (Join-Path $files "NexusWindows-$version.intoto.jsonl")
 if ($LASTEXITCODE) { throw 'Installer provenance verification failed.' }
 
 $testProfile = Join-Path $Work 'profile'
@@ -39,7 +40,7 @@ foreach ($pass in 1..2) {
     & $shell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $installer
     if ($LASTEXITCODE) { throw "Release installation failed on pass $pass." }
 }
-if ([version]$Tag.TrimStart('v') -ge [version]'3.9.5') {
+if ([version]$version -ge [version]'3.9.5') {
     # A maintenance pass must not register clients or rewrite configuration, even when those clients are present.
     $clientFiles = @()
     foreach ($relative in '.claude', '.codex', '.gemini', 'AppData\Roaming\Claude') {
@@ -57,7 +58,7 @@ if ([version]$Tag.TrimStart('v') -ge [version]'3.9.5') {
 }
 $stable = Join-Path $testProfile '.nexus\nexus-windows\NexusWindows.exe'
 $runtime = Get-Content -LiteralPath (Join-Path $testProfile '.nexus\nexus-windows\installation.json') -Raw | ConvertFrom-Json
-if ($runtime.Version -ne $Tag.TrimStart('v')) { throw 'The installed version differs from the release.' }
+if ($runtime.Version -ne $version) { throw 'The installed version differs from the release.' }
 $env:USERPROFILE = $testProfile
 $env:APPDATA = Join-Path $testProfile 'AppData\Roaming'
 $env:LOCALAPPDATA = Join-Path $testProfile 'AppData\Local'

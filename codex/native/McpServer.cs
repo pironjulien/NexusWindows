@@ -12,7 +12,7 @@ using System.Text.Json.Nodes;
 // - Applique les garde-fous communs (GardeFous.cs), journalise chaque action (Journal.cs) et pilote Windows en processus via Program.Execute.
 static partial class McpServer
 {
-    public const string Version = "3.9.6";
+    public const string Version = "3.9.7";
     static readonly string[] ModernProtocolVersions = ["2026-07-28"];
     static readonly string[] LegacyProtocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
     const string ProtocolVersionMeta = "io.modelcontextprotocol/protocolVersion";

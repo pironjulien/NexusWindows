@@ -36,7 +36,7 @@ $r = 'https://github.com/pironjulien/NexusWindows/releases/latest/download'
 Invoke-WebRequest "$r/get.ps1" -OutFile get.ps1
 Invoke-WebRequest "$r/SHA256SUMS.txt" -OutFile SHA256SUMS.txt
 (Get-FileHash get.ps1 -Algorithm SHA256).Hash    # must equal the get.ps1 line of SHA256SUMS.txt
-gh attestation verify get.ps1 --repo pironjulien/NexusWindows   # optional: build provenance
+gh attestation verify get.ps1 --repo pironjulien/NexusWindows --signer-repo pironjulien/NexusSystem   # optional: provenance
 powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1
 ```
 
@@ -44,7 +44,7 @@ get.ps1 downloads `NexusWindows-win-x64.zip` or `NexusWindows-win-arm64.zip` fro
 SHA-256 against `SHA256SUMS.txt`, installs the engine under `%USERPROFILE%\.nexus\nexus-windows` and declares it to
 Claude Code, Claude Desktop, Codex and Antigravity when they are present. Every client starts the same stable path,
 `%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe --mcp --agent <claude|codex|antigravity>`; updates never change
-it. Release files carry a build provenance attestation (`gh attestation verify <file> --repo pironjulien/NexusWindows`).
+it. Release files carry a build provenance attestation (`gh attestation verify <file> --repo pironjulien/NexusWindows --signer-repo pironjulien/NexusSystem`).
 The Claude Desktop extension is `nexus-windows-claude.mcpb` in each release.
 
 For unattended maintenance of an existing installation, NexusSystem calls `get.ps1 -UpdateOnly`: it updates only

@@ -6,8 +6,8 @@
 #
 # It downloads NexusWindows-win-x64.zip or NexusWindows-win-arm64.zip (this PC's architecture) from the latest
 # release, checks it against the release's SHA256SUMS.txt (its build provenance can be checked with
-# `gh attestation verify <file> --repo pironjulien/NexusWindows`), installs the engine as an immutable version under
-# %USERPROFILE%\.nexus\nexus-windows\native\<sha-256>, then the stable launcher
+# `gh attestation verify <file> --repo pironjulien/NexusWindows --signer-repo pironjulien/NexusSystem`), installs the
+# engine as an immutable version under %USERPROFILE%\.nexus\nexus-windows\native\<sha-256>, then the stable launcher
 # %USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe that every client declares (`--mcp --agent claude|codex|antigravity`).
 # Running sessions keep their engine; new ones get the new version. Finally the clients found on this PC are declared:
 # Claude Code (or its nexus-windows plugin), Claude Desktop, Codex, Antigravity. An entry of your own is kept.
@@ -16,6 +16,7 @@
 # for unattended maintenance; -RefreshExistingProfiles also refreshes an already active Antigravity plugin's files.
 # NEXUS_PACK=1 (the Nexus pack, get-nexus.ps1): no question, no window; exit code 0 on success; a last
 # "NEXUS_PACK_RESULT ..." line.
+# NEXUS_RELEASE_TAG: install that release (vX.Y.Z, or a development build vX.Y.Z-dev.N) instead of the latest.
 # For tests only: NEXUS_WINDOWS_SOURCE (a local NexusWindows-win-<arch>.zip instead of the latest release) and
 # NEXUS_WINDOWS_PROFILE (a throwaway folder used as the user profile: everything is installed and declared there,
 # the real profile and the Claude CLI are never touched). A local package aimed at the real profile is refused unless
@@ -49,6 +50,12 @@ function Say([string]$Text, [string]$Color = 'Gray') { if (-not $Pack) { Write-H
 function Sha256([string]$Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash }
 
 function Get-LatestTag {
+    # NEXUS_RELEASE_TAG (set by NexusSystem for its development channel): that release instead, a stable vX.Y.Z or a
+    # development vX.Y.Z-dev.N build, checked against its own SHA256SUMS.txt like any other.
+    if ($env:NEXUS_RELEASE_TAG) {
+        if ($env:NEXUS_RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+(-dev\.\d+)?$') { throw "NEXUS_RELEASE_TAG is not a release tag: $env:NEXUS_RELEASE_TAG" }
+        return $env:NEXUS_RELEASE_TAG
+    }
     # From the redirect of github.com/<repo>/releases/latest: no GitHub API (60 anonymous requests an hour per IP).
     try {
         $request = [Net.HttpWebRequest]::Create("https://github.com/$Repo/releases/latest")
