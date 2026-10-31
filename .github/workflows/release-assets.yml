@@ -53,6 +53,10 @@ jobs:
           $version = $env:TAG.TrimStart('v')
           $server = Get-Content server.json -Raw | ConvertFrom-Json
           if ($server.version -ne $version) { throw "server.json has version $($server.version), not $version." }
+          foreach ($manifest in 'plugin/antigravity/plugin.json', 'plugin/.claude-plugin/plugin.json', 'plugin/.codex-plugin/plugin.json') {
+            $found = (Get-Content $manifest -Raw | ConvertFrom-Json).version
+            if ($found -ne $version) { throw "$manifest has version $found, not $version." }
+          }
           if ($server.packages[0].identifier -ne "https://github.com/pironjulien/NexusWindows/releases/download/$($env:TAG)/nexus-windows-claude.mcpb") { throw 'server.json names another bundle.' }
           ./commun/package.ps1 -Version $version -Out dist
           "mcpb-sha256=$((Get-FileHash dist/nexus-windows-claude.mcpb -Algorithm SHA256).Hash.ToLowerInvariant())" >> $env:GITHUB_OUTPUT

@@ -1,6 +1,6 @@
 {
   "name": "nexus-windows",
-  "version": "3.9.5",
+  "version": "3.9.6",
   "description": "NexusWindows for Codex: Windows desktop apps operated in the background, every action read back.",
   "author": {
     "name": "Julien Piron",

@@ -15,6 +15,15 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 - Deferred experimental native freshness reconciliation until unsupported UIA properties provide reliable proof.
   The candidate and qualification work are preserved on branch `codex/native-freshness-3.9.3`; this experimental work is not included in 3.9.4.
 
+## [3.9.6] - 2026-10-31
+
+### Changed
+- `plugin/` is now the single source of the NexusWindows plugin for the three AI apps: Claude Code
+  (`.claude-plugin`, `.mcp.json`), Codex (`.codex-plugin`, `.codex-mcp.json`), their shared guide (`skills/`) and
+  icons (`assets/`), plus Antigravity's own plugin (`antigravity/`, formerly `agy/plugins/nexus-windows`), which
+  still ships with the engine. The NexusSystem catalog points to this folder at the release tag instead of keeping
+  its own copies. The engine is unchanged.
+
 ## [3.9.5] - 2026-10-30
 
 ### Added

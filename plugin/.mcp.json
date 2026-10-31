@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "nexus-windows": {
+      "type": "stdio",
+      "command": "${USERPROFILE}\\.nexus\\nexus-windows\\NexusWindows.exe",
+      "args": [
+        "--mcp",
+        "--agent",
+        "claude"
+      ]
+    }
+  }
+}

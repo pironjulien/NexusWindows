@@ -1,0 +1,24 @@
+{
+  "name": "nexus-windows",
+  "displayName": "Nexus Windows",
+  "version": "3.9.6",
+  "description": "Windows desktop apps through native UI Automation: observe, click, type, menus, shortcuts and launch. Foreground interaction is explicit when required. Starts the native NexusWindows engine installed by NexusSystem (or NexusWindows' get.ps1).",
+  "author": {
+    "name": "Julien Piron",
+    "url": "https://github.com/pironjulien"
+  },
+  "homepage": "https://julienpiron.fr/nexuswindows/claude/",
+  "repository": "https://github.com/pironjulien/NexusWindows",
+  "license": "MIT",
+  "keywords": [
+    "windows",
+    "desktop",
+    "ui-automation",
+    "computer-use",
+    "mcp"
+  ],
+  "icon": "./assets/logo.png",
+  "documentationUrl": "https://github.com/pironjulien/NexusWindows/tree/main/claude#readme",
+  "privacyPolicyUrl": "https://github.com/pironjulien/NexusWindows/tree/main/claude#privacy",
+  "supportUrl": "https://github.com/pironjulien/NexusWindows/issues"
+}

@@ -27,7 +27,9 @@ try {
         Copy-Item (Join-Path $work "launcher-$rid\NexusWindows.exe") $stage
         Copy-Item (Join-Path $root 'commun\garde-fous.json') $engine
         $plugin = Join-Path $engine 'plugins\antigravity'
-        Copy-Item (Join-Path $root 'agy\plugins\nexus-windows') $plugin -Recurse
+        # plugin\ serves the three AI apps; only its Antigravity part ships with the engine (Claude Code and Codex
+        # read plugin\ itself through the NexusSystem catalog).
+        Copy-Item (Join-Path $root 'plugin\antigravity') $plugin -Recurse
         $actual = (Get-Item (Join-Path $engine 'NexusWindows.exe')).VersionInfo.ProductVersion
         if ($actual -ne $Version) { throw "The engine says version $actual, not $Version." }
         $zip = Join-Path $Out "NexusWindows-$rid.zip"

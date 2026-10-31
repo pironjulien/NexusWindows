@@ -2,7 +2,7 @@
 
 <!-- mcp-name: io.github.pironjulien/nexus-windows-antigravity -->
 
-<img src="https://raw.githubusercontent.com/pironjulien/NexusWindows/main/agy/plugins/nexus-windows/logo.png" alt="NexusWindows icon" width="96">
+<img src="https://raw.githubusercontent.com/pironjulien/NexusWindows/main/plugin/antigravity/logo.png" alt="NexusWindows icon" width="96">
 
 [![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows-Antigravity)](https://github.com/pironjulien/NexusWindows/releases)
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
@@ -189,7 +189,7 @@ tools; the lab is fixed and Electron will count at the next run. A comparison wi
 
 The Antigravity profile is served by the common C# (.NET 10) engine (`codex/native/`, started as
 `NexusWindows.exe --mcp --agent antigravity` through the stable launcher `commun/launcher/`), with the shared safety
-policy `commun/garde-fous.json`. `plugins/nexus-windows/` holds the Antigravity plugin and its agent guide
+policy `commun/garde-fous.json`. `plugin/antigravity/` (at the repository root) holds the Antigravity plugin and its agent guide
 (`SKILL.md`), installed by `NexusWindows.exe --register antigravity`.
 
 ## Privacy

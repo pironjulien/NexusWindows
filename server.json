@@ -3,7 +3,7 @@
   "name": "io.github.pironjulien/nexus-windows",
   "title": "NexusWindows",
   "description": "Windows computer use in the background: desktop apps driven without your mouse or keyboard.",
-  "version": "3.9.5",
+  "version": "3.9.6",
   "websiteUrl": "https://julienpiron.fr/nexuswindows/",
   "icons": [
     {
@@ -19,7 +19,7 @@
   "packages": [
     {
       "registryType": "mcpb",
-      "identifier": "https://github.com/pironjulien/NexusWindows/releases/download/v3.9.5/nexus-windows-claude.mcpb",
+      "identifier": "https://github.com/pironjulien/NexusWindows/releases/download/v3.9.6/nexus-windows-claude.mcpb",
       "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "transport": {
         "type": "stdio"
