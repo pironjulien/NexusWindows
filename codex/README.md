@@ -53,7 +53,7 @@ file dialogs, UTF-8 stdio and diagnosing blank Chromium content.
 |---|---|---|---|
 | Install | `get.ps1` (one engine, three profiles) | `get.ps1` | `get.ps1` |
 | Package | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) |
-| Tools | `windows` `look` `act` `launch` `window`, plus `notifications` and `logs` | `windows` `look` `act` `launch` `window` | `windows` `look` `act` `launch` `window` |
+| Tools | `windows` `look` `act` `launch` `window` `notifications` `clipboard` `logs` | same | same |
 | Folder | [`claude/`](../claude/README.md) | [`codex/`](../codex/README.md) | [`agy/`](../agy/README.md) |
 
 Every step reports ✓ verified, = already done, ~ unknown (never replayed) or ✗ failed or refused. The three share the

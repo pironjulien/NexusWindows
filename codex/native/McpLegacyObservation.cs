@@ -127,7 +127,7 @@ static partial class McpServer
         return regions.Select(r => $"[{r.Element["index"]}] {r.Element["role"]} \"{Truncate(Str(r.Element, "name").Length > 0 ? Str(r.Element, "name") : Str(r.Element, "automationId"), 40)}\" ({r.Count})").ToList();
     }
     static string Truncate(string text, int length) => text.Length <= length ? text.ReplaceLineEndings(" ") : text[..length].ReplaceLineEndings(" ") + "…";
-    // Claude's listed elements without defaults (null, false, empty) nor internal identities: the full record stays in the
+    // Listed elements without defaults (null, false, empty) nor internal identities: the full record stays in the
     // observation acts resolve against, and with detail="full" (31/10: ~400 characters per element, mostly empty fields).
     static JsonObject CompactElement(JsonObject element)
     {
@@ -206,13 +206,13 @@ static partial class McpServer
         var query = Str(args, "query");
         var maximum = (int)Math.Clamp(Number(args, "max_elements", state.Agent == "claude" ? 150 : 2000), state.Agent == "claude" ? 10 : 1, state.Agent == "claude" ? 600 : 2000);
         bool Wanted(JsonObject e) => query.Length == 0 || Str(e, "name").Contains(query, StringComparison.OrdinalIgnoreCase) || Str(e, "value").Contains(query, StringComparison.OrdinalIgnoreCase);
-        // Dense windows (Claude, Slack, Teams: hundreds of nested unnamed panes): Claude reads a skeleton first, then one
+        // Dense windows (Claude, Slack, Teams: hundreds of nested unnamed panes): every profile reads a skeleton first, then one
         // region with within=N, like agent-desktop's --skeleton/--root (31/10). Unnamed containers stay targetable by name
         // of their children and come back with detail="full".
-        var within = state.Agent == "claude" && args["within"] != null ? (int)Number(args, "within") : -1;
+        var within = args["within"] != null ? (int)Number(args, "within") : -1;
         if (within >= 0 && !Elements(snapshot).OfType<JsonObject>().Any(e => Number(e, "index", -1) == within)) throw new ActionRefusedException("within: element absent from current observation; look again");
         var parents = ParentCounts(snapshot);
-        var skeleton = state.Agent == "claude" && Str(args, "detail") != "full";
+        var skeleton = Str(args, "detail") != "full";
         bool Inside(JsonObject e) => within < 0 || Number(e, "index", -1) == within || (e["ancestors"] as JsonArray)?.Any(i => i!.GetValue<int>() == within) == true;
         bool Noise(JsonObject e) => skeleton && EmptyContainer(e, parents);
         var hidden = Elements(snapshot).OfType<JsonObject>().Count(e => Wanted(e) && Inside(e) && Noise(e));
@@ -238,7 +238,7 @@ static partial class McpServer
         // The structured result is what a client such as Claude Code shows the model, image included: the full tree and
         // document text (~25,000 tokens on a long web page, Chrome Web Store dashboard, 31/10) only with detail="full" or
         // show="text"; an image or a filtered look carries only the elements it lists and a short summary.
-        data["elements"] = new JsonArray((show is "none" or "image" ? [] : listed).Select(e => state.Agent == "claude" && Str(args, "detail") != "full" ? CompactElement(e) : e.DeepClone()).ToArray());
+        data["elements"] = new JsonArray((show is "none" or "image" ? [] : listed).Select(e => Str(args, "detail") != "full" ? CompactElement(e) : e.DeepClone()).ToArray());
         if (Str(args, "detail") != "full" && show != "text" && data["accessibility"] is JsonObject accessibility)
         {
             accessibility.Remove("tree"); accessibility.Remove("document_text"); accessibility.Remove("document_truncated");

@@ -1,8 +1,10 @@
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
-// Presse-papiers Windows (Claude, 31/10, idee reprise d'agent-desktop) : lecture du texte et des fichiers copies, ecriture
-// de texte relue. Un contenu marque sensible par son auteur (gestionnaires de mots de passe : formats
+// Presse-papiers Windows (31/10, idee reprise d'agent-desktop), memes droits pour les trois profils : lecture du texte et
+// des fichiers copies, ecriture de texte relue. L'ecriture est un EMPRUNT (axe « invisible ») : le contenu de Julien est
+// mis de cote, format par format, et rendu seul apres 61,8 s ou sur restore, jamais s'il a recopie entre-temps ; refusee
+// tant que son presse-papiers tient un contenu prive. Un contenu marque sensible par son auteur (gestionnaires de mots de passe : formats
 // ExcludeClipboardContentFromMonitorProcessing / CanIncludeInClipboardHistory = 0) n'est jamais lu ; les codes de
 // securite sont masques comme dans les notifications. Ce que l'agent ecrit est une copie ordinaire : la marquer hors
 // historique la ferait passer pour un secret, illisible a la relecture suivante (essai reel du 31/10).
@@ -22,6 +24,14 @@ static class Clipboard
     [DllImport("kernel32.dll")] static extern bool GlobalUnlock(nint memory);
     [DllImport("kernel32.dll")] static extern nint GlobalFree(nint memory);
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern uint DragQueryFileW(nint drop, uint index, char[]? file, uint length);
+    [DllImport("user32.dll")] static extern uint EnumClipboardFormats(uint format);
+    [DllImport("user32.dll")] static extern uint GetClipboardSequenceNumber();
+    [DllImport("kernel32.dll")] static extern nuint GlobalSize(nint memory);
+    // GDI or owner-drawn formats are no memory blocks; Windows synthesizes CF_BITMAP and metafiles from what is kept.
+    static readonly HashSet<uint> NotMemory = [2, 3, 9, 14, 0x80, 0x82, 0x83, 0x8E];
+    public const int LendMs = 61_800;
+    static readonly object Gate = new();
+    static List<(uint Format, byte[] Bytes)>? lent; static uint lentSequence; static Timer? giveBack;
 
     static readonly uint Exclude = RegisterClipboardFormatW("ExcludeClipboardContentFromMonitorProcessing");
     static readonly uint History = RegisterClipboardFormatW("CanIncludeInClipboardHistory");
@@ -91,14 +101,67 @@ static class Clipboard
     {
         if (text.Length > MaxText) throw new ActionRefusedException($"Text longer than {MaxText} characters; nothing was written");
         EmergencyStop.ThrowIfStopped();
-        Open();
-        try
+        lock (Gate)
         {
-            if (!EmptyClipboard()) throw new InvalidOperationException("The clipboard could not be emptied; nothing was written");
-            Put(CfUnicodeText, System.Text.Encoding.Unicode.GetBytes(text + "\0"));
-            var verified = Text() == text;
-            return new JsonObject { ["status"] = verified ? "verified" : "unknown", ["verified"] = verified, ["length"] = text.Length };
+            // A lend still running keeps the user's original content, never the task's own earlier text.
+            if (lent != null && GetClipboardSequenceNumber() != lentSequence) { lent = null; giveBack?.Dispose(); giveBack = null; }
+            var verified = false;
+            Open();
+            try
+            {
+                if (lent == null)
+                {
+                    if (IsClipboardFormatAvailable(Exclude) || Denied(History))
+                        throw new ActionRefusedException("The user's clipboard holds private content (password manager); nothing was written");
+                    lent = Keep();
+                }
+                if (!EmptyClipboard()) throw new InvalidOperationException("The clipboard could not be emptied; nothing was written");
+                Put(CfUnicodeText, System.Text.Encoding.Unicode.GetBytes(text + "\0"));
+                verified = Text() == text;
+            }
+            finally { CloseClipboard(); }
+            // Read after closing: closing the clipboard advances its sequence (live test of 31/10 took the task's own
+            // write for a newer copy and kept the user's content aside).
+            lentSequence = GetClipboardSequenceNumber();
+            giveBack?.Dispose(); giveBack = new Timer(_ => { try { Restore(); } catch { /* The next call or the exit tries again. */ } }, null, LendMs, Timeout.Infinite);
+            return new JsonObject { ["status"] = verified ? "verified" : "unknown", ["verified"] = verified, ["length"] = text.Length, ["givenBackInMs"] = LendMs };
         }
-        finally { CloseClipboard(); }
     }
+
+    static List<(uint Format, byte[] Bytes)> Keep()
+    {
+        var kept = new List<(uint, byte[])>();
+        for (var format = EnumClipboardFormats(0); format != 0; format = EnumClipboardFormats(format))
+        {
+            if (NotMemory.Contains(format)) continue;
+            var data = GetClipboardData(format); var size = data == 0 ? 0 : (long)GlobalSize(data);
+            if (size <= 0) continue;
+            var locked = GlobalLock(data); if (locked == 0) continue;
+            try { var bytes = new byte[size]; Marshal.Copy(locked, bytes, 0, (int)size); kept.Add((format, bytes)); } finally { GlobalUnlock(data); }
+        }
+        return kept;
+    }
+
+    // Gives the user's content back, unless someone copied after the task's text (their newer copy wins).
+    public static JsonObject Restore()
+    {
+        lock (Gate)
+        {
+            giveBack?.Dispose(); giveBack = null;
+            if (lent == null) return new JsonObject { ["status"] = "nothing-lent" };
+            var kept = lent; lent = null;
+            if (GetClipboardSequenceNumber() != lentSequence)
+                return new JsonObject { ["status"] = "kept-newer-copy", ["note"] = "The clipboard changed after the task's text; that newer content stays." };
+            Open();
+            try
+            {
+                if (!EmptyClipboard()) throw new InvalidOperationException("The clipboard could not be emptied; the user's content was not given back");
+                foreach (var (format, bytes) in kept) Put(format, bytes);
+                return new JsonObject { ["status"] = "given-back", ["formats"] = kept.Count };
+            }
+            finally { CloseClipboard(); }
+        }
+    }
+
+    static Clipboard() => AppDomain.CurrentDomain.ProcessExit += (_, _) => { try { Restore(); } catch { /* Best effort at exit. */ } };
 }

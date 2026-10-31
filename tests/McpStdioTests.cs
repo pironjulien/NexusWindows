@@ -73,7 +73,7 @@ public class McpStdioTests
         var initialized = server.Rpc("initialize", new { protocolVersion = "2025-11-25", capabilities = new { }, clientInfo = new { name = "receipt-test", version = "1" } });
         SelfTest.Same(runtime.ToJsonString(), initialized["result"]!["_meta"]![RuntimeReceipt.MetadataKey]);
         var names = server.Rpc("tools/list")["result"]!["tools"]!.AsArray().Select(t => t!["name"].S());
-        Assert.Equal(agent == "claude" ? ["windows", "look", "act", "launch", "window", "logs", "notifications", "clipboard"] : ["windows", "look", "act", "launch", "window"], names);
+        Assert.Equal(["windows", "look", "act", "launch", "window", "logs", "notifications", "clipboard"], names);
         var call = server.Rpc("tools/call", new
         {
             name = agent == "antigravity" ? "computer_list_windows" : "windows",
@@ -86,6 +86,24 @@ public class McpStdioTests
         Assert.Equal("idle", JsonNode.Parse(File.ReadAllText(receiptFile))!["state"].S());
         server.Dispose();
         Assert.Equal("stopped", JsonNode.Parse(File.ReadAllText(receiptFile))!["state"].S());
+    }
+
+    // One engine, one level: no tool and no look or clipboard capability is reserved to one AI (31/10, after 3.10.0 had
+    // kept within, compact looks and the clipboard for Claude only).
+    [Fact]
+    public void The_three_profiles_serve_the_same_tools_and_capabilities()
+    {
+        var served = new[] { "claude", "codex", "antigravity" }.Select(agent =>
+        {
+            using var server = new Server(["--mcp", "--agent", agent]);
+            var tools = server.Rpc("tools/list")["result"]!["tools"]!.AsArray().OfType<JsonObject>().ToList();
+            var look = tools.Single(t => t["name"].S() == "look")["inputSchema"]!["properties"]!.AsObject();
+            var clipboard = tools.Single(t => t["name"].S() == "clipboard")["inputSchema"]!["properties"]!["action"]!["enum"]!.AsArray();
+            return string.Join(",", tools.Select(t => t["name"].S())) + "|" + string.Join(",", new[] { "within", "query", "max_elements", "detail", "show" }.Where(look.ContainsKey))
+                + "|" + string.Join(",", clipboard.Select(a => a.S()));
+        }).ToList();
+        Assert.All(served, s => Assert.Equal(served[0], s));
+        Assert.Equal("windows,look,act,launch,window,logs,notifications,clipboard|within,query,max_elements,detail,show|read,write,restore", served[0]);
     }
 
     [Fact]

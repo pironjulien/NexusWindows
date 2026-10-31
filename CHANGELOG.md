@@ -10,6 +10,19 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.11.0] - 2026-10-31
+
+### Changed
+- The three profiles serve the same tools and capabilities: Codex and Antigravity now also get `notifications`,
+  `clipboard`, `logs`, `look(within=N)`, the skeleton list with named regions, compact listed elements and the taskbar
+  and desktop as windows (by name and by id). A test fails if a tool or one of these capabilities is reserved to one AI.
+- `clipboard` `write` borrows the clipboard instead of replacing it: the user's content (every memory format) is kept
+  aside and given back on its own after 61.8 s, or at once with `action="restore"`; a copy made by the user meanwhile
+  is kept, and a write is refused while the user's clipboard holds private content (password manager).
+
+### Fixed
+- `clipboard` `write` in 3.10.0 overwrote the user's copy for good.
+
 ## [3.10.0] - 2026-10-31
 
 ### Added
