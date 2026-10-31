@@ -117,7 +117,9 @@ static class Pointer
             throw new ActionRefusedException("Window moved or resized since the native capture: observe again");
         if (x < now.Left || y < now.Top || x >= now.Right || y >= now.Bottom) throw new ActionRefusedException("Point is outside the window");
         // Une seule technique par geste : celle de l'interface, jamais une seconde apres un envoi (banc commun du 21/10).
-        if (action == "wheel" && wpf)
+        // Chromium without a DevTools port (the user's own browser, a long web page): the posted wheel is ignored, so the
+        // page's UI Automation ScrollPattern under the point scrolls it, read back like WPF (Chrome Web Store, 31/10).
+        if (action == "wheel" && (wpf || chromium && !Cdp.HasPort(window)))
         {
             EmergencyStop.ThrowIfStopped();
             // Entree potentielle des cet appel : un echec ensuite est une issue inconnue (jamais « rien n'a ete envoye »), et

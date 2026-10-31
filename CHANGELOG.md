@@ -15,6 +15,27 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 - Deferred experimental native freshness reconciliation until unsupported UIA properties provide reliable proof.
   The candidate and qualification work are preserved on branch `codex/native-freshness-3.9.3`; this experimental work is not included in 3.9.4.
 
+## [3.9.8] - 2026-10-31
+
+### Fixed
+- `act` on a web element above or below the visible part of a long page (Chrome Web Store dashboard, 31/10): a target
+  shown by `look` as `[N]` is now scrolled into view (UI Automation `ScrollItem.ScrollIntoView`) before input, like a
+  named target, and read back visible (1.618 s at most) before the gesture; `set` + `click` on it work in one `act`.
+  Before, Claude's background `set` stopped with "The observed Chromium field identity changed" and a click was
+  refused as off-screen.
+- A filtered `look` (`query`, `max_elements`, `show="changes"`) no longer returns the whole accessibility tree and
+  document text in its structured result (about 45,000 characters on a long page, which Claude Code shows the model
+  next to any image): only the listed elements, with their `[N]`, and a one-line `summary`. The tree and document
+  text come with `detail="full"` or `show="text"`; `show="image"` returns no element list.
+- `show="changes"` compares the whole window with the previous look, even after a narrow `query`, and returns only the
+  added or changed elements; the indices shown before stay usable.
+- `scroll` on an element without a name or automation id (a web page's document) uses the center of its visible part
+  instead of being refused for lack of a stable selector.
+- The wheel on a Chromium window without a DevTools port (the user's own browser) scrolls the page through its UI
+  Automation `ScrollPattern`, read back, instead of being refused.
+- An image returned by `act(then="image")` or `look` stays usable for points after the 60-second observation renewal,
+  as long as the window keeps its size (a resized window still refuses the point).
+
 ## [3.9.7] - 2026-10-31
 
 ### Added

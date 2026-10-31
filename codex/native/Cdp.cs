@@ -77,6 +77,7 @@ static partial class Cdp
     }
 
     // Port 0 (« choisi par Chromium ») ou absent : pas de port connu.
+    public static bool HasPort(nint window) => PortFrom(CommandLine(Win32.ProcessOf(window))) != null;
     public static int? PortFrom(string? commandLine)
     {
         var match = commandLine is null ? null : Regex.Match(commandLine, @"--remote-debugging-port[= ](\d{1,5})(?!\d)");

@@ -169,19 +169,42 @@ static partial class McpServer
         }
         var query = Str(args, "query");
         var maximum = (int)Math.Clamp(Number(args, "max_elements", state.Agent == "claude" ? 150 : 2000), state.Agent == "claude" ? 10 : 1, state.Agent == "claude" ? 600 : 2000);
-        var listed = Elements(snapshot).OfType<JsonObject>().Where(e => query.Length == 0 || Str(e, "name").Contains(query, StringComparison.OrdinalIgnoreCase) || Str(e, "value").Contains(query, StringComparison.OrdinalIgnoreCase)).Take(maximum).ToList();
-        var lines = listed.ToDictionary(e => (int)Number(e, "index"), e => NativeLine(e, reference));
-        var rendered = show == "changes" && memory.Lines.Count > 0 ? ChangedNativeLines(memory.Lines, lines) : lines.Values.ToList();
+        bool Wanted(JsonObject e) => query.Length == 0 || Str(e, "name").Contains(query, StringComparison.OrdinalIgnoreCase) || Str(e, "value").Contains(query, StringComparison.OrdinalIgnoreCase);
+        // Every element's line is remembered, whatever this look lists: "changes" then compares the whole window state,
+        // even after a narrow query (31/10: a filtered look followed by changes listed everything as new).
+        var allLines = Elements(snapshot).OfType<JsonObject>().ToDictionary(e => (int)Number(e, "index"), e => NativeLine(e, reference));
+        var previousLines = memory.Lines;
+        var changed = show == "changes" && previousLines.Count > 0;
+        var candidates = Elements(snapshot).OfType<JsonObject>().Where(Wanted)
+            .Where(e => !changed || !previousLines.TryGetValue((int)Number(e, "index"), out var old) || old != allLines[(int)Number(e, "index")]).ToList();
+        var listed = candidates.Take(maximum).ToList();
+        var lines = listed.ToDictionary(e => (int)Number(e, "index"), e => allLines[(int)Number(e, "index")]);
+        var removed = changed ? previousLines.Where(p => !allLines.ContainsKey(p.Key) && (query.Length == 0 || p.Value.Contains(query, StringComparison.OrdinalIgnoreCase))).Select(p => "- " + p.Value).ToList() : [];
+        var rendered = changed ? lines.Select(p => (previousLines.ContainsKey(p.Key) ? "~ " : "+ ") + p.Value).Concat(removed).ToList() : lines.Values.ToList();
+        if (changed && rendered.Count == 0) rendered = ["No visible element change since the previous look."];
         if (show == "text") rendered = [Str(snapshot["accessibility"], "document_text")];
         if (show is "none" or "image") rendered.Clear();
-        memory.Lines = lines; memory.Shown = listed.Select(e => (int)Number(e, "index")).ToHashSet();
+        // Indices displayed by an earlier look stay usable after a "changes" look that lists only what moved.
+        memory.Lines = allLines; memory.Shown = changed ? memory.Shown.Where(allLines.ContainsKey).Concat(lines.Keys).ToHashSet() : listed.Select(e => (int)Number(e, "index")).ToHashSet();
         if (shot?["marks"]?["drawn"] is JsonArray drawn && wantsImage) foreach (var shown in drawn) memory.Shown.Add(shown!.GetValue<int>());
         var routines = new NativeRoutineMemory(state.Agent, target.App); routines.Sync();
         var data = snapshot.DeepClone().AsObject(); data["observation"] = id; data["window"] = target.Id; data["hwnd"] = target.Id; data["title"] = target.Title; data["routines"] = routines.List();
-        data["elements"] = new JsonArray(listed.Select(e => e.DeepClone()).ToArray());
+        // The structured result is what a client such as Claude Code shows the model, image included: the full tree and
+        // document text (~25,000 tokens on a long web page, Chrome Web Store dashboard, 31/10) only with detail="full" or
+        // show="text"; an image or a filtered look carries only the elements it lists and a short summary.
+        data["elements"] = new JsonArray((show is "none" or "image" ? [] : listed).Select(e => e.DeepClone()).ToArray());
+        if (Str(args, "detail") != "full" && show != "text" && data["accessibility"] is JsonObject accessibility)
+        {
+            accessibility.Remove("tree"); accessibility.Remove("document_text"); accessibility.Remove("document_truncated");
+        }
+        var total = Elements(snapshot).Count;
+        data["summary"] = (show is "none" or "image" ? $"{total} elements in the window, none listed with show=\"{show}\""
+            : changed ? $"{listed.Count} added or changed element(s), {removed.Count} removed" : $"{listed.Count} of {total} element(s) listed")
+            + (query.Length > 0 ? $" for query \"{query}\"" : "") + (candidates.Count > listed.Count ? $"; {candidates.Count - listed.Count} more: narrow with query or raise max_elements" : "")
+            + (show == "text" || Str(args, "detail") == "full" ? "" : "; full tree and document text with detail=\"full\"") + ".";
         var routineInfo = Str(args, "routine_info"); if (routineInfo.Length > 0) { var entry = routines.Read(routineInfo) ?? throw new InvalidOperationException("Routine not found"); data["routineDefinition"] = entry.DeepClone(); state.ReviewedRoutines[ReviewKey(target.App, routineInfo)] = RoutineStamp(entry); }
         var text = $"window {target.Id} \"{target.Title}\" · observation {id}\n" + string.Join('\n', rendered);
-        if (Elements(snapshot).Count > listed.Count && show is not ("none" or "image" or "text")) text += $"\n{Elements(snapshot).Count - listed.Count} elements not shown: narrow with query or increase max_elements.";
+        if (show is not ("none" or "image" or "text")) text += "\n" + Str(data, "summary");
         if (minimized) text += "\nWindow minimized: list only; restore explicitly before requesting an image.";
         var note = state.Accords.Read($"window {target.Id} \"{target.Title}\"", text); if (note.Length > 0) text += "\n" + note;
         var content = new JsonArray { Str(args, "format") == "json" ? TextBlock(data) : TextBlock(text) };
@@ -223,15 +246,29 @@ static partial class McpServer
     {
         if (step["ocrTarget"] != null) return before;
         var selector = step["selector"] as JsonObject ?? step["focus"] as JsonObject;
-        if (selector == null || step["observedIdentity"] != null) return before;
-        var already = FindNative(before, selector);
+        if (selector == null) return before;
+        // A shown index keeps its observed identity: an off-screen one (long web page) is scrolled into view like a named target.
+        var already = step["observedIdentity"] != null ? [StepTarget(before, step, selector)] : FindNative(before, selector);
         if (already.Count > 1) throw new ActionRefusedException("Ambiguous target cannot be materialized");
         if (already.Count == 1 && Bool(already[0], "visible")) return before;
         if (already.Count == 1)
         {
             var scroll = NativeRequest(state, "secondary"); scroll["selector"] = SelectorOf(already[0]); scroll["action"] = "ScrollIntoView"; AddIdentity(scroll, already[0], before);
             var entered = false;
-            try { ExecuteInternal(scroll); entered = Program.InputStarted; if (entered) beforeInput(); var fresh = InspectNative(state); if (!Bool(UniqueNative(fresh, selector), "visible")) throw new ActionRefusedException("Target still out of view after scrolling; inspect again"); return fresh; }
+            try
+            {
+                ExecuteInternal(scroll); entered = Program.InputStarted; if (entered) beforeInput();
+                // Chromium publishes the new geometry asynchronously: read back until the same target is visible (1.618 s at most).
+                var timer = Stopwatch.StartNew();
+                while (true)
+                {
+                    var fresh = InspectNative(state);
+                    var moved = step["observedIdentity"] != null ? StepTarget(fresh, step, selector) : UniqueNative(fresh, selector);
+                    if (Bool(moved, "visible")) return fresh;
+                    if (timer.ElapsedMilliseconds >= 1618) throw new ActionRefusedException("Target still out of view after scrolling; inspect again");
+                    EmergencyStop.ThrowIfStopped(); Thread.Sleep(80);
+                }
+            }
             catch { if (entered || Program.InputStarted) { beforeInput(); Program.InputStarted = true; } throw; }
         }
         if (Str(selector, "name").Length == 0) throw new ActionRefusedException("Only an exact named target can be materialized in a virtualized list");
@@ -278,7 +315,10 @@ static partial class McpServer
             {
                 // A first semantic act is historically supported. It does not publish an image or any index.
                 var snapshot = InspectNative(state); var memory = LookMemory(state, named.Id, snapshot);
-                memory.Shown.Clear(); memory.Image = null; state.Image = null; state.Pending = null; state.RetainedFocus = null;
+                // An image of this same window (look or act then="image") stays usable for points: NativePoint still refuses
+                // it when the window moved or was resized, and the element under the point is read again before input.
+                memory.Shown.Clear(); state.Pending = null; state.RetainedFocus = null;
+                if (state.Image?.Window != named.Id) { memory.Image = null; state.Image = null; }
                 PublishNativeIndices(state, snapshot, memory);
                 state.CurrentObservation = JsonSerializer.SerializeToElement(snapshot); state.CurrentObservationId = state.NextObservationId(); state.ObservedAt = DateTimeOffset.UtcNow;
             }
@@ -345,6 +385,16 @@ static partial class McpServer
         foreach (var frame in new JsonNode?[] { null, new JsonObject(), new JsonObject { ["left"] = 0, ["top"] = 0, ["width"] = 10 }, new JsonObject { ["left"] = 0, ["top"] = 0, ["width"] = 0, ["height"] = 10 } })
             Check(Refused(() => RequireNativeFrame(new JsonObject { ["frame"] = frame })), "capture and OCR refuse absent or incomplete frame before any request");
         Check(ReferenceEquals(RequireNativeFrame(first), first["frame"]), "a complete native frame is preserved without substitution");
+        // An unnamed web document is a wheel place, not an identity: its visible center inside the frame (31/10).
+        var page = Snapshot(); page["elements"]!.AsArray().Add(JsonNode.Parse("""{"index":3,"role":"document","name":"","runtimeId":[42,4],"nativeWindow":0,"ancestors":[0],"bounds":[100,140,2560,9000]}"""));
+        var pageState = new SessionState("codex") { BoundWindow = (100, "process:fixture.exe", "Fixture", 1) };
+        LookMemory(pageState, 100, page).Shown.UnionWith(new[] { 0, 1, 2, 3 });
+        var wheel = NormalizeStep(pageState, page, new JsonObject { ["do"] = "scroll", ["target"] = "#3", ["delta_y"] = -3 });
+        Check(Bool(wheel, "placeOnly") && Number(wheel, "x") == 1280 && Number(wheel, "y") == 740 && wheel["selector"] == null && wheel["observedIdentity"] == null, "unnamed document scroll targets the center of its visible part");
+        var wheelPoint = NativePoint(pageState, wheel, page, null);
+        Check(wheelPoint.X == 1380 && wheelPoint.Y == 840, "a place-only point needs no image and stays in the observed frame");
+        Check(!Bool(NormalizeStep(pageState, page, new JsonObject { ["do"] = "scroll", ["x"] = 5, ["y"] = 5, ["placeOnly"] = true }), "placeOnly"), "a caller can never claim a place-only point");
+        Check(VisibleCenterOf(page, JsonNode.Parse("""{"bounds":[100,1600,50,50]}""")!.AsObject()) == null, "an element entirely outside the frame has no wheel place");
         Check(NormalizeLegacyText("  Hello\r\nworld ") == "Hello world", "legacy whitespace normalization");
         var stateCheck = LegacyStep(new JsonObject { ["do"] = "click", ["target"] = "Alpha", ["check"] = new JsonObject { ["target"] = "Alpha", ["contains"] = "READY", ["enabled"] = true } });
         var normalizedCheck = NormalizeExpectation(observed, stateCheck["expect"]!.AsObject());

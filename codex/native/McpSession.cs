@@ -71,6 +71,18 @@ static partial class McpServer
         if (selector.Count == 1) throw new InvalidOperationException("This element has no stable semantic selector: use its current image point");
         return selector;
     }
+    static bool HasStableSelector(JsonObject element) => Str(element, "automationId").Length > 0 || Str(element, "name").Length > 0;
+    // Center of the element's part inside the observed window frame, relative to that frame (pointer x/y of a step).
+    static (int X, int Y)? VisibleCenterOf(JsonObject snapshot, JsonObject element)
+    {
+        if (snapshot["frame"] is not JsonObject frame || element["bounds"] is not JsonArray { Count: 4 } b) return null;
+        var (fl, ft) = (Number(frame, "left"), Number(frame, "top"));
+        var left = Math.Max(b[0]!.GetValue<double>(), fl); var top = Math.Max(b[1]!.GetValue<double>(), ft);
+        var right = Math.Min(b[0]!.GetValue<double>() + b[2]!.GetValue<double>(), fl + Number(frame, "width"));
+        var bottom = Math.Min(b[1]!.GetValue<double>() + b[3]!.GetValue<double>(), ft + Number(frame, "height"));
+        if (right <= left || bottom <= top) return null;
+        return ((int)((left + right) / 2 - fl), (int)((top + bottom) / 2 - ft));
+    }
     static bool MatchesNative(JsonObject element, JsonObject selector, JsonArray elements)
     {
         foreach (var kv in selector)
@@ -158,7 +170,7 @@ static partial class McpServer
 
     static JsonObject NormalizeStep(SessionState state, JsonObject snapshot, JsonObject original, bool allowFutureTarget = false)
     {
-        var step = LegacyStep(original); step.Remove("observedIdentity"); step.Remove("ocrTarget"); step.Remove("observedDestination");
+        var step = LegacyStep(original); step.Remove("observedIdentity"); step.Remove("ocrTarget"); step.Remove("observedDestination"); step.Remove("placeOnly");
         var action = Str(step, "kind", Str(step, "do", Str(step, "action", "")));
         if (action.Length == 0) throw new InvalidOperationException("Every step needs action or kind");
         var kind = action switch { "set" or "clear" => "setValue", "type" => "typeText", "check" or "uncheck" or "double_click" or "right_click" => "click", "expand" or "collapse" => "secondary", "focus" => "focus", _ => action };
@@ -170,7 +182,7 @@ static partial class McpServer
         { step["point"] = new JsonObject { ["x"] = at[0]!.DeepClone(), ["y"] = at[1]!.DeepClone() }; step.Remove("target"); }
         else if (step["target"] is JsonValue tv && tv.TryGetValue<string>(out var coords) && System.Text.RegularExpressions.Regex.IsMatch(coords, @"^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$"))
         { var parts = coords.Split(','); step["point"] = new JsonObject { ["x"] = double.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture), ["y"] = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) }; step.Remove("target"); }
-        JsonObject? target = null;
+        JsonObject? target = null; var placeOnly = false;
         var selector = step["selector"] as JsonObject ?? step["focus"] as JsonObject;
         if (selector != null)
         {
@@ -182,12 +194,18 @@ static partial class McpServer
             {
                 target = ResolveTarget(snapshot, step["target"]!);
                 if (Bool(target, "ocr")) { step["ocrTarget"] = target.DeepClone(); }
+                else if (kind is "scroll" or "hover" && !HasStableSelector(target))
+                {
+                    // An unnamed container (a web page's document) is a place for the wheel, not an identity: its visible center.
+                    var center = VisibleCenterOf(snapshot, target) ?? throw new ActionRefusedException("This element has no visible part in the window; scroll its container instead");
+                    step["x"] = center.X; step["y"] = center.Y; step["placeOnly"] = true; placeOnly = true;
+                }
                 else selector = SelectorOf(target);
                 if (Bool(target, "ocr") && kind is not ("click" or "hover" or "drag")) throw new ActionRefusedException("OCR text is a pointer target only; it exposes no editable or selection control");
                 if (int.TryParse(step["target"]!.ToString().Trim('#', '[', ']'), out _))
                 {
                     if (!LookMemory(state, state.BoundWindow!.Value.Id).Shown.Contains((int)Number(target, "index"))) throw new ActionRefusedException("This index was not displayed in the previous look");
-                    if (!Bool(target, "ocr")) { if (target["runtimeId"] is not JsonArray runtime || runtime.Count == 0) throw new ActionRefusedException("The shown index has no stable runtime identity; no input sent"); step["observedIdentity"] = ElementIdentity(snapshot, target); }
+                    if (!Bool(target, "ocr") && !placeOnly) { if (target["runtimeId"] is not JsonArray runtime || runtime.Count == 0) throw new ActionRefusedException("The shown index has no stable runtime identity; no input sent"); step["observedIdentity"] = ElementIdentity(snapshot, target); }
                 }
             }
             catch (ActionRefusedException e) when (allowFutureTarget && e.Message.Contains(" absent from current observation", StringComparison.Ordinal) && !step["target"]!.ToString().StartsWith('#'))
@@ -199,7 +217,7 @@ static partial class McpServer
             step[kind == "typeText" ? "focus" : "selector"] = selector.DeepClone();
             if (kind == "click" && target != null && Str(target, "role") is "edit" or "document") state.RetainedFocus = selector.DeepClone().AsObject();
         }
-        step.Remove("target");
+        step.Remove("target"); if (placeOnly) target = null;
         if (kind is "setValue" or "typeText")
         {
             if (target == null && selector == null) throw new InvalidOperationException("Text input needs a named field (or a field retained by click)");
@@ -583,6 +601,10 @@ static partial class McpServer
         else if (target?["bounds"] is JsonArray b)
         {
             x = b[0]!.GetValue<double>() + b[2]!.GetValue<double>() / 2; y = b[1]!.GetValue<double>() + b[3]!.GetValue<double>() / 2;
+        }
+        else if (Bool(step, "placeOnly"))
+        {
+            x = left + Number(step, "x"); y = top + Number(step, "y");
         }
         else
         {

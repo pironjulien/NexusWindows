@@ -22,6 +22,7 @@ accented labels and non-breaking spaces. Prefer the connected tools over creatin
 | Find the window | `windows()` (`by_app=true`: grouped by application) |
 | See a window, even covered | `look(hwnd="title, process or number")`: one line per element; image attached when the tree is too thin, or with `capture_screenshot=true` |
 | Fill, check, choose, click, menu | `act(hwnd=..., steps=[...])`, `target="Label"` |
+| Long web page, field out of view | `look(hwnd=..., query="label")` lists only the matches with their `[N]` (full tree and document text: `detail="full"`); then one `act` with `set` + `click`: the engine scrolls an out-of-view target into view itself |
 | The target has no label, only the image shows it | step with `box_2d` [ymin, xmin, ymax, xmax] (0-1000, from the image), or `x`/`y` (the `@x,y` of the look) |
 | Answer `~` or `✗` | fresh `look`; establish what completed, then prepare only the still-needed actions; never replay an uncertain input |
 | Answer `refused` (✗, nothing done) | fresh `look` first; `repeat=true` remains compatible and never replaces looking |
