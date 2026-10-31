@@ -12,6 +12,10 @@ Releases up to 30 October 2026 were made in the separate repositories of each pr
 ## [Unreleased]
 
 ### Changed
+- Release: a push whose version is not released yet becomes the stable release right after its development build
+  (same files); "Run workflow" still promotes by hand. CodeQL and OpenSSF Scorecard workflows removed.
+
+### Changed
 - Deferred experimental native freshness reconciliation until unsupported UIA properties provide reliable proof.
   The candidate and qualification work are preserved on branch `codex/native-freshness-3.9.3`; this experimental work is not included in 3.9.4.
 

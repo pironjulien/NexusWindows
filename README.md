@@ -14,7 +14,6 @@ For current MCP requests, native file dialogs, UTF-8 stdio and blank Chromium pa
 [MCP cookbook](commun/mcp-cookbook.md).
 
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/pironjulien/NexusWindows/badge)](https://scorecard.dev/viewer/?uri=github.com/pironjulien/NexusWindows)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## Install
