@@ -4,10 +4,9 @@ All notable changes to NexusWindows are documented in this file. The format is b
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Releases up to 30 October 2026 were made in the separate repositories of each profile (now archived):
-[Claude 3.7.4](https://github.com/pironjulien/NexusWindows-Claude/blob/main/CHANGELOG.md),
-[Codex 3.7.4](https://github.com/pironjulien/NexusWindows-Codex/blob/main/CHANGELOG.md),
-[Antigravity 3.6.0](https://github.com/pironjulien/NexusWindows-Antigravity/blob/main/CHANGELOG.md).
+Releases up to 30 October 2026 were made in separate repositories for each profile (Claude 3.7.4, Codex 3.7.4,
+Antigravity 3.6.0), since removed; those versions remain on PyPI (`nexus-windows-claude`, `nexus-windows-antigravity`)
+and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
