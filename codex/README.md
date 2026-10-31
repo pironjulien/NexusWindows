@@ -4,11 +4,10 @@
 
 <img src="https://raw.githubusercontent.com/pironjulien/NexusWindows/main/codex/assets/logo.png" alt="NexusWindows icon" width="96">
 
-[![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows-Codex)](https://github.com/pironjulien/NexusWindows/releases)
+[![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows)](https://github.com/pironjulien/NexusWindows/releases)
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/pironjulien/NexusWindows/badge)](https://scorecard.dev/viewer/?uri=github.com/pironjulien/NexusWindows)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusWindows/blob/main/codex/LICENSE)
-[![npm](https://img.shields.io/npm/v/nexus-windows-codex)](https://www.npmjs.com/package/nexus-windows-codex)
 [![Node 22+](https://img.shields.io/badge/node-22%2B-5FA04E?logo=nodedotjs&logoColor=white)](https://github.com/pironjulien/NexusWindows/blob/main/codex/package.json)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://github.com/pironjulien/NexusWindows/tree/main/codex/native)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](#installation)
@@ -53,10 +52,10 @@ file dialogs, UTF-8 stdio and diagnosing blank Chromium content.
 
 | | Claude | Codex | Antigravity |
 |---|---|---|---|
-| Install | `get.ps1` (one engine, three profiles) | `get.ps1`, or the optional Codex REPL guide | `get.ps1` |
-| Package | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest), optional [npm guide](https://www.npmjs.com/package/nexus-windows-codex) | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) |
+| Install | `get.ps1` (one engine, three profiles) | `get.ps1` | `get.ps1` |
+| Package | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) | [GitHub release](https://github.com/pironjulien/NexusWindows/releases/latest) |
 | Tools | `windows` `look` `act` `launch` `window`, plus `notifications` and `logs` | `windows` `look` `act` `launch` `window` | `windows` `look` `act` `launch` `window` |
-| Repository | [NexusWindows-Claude](https://github.com/pironjulien/NexusWindows) | [NexusWindows-Codex](https://github.com/pironjulien/NexusWindows) | [NexusWindows-Antigravity](https://github.com/pironjulien/NexusWindows) |
+| Folder | [`claude/`](../claude/README.md) | [`codex/`](../codex/README.md) | [`agy/`](../agy/README.md) |
 
 Every step reports ✓ verified, = already done, ~ unknown (never replayed) or ✗ failed or refused. The three share the
 guardrail policy, the foreground token, the emergency stop (Ctrl+Alt+Shift+Esc), a common journal format and a common
@@ -72,42 +71,20 @@ Windows 10 or 11 and the [Codex app](https://openai.com/codex/) (or the Codex CL
 `powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1`, declares
 `%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe --mcp --agent codex` in Codex `config.toml`.
 
-**npm package** (adds the guide for Codex's JavaScript REPL; [Node.js](https://nodejs.org/) 22 or later): download
-[`setup.ps1`](https://github.com/pironjulien/NexusWindows/blob/main/codex/setup.ps1), read it, then run it as a file
-(`powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1`); running it again only does what is missing.
-**Codex plugin** (the same server and its guide; Node.js 22+ required). This repository is a plugin marketplace. In the Codex app:
-Settings → Plugins → Add → Add a marketplace, source `pironjulien/NexusWindows-Codex`, then install
-**NexusWindows** from the Plugins directory. Or in a terminal:
-
-```powershell
-codex plugin marketplace add pironjulien/NexusWindows-Codex
-codex plugin add nexus-windows@nexus-windows-codex
-```
-
-**By hand** (Node.js 22+ required, from the [official installer](https://nodejs.org/)). In the Codex app: Settings →
-Plugins → Add → Add an MCP server, name `nexus-windows`, type STDIO, command `npx`, arguments `-y` and
-`nexus-windows-codex@latest`. Or in a terminal:
-
-```powershell
-codex mcp add nexus-windows -- npx -y nexus-windows-codex@latest
-```
-
-Or in `~/.codex/config.toml` (shared by the Codex app, CLI and IDE extension):
+**By hand**: Codex declares the same stable command as the other clients, in `~/.codex/config.toml` (shared by the
+Codex app, CLI and IDE extension):
 
 ```toml
 [mcp_servers.nexus-windows]
-command = "npx"
-args = ["-y", "nexus-windows-codex@latest"]
+command = 'C:\Users\you\.nexus\nexus-windows\NexusWindows.exe'
+args = ["--mcp", "--agent", "codex"]
 ```
 
-Restart Codex, then ask: "Open Notepad and write a shopping list: milk, eggs, bread." Other MCP clients use the same
-command (`npx -y nexus-windows-codex@latest`; a client that cannot start `.cmd` scripts needs `cmd /c npx -y nexus-windows-codex@latest`).
-With `@latest`, npm checks for a new version at each start: Codex runs the newest release, nothing to reinstall.
-
-The plugin bundles `skills/nexus-windows/SKILL.md`, its references and its portable entry. The guide loads the entry
-beside its actual installed file, including plugin caches and custom `CODEX_HOME` locations.
-Direct setup installs the same guide under `~/.codex/skills/nexus-windows`
-when no NexusWindows plugin is enabled. A disabled plugin stays disabled; rerunning setup never bypasses that choice.
+`NexusWindows.exe --register codex [--check] [--remove]` writes (or checks, or removes) this declaration; an entry of
+your own is never changed. Restart Codex, then ask: "Open Notepad and write a shopping list: milk, eggs, bread."
+Updates replace the engine behind the same path: running sessions keep their version, new ones get the new one.
+The Codex plugin (this profile's guide and skill) comes from the NexusSystem plugin catalog, which NexusSystem adds
+to Codex for you.
 
 ### Codex skill (alternative, from a clone)
 
@@ -116,7 +93,7 @@ Codex desktop app with its Computer Use plugin and the .NET 10 SDK:
 
 ```powershell
 git clone https://github.com/pironjulien/NexusWindows.git
-cd NexusWindows-Codex
+cd NexusWindows\codex
 pwsh -NoProfile -File install.ps1             # build the helper and install the guide, reusing an enabled plugin
 pwsh -NoProfile -File install.ps1 -CheckOnly  # verify the installation matches the sources
 ```

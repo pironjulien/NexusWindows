@@ -74,8 +74,7 @@ can establish that a particular AI uses the installed version; an installation m
 ```
 
 Build and test outputs go to `%USERPROFILE%\.nexus\build\nexuswindows`. The three profiles were separate repositories
-until 30 October 2026 (`NexusWindows-Claude`, `NexusWindows-Codex`, `NexusWindows-Antigravity`, now archived); their
-release history stays there.
+until 30 October 2026; those repositories have since been removed (see [CHANGELOG.md](CHANGELOG.md)).
 
 ## Privacy
 

@@ -11,6 +11,8 @@ and npm (`nexus-windows-codex`).
 ## [Unreleased]
 
 ### Changed
+- Docs: profile READMEs point to this repository only (release badge, family table); the Codex README installs the
+  native engine only, without the npm package or the removed `NexusWindows-Codex` plugin marketplace.
 - Release: a push whose version is not released yet becomes the stable release right after its development build
   (same files); "Run workflow" still promotes by hand. CodeQL and OpenSSF Scorecard workflows removed.
 
