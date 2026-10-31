@@ -73,6 +73,20 @@ test('public source setup verifies the registered catalog and exact cache withou
   metadata.plugins.push(metadata.plugins[0]);
   await writeFile(catalogFile, JSON.stringify(metadata));
   await assert.rejects(verifyPublicInstallation(home, catalog), /unique/);
+
+  // The NexusSystem catalog points at this repository's release tag (git-subdir): the copy Codex installed is checked.
+  const tagged = path.join(home, 'plugins', 'cache', 'nexus-plugins', 'nexus-windows', '3.11.0');
+  await mkdir(path.join(tagged, '.codex-plugin'), { recursive: true });
+  await mkdir(path.join(tagged, 'skills', 'nexus-windows'), { recursive: true });
+  await writeFile(catalogFile, JSON.stringify({ name: 'nexus-plugins', plugins: [{ name: 'nexus-windows',
+    source: { source: 'git-subdir', url: 'https://github.com/pironjulien/NexusWindows.git', path: 'plugin', ref: 'v3.11.0' } }] }));
+  await assert.rejects(verifyPublicInstallation(home, catalog), /ENOENT/);
+  await writeFile(path.join(tagged, '.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'nexus-windows', version: '3.11.0', skills: './skills/', mcpServers: './.codex-mcp.json' }));
+  await writeFile(path.join(tagged, '.codex-mcp.json'), JSON.stringify({ mcpServers: { 'nexus-windows': { command: 'fixture-native.exe' } } }));
+  await writeFile(path.join(tagged, 'skills', 'nexus-windows', 'SKILL.md'), 'fixture guide');
+  assert.deepEqual(await verifyPublicInstallation(home, catalog), { state: 'verified', version: '3.11.0' });
+  await writeFile(path.join(tagged, '.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'nexus-windows', version: '3.10.0', skills: './skills/', mcpServers: './.codex-mcp.json' }));
+  await assert.rejects(verifyPublicInstallation(home, catalog), /differs/);
 });
 
 async function fixture(t) {

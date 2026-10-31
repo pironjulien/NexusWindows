@@ -10,6 +10,11 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+### Fixed
+- Codex source installer: the public catalog check accepts NexusSystem's `git-subdir` entry (this repository at a
+  release tag) and verifies the copy Codex installed (version, manifest-declared MCP file and guide). It only knew the
+  former in-catalog `local` source, so every check on a PC using the catalog failed.
+
 ## [3.11.0] - 2026-10-31
 
 ### Changed

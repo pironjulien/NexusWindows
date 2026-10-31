@@ -32,6 +32,12 @@ export function sourceInstallationState(config) {
 export async function verifyPublicInstallation(home, catalogRoot) {
   const catalog = JSON.parse(await readFile(path.join(catalogRoot, '.agents', 'plugins', 'marketplace.json'), 'utf8'));
   const entries = catalog.plugins?.filter(entry => entry.name === 'nexus-windows') ?? [];
+  const remote = entries.length === 1 ? entries[0].source : null;
+  if (catalog.name === 'nexus-plugins' && remote?.source === 'git-subdir' &&
+      /^https:\/\/github\.com\/pironjulien\/NexusWindows(\.git)?$/i.test(remote.url ?? '') && /^v[0-9][0-9A-Za-z.+-]*$/.test(remote.ref ?? '')) {
+    // The catalog points at this repository's release tag: Codex installed that tag; check its copy is complete.
+    return verifyInstalledCopy(home, remote.ref.slice(1));
+  }
   if (catalog.name !== 'nexus-plugins' || entries.length !== 1 || entries[0].source?.source !== 'local' ||
       typeof entries[0].source.path !== 'string') throw new Error('The registered nexus-plugins catalog has no unique NexusWindows source.');
   const source = path.resolve(catalogRoot, entries[0].source.path);
@@ -59,6 +65,21 @@ export async function verifyPublicInstallation(home, catalogRoot) {
   }
   await verify(source);
   return { state: 'verified', version: manifest.version };
+}
+
+async function verifyInstalledCopy(home, version) {
+  const cache = path.join(home, 'plugins', 'cache', 'nexus-plugins', 'nexus-windows', version);
+  const manifest = JSON.parse(await readFile(path.join(cache, '.codex-plugin', 'plugin.json'), 'utf8'));
+  const inside = relative => typeof relative === 'string' && relative.startsWith('./') && !relative.includes('..');
+  if (manifest.name !== 'nexus-windows' || manifest.version !== version || !inside(manifest.mcpServers) || !inside(manifest.skills)) {
+    throw new Error('The installed public NexusWindows manifest differs from its registered catalog.');
+  }
+  const mcp = JSON.parse(await readFile(path.join(cache, manifest.mcpServers), 'utf8'));
+  if (!mcp.mcpServers || typeof mcp.mcpServers !== 'object' || !Object.hasOwn(mcp.mcpServers, 'nexus-windows')) {
+    throw new Error('The public NexusWindows MCP declaration is missing.');
+  }
+  await readFile(path.join(cache, manifest.skills, 'nexus-windows', 'SKILL.md'));
+  return { state: 'verified', version };
 }
 
 export const pluginState = config => configurationState(config).plugin;
