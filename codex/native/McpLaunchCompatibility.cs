@@ -63,6 +63,17 @@ static partial class McpServer
         var buffer = new StringBuilder((int)length);
         return AssocQueryStringW(flags, kind, target, "open", buffer, ref length) >= 0 ? buffer.ToString() : null;
     }
+    // A file type Windows can open: a command, a packaged application or a COM handler for its default verb.
+    // ASSOCF_INIT_IGNOREUNKNOWN: an unknown type fails instead of answering with the "choose an application" window.
+    internal static bool ClaudeHasHandler(string extension)
+    {
+        foreach (var kind in new uint[] { 1 /* COMMAND */, 21 /* APPID */, 18 /* DELEGATEEXECUTE */ })
+        {
+            uint length = 0;
+            if (AssocQueryStringW(0x400, kind, extension, null, null, ref length) is 0 or 1 && length > 1) return true;
+        }
+        return false;
+    }
     static List<ClaudeStartApp> ClaudeStartApps()
     {
         lock (ClaudeAppsLock)
@@ -324,6 +335,8 @@ static partial class McpServer
         var wait = Number(args, "wait_s", 15);
         if (!double.IsFinite(wait) || wait < 0) throw new ActionRefusedException("wait_s must be finite and nonnegative");
         var plan = PlanClaudeLaunch(Str(args, "app"), Str(args, "args"), Bool(args, "devtools"), Bool(args, "restart"));
+        // Windows fails such a file silently (event log only): the launch would wait for a window that never comes.
+        if (plan.Kind == "executable" && !ClaudePe(plan.Executable!)) throw new ActionRefusedException("Not a Windows program (no executable header): " + Path.GetFileName(plan.Executable) + "; nothing was launched");
         state.CurrentObservation = null; state.CurrentObservationId = null;
         NativeMcpGuard.WaitForPause();
         using var token = ForegroundToken.Acquire("launch application"); NativeMcpGuard.RequirePause(); EmergencyStop.ThrowIfStopped();
@@ -362,6 +375,8 @@ static partial class McpServer
         };
         var associatedAppId = plan.Kind == "document" ? ClaudeAssociation(Path.GetExtension(plan.Target), 21) : null;
         if (associatedAppId?.Contains('!') != true) associatedAppId = null;
+        if (plan.Kind == "document" && !ClaudeHasHandler(Path.GetExtension(plan.Target)))
+            throw new ActionRefusedException("No application is associated with " + (Path.GetExtension(plan.Target) is { Length: > 0 } extension ? extension + " files" : "files without an extension") + "; Windows would only ask the user to choose one. Nothing was launched: launch the application that should open it, with the file as argument.");
         if (associatedExecutable != null) ClaudeCheckExecutable(associatedExecutable, "", false);
         if (associatedAppId != null) ClaudeCheckAppId(associatedAppId, associatedAppId, "", false);
         var folderIdentity = plan.Kind == "folder" ? Explorer.Identity(plan.Target) : null;
@@ -387,9 +402,13 @@ static partial class McpServer
             }
             else UserApplication.Start(new ProcessStartInfo(plan.Target) { Arguments = launchArgs, UseShellExecute = false, WorkingDirectory = plan.Executable == null ? "" : Path.GetDirectoryName(plan.Executable)! }, () => Program.InputStarted = true, 4);
             var timeout = Math.Max(1, wait);
+            var dispatchedAt = started.ToLocalTime();
             while (clock.Elapsed.TotalSeconds < timeout)
             {
                 EmergencyStop.ThrowIfStopped(); ReturnForeground();
+                // An unknown link (or a file type Windows did not resolve) may open the "choose an application" window
+                // after Explorer returned: the same refusal as during the dispatch, never left on the user's desktop.
+                if (plan.Kind is "uri" or "document") UserApplication.ThrowIfChooser(dispatchedAt);
                 var windows = ListDesktopWindows(false);
                 if (plan.Devtools && lease == null)
                 {

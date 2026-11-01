@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 sealed class UserApplicationUnavailableException(string message, Exception? inner = null) : InvalidOperationException(message, inner);
+sealed class UserApplicationPendingException(string message) : InvalidOperationException(message);
 
 // User applications belong to the interactive Windows shell, not to the MCP worker's process tree/job.
 // This is the documented Explorer desktop-view -> IShellDispatch2 broker. A local Shell.Application object or
@@ -23,16 +24,122 @@ static unsafe class UserApplication
         if (string.IsNullOrWhiteSpace(info.FileName)) throw new UserApplicationUnavailableException("An application target is required; nothing was launched");
         if (info.ArgumentList.Count != 0 || info.RedirectStandardInput || info.RedirectStandardOutput || info.RedirectStandardError)
             throw new UserApplicationUnavailableException("The user-application broker takes an argument string and no redirected protocol handles; nothing was launched");
-        object? application;
-        try { application = DesktopApplication(); }
-        catch (Exception error) { throw new UserApplicationUnavailableException("The interactive Explorer launch broker is unavailable; nothing was launched", error); }
+        var target = RealPath(info.FileName); var directory = RealPath(info.WorkingDirectory);
+        // Explorer's ShellExecute is synchronous: an error box it shows (file not found, no associated application,
+        // access denied...) blocks the call until someone answers it, and a launch held the shared foreground token
+        // with it. The call runs on its own thread; the caller watches for a box of Explorer titled with the target.
+        object? application = null; Exception? failure = null;
+        using var ready = new ManualResetEventSlim(); using var go = new ManualResetEventSlim(); using var done = new ManualResetEventSlim();
+        var dispatched = false;
+        var broker = new Thread(() =>
+        {
+            try
+            {
+                try { application = DesktopApplication(); }
+                catch (Exception error) { failure = new UserApplicationUnavailableException("The interactive Explorer launch broker is unavailable; nothing was launched", error); return; }
+                finally { ready.Set(); }
+                go.Wait();
+                if (!dispatched) return;
+                try { ((dynamic)application).ShellExecute(target, info.Arguments, directory, "open", show); }
+                catch (Exception error) { failure = error; }
+            }
+            finally { Release(application); done.Set(); }
+        }) { IsBackground = true, Name = "Explorer launch broker" };
+        broker.Start();
+        ready.Wait();
+        if (failure != null) throw failure;
+        GetWindowThreadProcessId(GetShellWindow(), out var shellPid);
+        var boxes = ExplorerBoxes(shellPid, target);
+        var since = DateTime.Now;
+        try { started(); dispatched = true; }
+        finally { go.Set(); }
+        var clock = Stopwatch.StartNew();
+        while (!done.Wait(50))
+        {
+            if (ExplorerBoxes(shellPid, target).FirstOrDefault(box => !boxes.Contains(box)) is var box and not 0)
+            {
+                var message = BoxText(box);
+                PostMessage(box, 0x0010 /* WM_CLOSE */, 0, 0);
+                done.Wait(PendingMs);
+                throw new ActionRefusedException("Windows refused to open it: \"" + message + "\". Its message box was closed; nothing was launched.");
+            }
+            // No associated application (document, unknown link): Explorer may wait on its "choose an application" window.
+            ThrowIfChooser(since, () => done.Wait(PendingMs));
+            if (clock.ElapsedMilliseconds >= PendingMs)
+                throw new UserApplicationPendingException("Launch dispatched once; Windows is still waiting for a decision in another window (administrator consent, SmartScreen, choice of application). The outcome is unknown: do not replay; run windows to see what opened.");
+        }
+        if (failure != null) throw failure;
+    }
+
+    // The broker returns once the process is created (well under a second); beyond this, Windows awaits the user.
+    const int PendingMs = 6180;
+    [DllImport("user32.dll")] static extern bool PostMessage(nint hwnd, uint message, nint wParam, nint lParam);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(nint hwnd);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassNameW(nint hwnd, char* name, int count);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowTextW(nint hwnd, char* text, int count);
+    [DllImport("user32.dll")] static extern bool EnumWindows(delegate* unmanaged[Stdcall]<nint, nint, int> callback, nint state);
+
+    // Windows' application chooser opened by this launch: closed, and the launch refused (nothing was launched).
+    internal static void ThrowIfChooser(DateTime since, Action? closed = null)
+    {
+        if (ChooserOpenedSince(since) is not var (chooser, title)) return;
+        PostMessage(chooser, 0x0010 /* WM_CLOSE */, 0, 0);
+        closed?.Invoke();
+        throw new ActionRefusedException("No application is associated with it: Windows asked to choose one (\"" + title + "\"). That window was closed; nothing was launched. Name the application to open it with.");
+    }
+    // Windows' application chooser (System32\OpenWith.exe) started since the dispatch.
+    static (nint Window, string Title)? ChooserOpenedSince(DateTime since)
+    {
+        foreach (var process in Process.GetProcessesByName("OpenWith"))
+            using (process)
+            {
+                try
+                {
+                    if (process.StartTime < since.AddMilliseconds(-500) || process.MainWindowHandle == 0 || !IsWindowVisible(process.MainWindowHandle)) continue;
+                    if (!string.Equals(process.MainModule?.FileName, Path.Combine(Environment.SystemDirectory, "OpenWith.exe"), StringComparison.OrdinalIgnoreCase)) continue;
+                    return (process.MainWindowHandle, process.MainWindowTitle);
+                }
+                catch (Exception error) when (error is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            }
+        return null;
+    }
+
+    // Explorer's message boxes (#32770) titled with this launch's target, as Explorer titles a ShellExecute error
+    // (it raises them on a thread of its own): never the user's other Explorer dialogs (file copies, properties).
+    static HashSet<nint> ExplorerBoxes(uint shellPid, string target)
+    {
+        var found = new List<nint>();
+        if (shellPid == 0) return [];
+        var handle = GCHandle.Alloc(found);
+        try { EnumWindows(&CollectBox, GCHandle.ToIntPtr(handle)); }
+        finally { handle.Free(); }
+        var name = Path.GetFileName(target.TrimEnd('\\'));
+        return found.Where(box => GetWindowThreadProcessId(box, out var pid) != 0 && pid == shellPid && Title(box) is var title
+            && (title.Equals(target, StringComparison.OrdinalIgnoreCase) || name.Length > 0 && title.Contains(name, StringComparison.OrdinalIgnoreCase))).ToHashSet();
+    }
+    [UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvStdcall)])]
+    static int CollectBox(nint hwnd, nint state)
+    {
+        var name = stackalloc char[16];
+        if (IsWindowVisible(hwnd) && new string(name, 0, GetClassNameW(hwnd, name, 16)) == "#32770") ((List<nint>)GCHandle.FromIntPtr(state).Target!).Add(hwnd);
+        return 1;
+    }
+    static string Title(nint hwnd)
+    {
+        var text = stackalloc char[512];
+        return new string(text, 0, GetWindowTextW(hwnd, text, 512));
+    }
+    // The box's own words (a task dialog draws them without child windows: read through UI Automation).
+    static string BoxText(nint box)
+    {
         try
         {
-            var target = RealPath(info.FileName); var directory = RealPath(info.WorkingDirectory);
-            started();
-            ((dynamic)application).ShellExecute(target, info.Arguments, directory, "open", show);
+            using var tree = ComUia.Shared.ReadTree(box, withPopups: false);
+            var words = string.Join(" ", tree.Nodes.Where(n => n.Role == "text" && n.Name.Trim().Length > 0).Select(n => n.Name.Trim()));
+            if (words.Length > 0) return words;
         }
-        finally { Release(application); }
+        catch (Exception error) when (error is COMException or InvalidOperationException) { }
+        return Title(box);
     }
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]

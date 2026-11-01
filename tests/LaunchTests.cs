@@ -404,4 +404,33 @@ public class LaunchTests
         foreach (var unchanged in new[] { "", "notepad.exe", "ms-settings:", @"shell:AppsFolder\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App", Path.Combine(b.Root, "absent.exe") })
             Assert.Equal(unchanged, UserApplication.RealPath(unchanged));
     }
+
+    // A document whose type Windows cannot open is refused before any dispatch: Windows would only show its
+    // "choose an application" window (left on the user's desktop while launch waited for a window).
+    [Fact]
+    public void A_file_type_without_application_is_known_before_any_launch()
+    {
+        Assert.True(McpServer.ClaudeHasHandler(".txt"));
+        Assert.False(McpServer.ClaudeHasHandler(".nexus-" + Guid.NewGuid().ToString("N")[..8]));
+        Assert.False(McpServer.ClaudeHasHandler(""));
+    }
+
+    // An error box of Explorer's (here "Windows cannot find") is a refusal quoting it, at once, and the box is closed:
+    // the synchronous ShellExecute used to wait for someone to answer it, holding the shared foreground token.
+    [Fact]
+    public void An_Explorer_error_box_is_a_prompt_refusal_and_is_closed()
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("NEXUS_TESTS_FULL") == "1", "Real Explorer launch: test.ps1 -Full.");
+        using var b = new Bench();
+        var absent = Path.Combine(b.Root, "absent-" + Guid.NewGuid().ToString("N") + ".exe");
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var refused = Assert.Throws<ActionRefusedException>(() => UserApplication.Start(new System.Diagnostics.ProcessStartInfo(absent), () => { }, 4));
+        Assert.True(clock.ElapsedMilliseconds < 5000, clock.ElapsedMilliseconds + " ms");
+        Assert.Contains(Path.GetFileName(absent), refused.Message);
+        Assert.Contains("nothing was launched", refused.Message);
+        Thread.Sleep(300);
+        var left = new List<nint>();
+        Win32.EnumWindows((hwnd, _) => { if (Win32.Title(hwnd).Contains(Path.GetFileName(absent))) left.Add(hwnd); return true; }, 0);
+        Assert.Empty(left);
+    }
 }
