@@ -10,6 +10,8 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.0] - 2026-11-01
+
 ### Changed
 - A step that only the real mouse or keyboard can do in this window is refused the same way for the three profiles:
   `needsForeground: true` and a message starting "Needs the foreground", which says to ask the user's agreement and

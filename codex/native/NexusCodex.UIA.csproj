@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>NexusCodex.UIA</AssemblyName>
-    <Version>3.15.1</Version>
+    <Version>3.16.0</Version>
     <!-- Le contenu du runtime est identifié par ses SHA-256 ; ne pas lui attribuer le dernier commit
          si une qualification est construite depuis le worktree courant. -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
