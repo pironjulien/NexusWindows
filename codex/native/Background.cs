@@ -5,6 +5,10 @@ using System.Text.Json;
 sealed class BackgroundNotApplicableException(string message) : InvalidOperationException(message);
 // Refus avant toute entree (mot de passe, application exclue, identite changee, commande desactivee) : aucun repli.
 class ActionRefusedException(string message) : InvalidOperationException(message);
+// Geste sans technique d'arriere-plan ici mais possible avec la vraie souris ou le vrai clavier (01/11) : refus uniforme
+// pour les trois profils, qui dit qu'il faut l'avant-plan et que l'IA doit demander l'accord de l'utilisateur.
+sealed class ForegroundNeededException(string reason) : ActionRefusedException(
+    $"Needs the foreground: {reason.TrimEnd('.')}. Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent");
 
 readonly record struct Outcome(string Technique, string Mechanism, string Effect);
 

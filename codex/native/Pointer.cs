@@ -118,7 +118,7 @@ static class Pointer
         // la boucle de glisser de Windows (OLE DoDragDrop) lit la vraie souris : des messages postes lui feraient lacher
         // ce qu'elle porte sous le curseur reel de Julien. Jamais poste : vraie souris seulement, avec foreground:true.
         if (action == "drag" && !((chromium || ChromiumInput.IsCefHost(window)) && Cdp.HasPort(window)))
-            throw new BackgroundNotApplicableException("Drag and drop follows the real mouse in this interface (Windows drag loop): no background technique; foreground:true allows the real mouse");
+            throw new BackgroundNotApplicableException("drag and drop follows the real mouse in this interface (Windows drag loop)");
         if (!classic && !(chromium && action is "click" or "wheel" or "drag") && !(wpf && action == "wheel") && !(tk && action is "click" or "wheel" or "hover"))
             throw new BackgroundNotApplicableException("This interface ignores posted mouse input (measured): no background technique");
         if (!Win32.IsWindowEnabled(window)) throw new ActionRefusedException("Window is disabled (a modal dialog may be open)");

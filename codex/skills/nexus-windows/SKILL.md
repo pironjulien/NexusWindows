@@ -23,7 +23,9 @@ today's MCP fields from the Node API or compatibility aliases below. `look(windo
 `observation` for `act` in that same session. After navigation, a tab/dialog change or an external action, look again.
 Modern equality proof is `expect:{selector,field:'value',equals:expectedText}`, not `expect:{selector,value:...}`.
 MCP `act` stays in the background unless it is given `foreground:true`, which allows the physical fallback (still
-refused per step by `fallback:false`). The Windows panels `"quick settings"`, `"notifications"` and `"start"` exist only
+refused per step by `fallback:false`). A step that only the real mouse or keyboard can do is refused with
+`needsForeground: true` and a message starting "Needs the foreground": ask the user for agreement, then repeat it with
+`foreground:true`. The Windows panels `"quick settings"`, `"notifications"` and `"start"` exist only
 in the foreground: MCP `act(window=…, foreground:true)` with the user's agreement; they close at the end.
 
 For a native Open dialog, use `windows` / `dialogOf` and look at the dialog's own HWND; its owner may be disabled.

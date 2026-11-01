@@ -266,6 +266,7 @@ static partial class McpServer
             try { outcome = ObjectOf(ExecuteInternal(request)); }
             catch (BackgroundNotApplicableException) when (!devtools && !Program.InputStarted && physicalAllowed)
             { request["operation"] = "physical"; request["action"] = "key"; outcome = NativeFallbackAttempt(() => PhysicalNative(state, request), () => Program.InputStarted); }
+            catch (BackgroundNotApplicableException e) when (!devtools && !Program.InputStarted && !physicalAllowed) { throw new ForegroundNeededException(e.Message); }
             if (!entry.Checked && KeyDeliveryConfirmed(outcome)) throw new AfterInputException("Keyboard transport returned without its entry guard; inspect before deciding anything else", new InvalidOperationException("Missing key entry guard"));
             last = outcome; return outcome;
         }, () => Program.InputStarted, () => ProveNative(state, step, snapshot, last, inputEverSent: true));
@@ -309,6 +310,7 @@ static partial class McpServer
                 var result = RoutineFailure(error, completed > 0 || input);
                 result["message"] = $"{completed} earlier combination(s) delivered. Current combination {(input ? "may have been sent" : "not sent")}: " + error.Message;
                 if (error is NativeConfirmationException) result["authorizationRequired"] = true;
+                if (error is ForegroundNeededException) result["needsForeground"] = true;
                 deliveries.Add(new JsonObject { ["index"] = completed, ["delivery"] = input ? "uncertain" : "not-sent", ["attempts"] = result["attempts"]?.DeepClone() });
                 return Report(result);
             }

@@ -342,6 +342,7 @@ static partial class McpServer
             JulienActiveException => StepResult("deferred", "✗", false, false, error.Message),
             _ => StepResult("refused", "✗", null, false, error.Message),
         };
+        if (!inputAttempted && error is ForegroundNeededException) result["needsForeground"] = true;
         return NativeFailureAttempts(result, error);
     }
 

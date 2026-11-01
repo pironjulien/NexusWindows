@@ -561,6 +561,10 @@ static partial class McpServer
                 ? new NativeTextSubmitScope(state, step, snapshot, target) : null;
             outcome = NativeFallbackAttempt(() => PhysicalNative(state, request), () => Program.InputStarted);
         }
+        catch (BackgroundNotApplicableException e) when (!Program.InputStarted && !physicalAllowed && kind is "click" or "focus" or "setValue" or "typeText" or "key" or "scroll" or "hover" or "drag")
+        {
+            throw new ForegroundNeededException(e.Message);
+        }
         catch (Exception e) when (Program.InputStarted)
         {
             return ProveNative(state, step, snapshot, null, e.Message);
