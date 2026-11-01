@@ -15,6 +15,9 @@ and npm (`nexus-windows-codex`).
   three profiles: the current value is read in the action worker and extended by UIA `SetValue`, as Claude already
   did. Codex used to type it with brief foreground input (`physical:native`). A test runs the same `type` and `click`
   on the same WPF lab window for the three profiles and requires the same technique and result.
+- Antigravity's `type` no longer rewrites the whole field with the value seen at the last look plus the new text: it
+  appends like the other profiles, from the value read at the moment of the action (a change made since the look is
+  no longer overwritten).
 
 ## [3.12.0] - 2026-10-31
 

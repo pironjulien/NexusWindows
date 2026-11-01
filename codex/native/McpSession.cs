@@ -504,10 +504,6 @@ static partial class McpServer
         var request = NativeRequest(state, kind);
         foreach (var field in new[] { "value", "text", "key", "action", "option", "path", "button", "count" }) if (step[field] != null) request[field] = step[field]!.DeepClone();
         if (selector != null) { request["selector"] = SelectorOf(target!); AddIdentity(request, target!, snapshot); }
-        if (kind == "typeText" && state.Agent == "antigravity" && target?["value"] is JsonValue && !Bool(target, "password") && !Bool(target, "valueTruncated"))
-        {
-            request["operation"] = "setValue"; request["value"] = Str(target, "value") + Str(step, "text"); request.Remove("text");
-        }
         if (kind == "focus")
         {
             if (!physicalAllowed) throw new ActionRefusedException("Explicit focus requires foreground:true; no click or input sent");
