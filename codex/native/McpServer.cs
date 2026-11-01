@@ -346,8 +346,6 @@ static partial class McpServer
         {
             if (modern) throw new InvalidOperationException("Name the window (window=...): from protocol 2026-07-28 no window is carried over from another call; nothing was sent");
             if (state.BoundWindow is { } bound) return bound;
-            if (state.Agent == "claude") { var current = Win32.GetForegroundWindow(); if (current != 0) winNode = JsonValue.Create((long)current); }
-            if (winNode == null)
             throw new InvalidOperationException("Name a window (look window=...)");
         }
         if (winNode is JsonValue surfaceValue && surfaceValue.TryGetValue<string>(out var surfaceName) && ShellWindow(surfaceName.Trim().ToLowerInvariant() switch { "bureau" => "desktop", "barre des tâches" or "barre des taches" => "taskbar", var other => other }) is { } surface)
