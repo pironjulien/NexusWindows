@@ -3,7 +3,7 @@
 // (fixtures/wpf_lab.ps1) is shown off-screen at the bottom of the Z order, never activated; physical fallback is refused,
 // so no input reaches the desktop. The guards answer the same way too (01/11): no window named, a step already done,
 // the real mouse without foreground:true, a password field, a Windows panel in the background, the whole screen, an act
-// without a prior look. It needs a desktop session and Windows OCR: not run by the offline CI.
+// without a prior look; so do the defaults (look, stable indices, act's updated window, text compared spaces normalized). It needs a desktop session and Windows OCR: not run by the offline CI.
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 
@@ -116,6 +116,15 @@ public class ThreeProfilesBehaviorTests
             // Hover needs the real mouse: refused without foreground:true, Codex included.
             row["foregroundDefault"] = Looked(new { @do = "hover", target = "Valider" });
             row["password"] = Looked(new { @do = "type", target = "Secret", text = "x" });
+            // Text postconditions compare with spaces normalized: the step is already done, the click is not sent.
+            row["expectSpaces"] = Looked(new { @do = "click", target = "Valider", expect = new { selector = new { name = "Statut" }, field = "value", equals = "  Statut " } });
+            // The same look by default (lines, summary), with the same index for the same element from one look to the next.
+            var first = Structured(server.Rpc("tools/call", new { name = "look", arguments = new { window = lab.Window } }));
+            var second = Structured(server.Rpc("tools/call", new { name = "look", arguments = new { window = lab.Window } }));
+            row["lookDefault"] = $"{first["elements"]!.AsArray().Count} {first["summary"]} stable={Index(first, "Nom", "edit") == Index(second, "Nom", "edit")}";
+            // act returns the updated window in the same answer by default.
+            server.Rpc("tools/call", new { name = "look", arguments = new { window = lab.Window } });
+            row["actDefault"] = Structured(server.Rpc("tools/call", new { name = "act", arguments = new { window = lab.Window, steps = new[] { already } } }))["observation"]?["elements"] is JsonArray { Count: > 0 };
             row["panelInBackground"] = Act(server, new { window = "start", foreground = false, steps = new[] { new { @do = "click", target = "Paramètres" } } });
             row["fullScreen"] = Outcome(server.Rpc("tools/call", new { name = "look", arguments = new { window = "screen" } }));
             outcomes[agent] = row;
@@ -132,5 +141,8 @@ public class ThreeProfilesBehaviorTests
         Assert.Contains("Password", claude["password"]!.GetValue<string>());
         Assert.Contains("only exists in the foreground", claude["panelInBackground"]!.GetValue<string>());
         Assert.Equal("image: True", claude["fullScreen"]!.GetValue<string>());
+        Assert.StartsWith("already-satisfied =", claude["expectSpaces"]!.GetValue<string>());
+        Assert.EndsWith("stable=True", claude["lookDefault"]!.GetValue<string>());
+        Assert.True(claude["actDefault"]!.GetValue<bool>(), report);
     }
 }
