@@ -34,7 +34,7 @@ static partial class McpServer
         if (plan != null) return RunPanelAct(state, args, modern, plan);
         if (!RoutineBoolean(args, "foreground", false))
             return FinishLegacyAct(state, args, ActNative(state, args, modern));
-        var operation = Str(RoutineCompatibilityArgs(state.Agent, args), "operation", "run");
+        var operation = Str(RoutineCompatibilityArgs(args), "operation", "run");
         if (operation is not ("run" or "continue") || state.CurrentObservation == null || DateTimeOffset.UtcNow - state.ObservedAt > TimeSpan.FromSeconds(60))
             return FinishLegacyAct(state, args, ActNative(state, args, modern));
         var prior = state.BoundWindow;

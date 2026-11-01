@@ -77,7 +77,7 @@ static partial class McpServer
     }
     static JsonObject ActNative(SessionState state, JsonObject args, bool modern)
     {
-        args = RoutineCompatibilityArgs(state.Agent, args);
+        args = RoutineCompatibilityArgs(args);
         var operation = Str(args, "operation", "run");
         ValidateRoutineControls(args, operation);
         var oldBound = state.BoundWindow;
@@ -160,7 +160,7 @@ static partial class McpServer
                 foreach (var n in raw) steps.Add(NormalizeStep(state, observed, n as JsonObject ?? throw new InvalidOperationException("Invalid step"), allowFutureTarget: true));
                 if (remember != null)
                 {
-                    if (!RoutineLearningAllowed(state.Agent, args)) throw new ActionRefusedException("Saving a routine requires staticUI:true");
+                    if (!RoutineLearningAllowed(args)) throw new ActionRefusedException("Saving a routine requires staticUI:true");
                     definition = Routines.PrepareRoutineSteps(steps);
                     steps = Routines.ExpandRoutine(definition, Bindings(args));
                 }
@@ -286,11 +286,13 @@ static partial class McpServer
         var fallback = RoutineBoolean(args, "fallback", true);
         return foreground && fallback;
     }
-    static bool RoutineLearningAllowed(string agent, JsonObject args)
-        => RoutineBoolean(args, "staticUI", agent == "claude");
-    static JsonObject RoutineCompatibilityArgs(string agent, JsonObject args)
+    // remember saves a routine unless staticUI:false says the interface changes from one run to the next (three profiles).
+    static bool RoutineLearningAllowed(JsonObject args)
+        => RoutineBoolean(args, "staticUI", true);
+    // remember with no steps (or steps:[]) forgets the named routine, for the three profiles.
+    static JsonObject RoutineCompatibilityArgs(JsonObject args)
     {
-        if (agent != "claude" || Str(args, "operation", "run") != "run" || args["remember"] == null || args["steps"] != null && args["steps"] is not JsonArray { Count: 0 }) return args;
+        if (Str(args, "operation", "run") != "run" || args["remember"] == null || args["steps"] != null && args["steps"] is not JsonArray { Count: 0 }) return args;
         if (args["routine"] != null || args["continuation"] != null || args["params"] != null && args["params"] is not JsonObject { Count: 0 } || args["authorizations"] != null && args["authorizations"] is not JsonObject { Count: 0 })
             throw new ActionRefusedException("Forgetting a routine accepts no replay, continuation, bindings or authorizations");
         var copy = args.DeepClone().AsObject();
@@ -356,20 +358,19 @@ static partial class McpServer
             Check(!RoutinePhysicalAllowed(agent, Args("{\"interaction\":true}")), "interaction alone grants no legacy foreground permission");
             Check(RoutinePhysicalAllowed(agent, Args("{\"foreground\":true}")), "explicit physical permission");
             Check(!RoutinePhysicalAllowed(agent, Args("{\"foreground\":true,\"fallback\":false}")), "fallback false remains binding");
-            Check(RoutineLearningAllowed(agent, new()) == (agent == "claude"), "legacy learning default");
-            Check(!RoutineLearningAllowed(agent, Args("{\"staticUI\":false}")), "explicit staticUI refusal");
         }
-        Refused(() => RoutineLearningAllowed("claude", Args("{\"staticUI\":\"false\"}")));
+        Check(RoutineLearningAllowed(new()), "learning by default");
+        Check(!RoutineLearningAllowed(Args("{\"staticUI\":false}")), "explicit staticUI refusal");
+        Refused(() => RoutineLearningAllowed(Args("{\"staticUI\":\"false\"}")));
         Refused(() => RoutinePhysicalAllowed("claude", Args("{\"foreground\":1}")));
         Refused(() => RoutinePhysicalAllowed("codex", Args("{\"foreground\":1}")));
         var old = Args("{\"remember\":\"register\",\"steps\":[],\"params\":{}}"); var original = old.ToJsonString();
-        var forget = RoutineCompatibilityArgs("claude", old); ValidateRoutineControls(forget, Str(forget, "operation"));
+        var forget = RoutineCompatibilityArgs(old); ValidateRoutineControls(forget, Str(forget, "operation"));
         Check(Str(forget, "operation") == "forget" && Str(forget, "routine") == "register" && old.ToJsonString() == original, "nonmutating legacy forget alias");
-        Check(ReferenceEquals(RoutineCompatibilityArgs("codex", old), old), "Codex contract unchanged");
-        Check(Str(RoutineCompatibilityArgs("claude", Args("{\"remember\":\"register\"}")), "operation") == "forget", "omitted legacy steps forget the named routine");
-        Check(Str(RoutineCompatibilityArgs("claude", Args("{\"remember\":\"register\",\"steps\":null}")), "operation") == "forget", "null legacy steps forget the named routine");
-        Refused(() => RoutineCompatibilityArgs("claude", Args("{\"remember\":\"register\",\"steps\":[],\"routine\":\"other\"}")));
-        Refused(() => RoutineCompatibilityArgs("claude", Args("{\"remember\":\"register\",\"steps\":[],\"params\":[]}")));
+        Check(Str(RoutineCompatibilityArgs(Args("{\"remember\":\"register\"}")), "operation") == "forget", "omitted legacy steps forget the named routine");
+        Check(Str(RoutineCompatibilityArgs(Args("{\"remember\":\"register\",\"steps\":null}")), "operation") == "forget", "null legacy steps forget the named routine");
+        Refused(() => RoutineCompatibilityArgs(Args("{\"remember\":\"register\",\"steps\":[],\"routine\":\"other\"}")));
+        Refused(() => RoutineCompatibilityArgs(Args("{\"remember\":\"register\",\"steps\":[],\"params\":[]}")));
         Refused(() => ValidateRoutineControls(Args("{\"remember\":\"register\"}"), "continue"));
         Refused(() => ValidateRoutineControls(Args("{\"continuation\":\"old\"}"), "run"));
         Refused(() => ValidateRoutineControls(Args("{\"steps\":[]}"), "forget"));

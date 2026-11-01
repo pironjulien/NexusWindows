@@ -238,7 +238,7 @@ static partial class McpServer
         actProps["settle_ms"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 5000 };
         var launchProps = tools[3]!["inputSchema"]!["properties"]!.AsObject();
         launchProps["then"] = actProps["then"]!.DeepClone(); launchProps["wait_s"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 };
-        if (agent == "claude") actProps["steps"]!["minItems"] = 0;
+        actProps["steps"]!["minItems"] = 0; // remember with steps:[] forgets a routine
         // Frozen, embedded legacy Codex schemas: no Node process or source-cache dependency in production.
         using var contractsStream = typeof(McpServer).Assembly.GetManifestResourceStream("NexusWindows.Contracts")!;
         using var contractsReader = new StreamReader(contractsStream);
