@@ -454,7 +454,8 @@ static partial class McpServer
             }
 
             case "look": return ObserveNative(state, args, modern);
-            case "act": return state.Agent == "claude" ? RunClaudeCompatibleAct(state, args, modern) : RunShellAct(state, args, modern);
+            // An act without a prior look observes the named window first, except for Codex, whose contract needs look's id.
+            case "act": return state.Agent == "codex" ? RunShellAct(state, args, modern) : RunClaudeCompatibleAct(state, args, modern);
 
             case "launch": return LaunchClaudeNative(state, args, modern);
 
