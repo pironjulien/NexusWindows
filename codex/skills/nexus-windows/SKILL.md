@@ -22,7 +22,8 @@ Use the discovered NexusWindows tools and their current schemas. A custom client
 today's MCP fields from the Node API or compatibility aliases below. `look(window=observedHwnd)` returns an
 `observation` for `act` in that same session. After navigation, a tab/dialog change or an external action, look again.
 Modern equality proof is `expect:{selector,field:'value',equals:expectedText}`, not `expect:{selector,value:...}`.
-To require background input, set `fallback:false` on each step, not on the top-level `act` object.
+MCP `act` stays in the background unless it is given `foreground:true`, which allows the physical fallback (still
+refused per step by `fallback:false`).
 
 For a native Open dialog, use `windows` / `dialogOf` and look at the dialog's own HWND; its owner may be disabled.
 Fill the observed file-name combo using its `role` and `automationId` (often `1148`, only if actually observed), then

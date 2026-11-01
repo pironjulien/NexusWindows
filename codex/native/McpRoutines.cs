@@ -285,7 +285,7 @@ static partial class McpServer
     {
         var foreground = RoutineBoolean(args, "foreground", false);
         var fallback = RoutineBoolean(args, "fallback", true);
-        return (agent == "codex" || foreground) && fallback;
+        return foreground && fallback;
     }
     static bool RoutineLearningAllowed(string agent, JsonObject args)
         => RoutineBoolean(args, "staticUI", agent == "claude");
@@ -352,9 +352,9 @@ static partial class McpServer
         JsonObject Args(string raw) => JsonNode.Parse(raw)!.AsObject();
         foreach (var agent in new[] { "codex", "claude", "antigravity" })
         {
-            Check(RoutinePhysicalAllowed(agent, new()) == (agent == "codex"), "profile default physical policy");
-            Check(RoutinePhysicalAllowed(agent, Args("{\"foreground\":false}")) == (agent == "codex"), "explicit legacy background policy");
-            Check(RoutinePhysicalAllowed(agent, Args("{\"interaction\":true}")) == (agent == "codex"), "interaction alone grants no legacy foreground permission");
+            Check(!RoutinePhysicalAllowed(agent, new()), "background only by default for every profile");
+            Check(!RoutinePhysicalAllowed(agent, Args("{\"foreground\":false}")), "explicit background policy");
+            Check(!RoutinePhysicalAllowed(agent, Args("{\"interaction\":true}")), "interaction alone grants no legacy foreground permission");
             Check(RoutinePhysicalAllowed(agent, Args("{\"foreground\":true}")), "explicit physical permission");
             Check(!RoutinePhysicalAllowed(agent, Args("{\"foreground\":true,\"fallback\":false}")), "fallback false remains binding");
             Check(RoutineLearningAllowed(agent, new()) == (agent == "claude"), "legacy learning default");
