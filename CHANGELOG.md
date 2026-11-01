@@ -10,6 +10,8 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.13.0] - 2026-11-01
+
 ### Changed
 - Typing into a modern UI Automation field (WPF, UWP/WinUI, WinForms rich controls) appends in the background for the
   three profiles: the current value is read in the action worker and extended by UIA `SetValue`, as Claude already
