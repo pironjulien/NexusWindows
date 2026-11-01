@@ -10,7 +10,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 // The launch surface of the three profiles (Claude's historical one), backed only by the native engine. Each profile
-// keeps its own block list, journal and DevTools profiles; only the default then= differs. User applications are dispatched by the interactive shell, never inherited from the MCP job.
+// keeps its own block list, journal and DevTools profiles. User applications are dispatched by the interactive shell, never inherited from the MCP job.
 static partial class McpServer
 {
     sealed record ClaudeStartApp(string Name, string Id, string? Target = null, string Arguments = "");
@@ -318,7 +318,7 @@ static partial class McpServer
     static JsonObject LaunchClaudeNative(SessionState state, JsonObject args, bool modern)
     {
         if (state.Agent != GardeFous.CurrentAgent) throw new ActionRefusedException("Launch cannot change the process profile");
-        var show = Str(args, "then", state.Agent == "claude" ? "auto" : "none");
+        var show = Str(args, "then", "auto");
         if (show is not ("auto" or "elements" or "text" or "image" or "both" or "changes" or "none")) throw new ActionRefusedException("Unknown launch then mode");
         var wait = Number(args, "wait_s", 15);
         if (!double.IsFinite(wait) || wait < 0) throw new ActionRefusedException("wait_s must be finite and nonnegative");

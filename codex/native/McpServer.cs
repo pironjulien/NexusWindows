@@ -233,7 +233,7 @@ static partial class McpServer
         foreach (var field in new[] { "foreground", "repeat", "confirm" }) actProps[field] = new JsonObject { ["type"] = "boolean" };
         actProps["accord"] = new JsonObject { ["type"] = "string" };
         actProps["time_budget"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 30 };
-        // The updated window after the steps (then, settle_ms) for the three profiles; "auto" by default for Claude only.
+        // The updated window after the steps (then, settle_ms): "auto" by default for the three profiles.
         actProps["then"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("auto", "both", "image", "elements", "changes", "text", "none") };
         actProps["settle_ms"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 5000 };
         var launchProps = tools[3]!["inputSchema"]!["properties"]!.AsObject();
