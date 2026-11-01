@@ -481,7 +481,7 @@ static partial class McpServer
         if (Bool(target, "password")) throw new ActionRefusedException("Password controls are refused; no input sent");
         if (kind is "setValue" or "typeText" && target != null && Str(target, "role") is not ("edit" or "document" or "combobox"))
             throw new ActionRefusedException("Text input requires an editable field; no input sent");
-        using var textSubmit = state.Agent == "claude" && kind is ("setValue" or "typeText") && target != null && Str(step, "text", Str(step, "value")).IndexOfAny(['\r', '\n']) >= 0
+        using var textSubmit = kind is ("setValue" or "typeText") && target != null && Str(step, "text", Str(step, "value")).IndexOfAny(['\r', '\n']) >= 0
             ? new NativeTextSubmitScope(state, step, snapshot, target) : null;
         if (target == null && kind is "click" or "drag")
         {
