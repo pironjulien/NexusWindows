@@ -1,6 +1,7 @@
 // The same act on the same lab window gives the same technique and the same result for the three profiles (01/11, after
-// Codex typed in the foreground into a WPF field while Claude appended in the background). The WPF lab window is shown
-// off-screen at the bottom of the Z order, never activated; physical fallback is refused, so no input reaches the desktop.
+// Codex typed in the foreground into a WPF field while Claude appended in the background). The WPF window
+// (fixtures/wpf_lab.ps1) is shown off-screen at the bottom of the Z order, never activated; physical fallback is refused,
+// so no input reaches the desktop. It needs a desktop session and Windows OCR: not run by the offline CI.
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 
@@ -18,7 +19,7 @@ public class ThreeProfilesBehaviorTests
         {
             var start = new ProcessStartInfo("powershell.exe") { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true, StandardOutputEncoding = new System.Text.UTF8Encoding(false) };
             foreach (var argument in new[] { "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File",
-                Path.Combine(TestEnvironment.RepositoryRoot, "commun", "benchmarks", "windows", "labo", "wpf_app.ps1"), "-X", "-32000", "-Y", "-32000" })
+                Path.Combine(TestEnvironment.RepositoryRoot, "tests", "fixtures", "wpf_lab.ps1") })
                 start.ArgumentList.Add(argument);
             process = Process.Start(start)!;
             var ready = process.StandardOutput.ReadLineAsync();
@@ -46,6 +47,7 @@ public class ThreeProfilesBehaviorTests
     [Fact]
     public void Type_and_click_on_a_wpf_window_take_the_same_background_route_for_the_three_profiles()
     {
+        Assert.SkipWhen(Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true", "Live WPF window and OCR: run on a desktop (test.ps1).");
         using var lab = new WpfLab();
         var typed = new Dictionary<string, string>(); var clicked = new Dictionary<string, string>();
         var expected = "";
