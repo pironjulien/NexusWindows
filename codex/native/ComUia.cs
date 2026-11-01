@@ -191,10 +191,17 @@ unsafe sealed partial class ComUia
     {
         var chromium = ChromiumInput.HasChromiumContent(hwnd);
         var identity = chromium ? ChromiumIdentity(hwnd) : null;
-        var initial = ReadTreeOnce(hwnd, withPopups);
+        var initial = GatedReadTreeOnce(hwnd, withPopups);
         return chromiumWarmup.Read(initial, chromium, identity, () => ChromiumIdentity(hwnd),
-            () => ReadTreeOnce(hwnd, withPopups, publish: false), () => EmergencyStop.RemainingSeconds() > 0,
+            () => GatedReadTreeOnce(hwnd, withPopups, publish: false), () => EmergencyStop.RemainingSeconds() > 0,
             () => chromiumWarmupClock.Elapsed.TotalMilliseconds, Thread.Sleep);
+    }
+
+    // Full reads of the agents of this session in turn (UiaReadGate.cs): simultaneous ones are slower than in turn.
+    UiTree GatedReadTreeOnce(nint hwnd, bool withPopups, bool publish = true)
+    {
+        using var gate = UiaReadGate.Enter();
+        return ReadTreeOnce(hwnd, withPopups, publish);
     }
 
     UiTree ReadTreeOnce(nint hwnd, bool withPopups, bool publish = true)

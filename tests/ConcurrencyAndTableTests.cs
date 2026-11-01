@@ -1,4 +1,4 @@
-// Window lock between agents (two real processes), the UIA gesture chosen under a point where posted clicks are ignored,
+// Window lock between agents (two real processes), full tree reads in turn, the UIA gesture chosen under a point where posted clicks are ignored,
 // and table reading from an observed tree. No window is shown and no input is sent.
 using System.Diagnostics;
 using System.Text.Json.Nodes;
@@ -50,6 +50,24 @@ public class ConcurrencyAndTableTests
             if (!holder.HasExited) holder.Kill();
             try { Directory.Delete(home, true); } catch (IOException) { }
         }
+    }
+
+    // Full tree reads in turn: a second reader waits while the first holds the gate, then goes ahead; a reader that waited
+    // too long reads anyway, ungated. Two threads, two handles on the same lock file in the tests' own shared home.
+    [Fact]
+    public void Full_tree_reads_wait_their_turn_then_go_ahead_ungated_after_the_bound()
+    {
+        var first = UiaReadGate.Enter();
+        Assert.True(first.Gated);
+        var clock = Stopwatch.StartNew();
+        var late = Task.Run(() => { using var gate = UiaReadGate.Enter(300); return (gate.Gated, clock.ElapsedMilliseconds); }).Result;
+        Assert.False(late.Gated); Assert.True(late.ElapsedMilliseconds >= 280, "waits up to its bound");
+        var turn = Task.Run(() => { using var gate = UiaReadGate.Enter(5000); return (gate.Gated, clock.ElapsedMilliseconds); });
+        Thread.Sleep(200);
+        Assert.False(turn.IsCompleted, "waits while the gate is held");
+        first.Dispose();
+        Assert.True(turn.Wait(2000) && turn.Result.Gated, "gets the gate once released");
+        using (var again = UiaReadGate.Enter()) using (var nested = UiaReadGate.Enter()) Assert.Same(again, nested);
     }
 
     static JsonObject Element(int index, string role, string name = "", string? value = null, int[]? ancestors = null, bool invoke = false, bool? toggled = null, bool? selected = null, bool disabled = false) => new()

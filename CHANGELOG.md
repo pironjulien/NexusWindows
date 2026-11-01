@@ -21,6 +21,13 @@ and npm (`nexus-windows-codex`).
 - Chromium text (Chrome, Edge, Electron) may take up to 170 s for the three profiles, packet by packet, each packet
   still checked (focus, presence, STOP, client cancellation); Codex and Antigravity stopped a long text at 9 s.
 
+### Fixed
+- Agents acting at the same time slowed each other down: a `type` on the WPF lab took 2.4 s alone, 10 to 11.5 s with
+  three agents on three windows. The cause is in Windows, not in a NexusWindows lock: simultaneous UI Automation tree
+  reads of different windows are slower than the same reads in turn (0.45 s alone, 1.9 s each for three, also with
+  clients outside NexusWindows). Full tree reads now take turns across the agents (a file lock in `.nexus`, bounded at
+  4.854 s, after which a read goes ahead anyway).
+
 ## [3.12.0] - 2026-10-31
 
 ### Added
