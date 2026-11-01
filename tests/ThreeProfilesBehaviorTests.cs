@@ -34,12 +34,13 @@ public class ThreeProfilesBehaviorTests
     static int Index(JsonObject look, string name, string role) => look["elements"]!.AsArray().OfType<JsonObject>()
         .Single(e => e["name"]?.GetValue<string>() == name && e["role"]?.GetValue<string>() == role)["index"]!.GetValue<int>();
 
-    static JsonObject Act(McpStdioTests.Server server, long window, object step)
+    static JsonObject Act(McpStdioTests.Server server, long window, object step, string then = "none")
     {
-        var reply = server.Rpc("tools/call", new { name = "act", arguments = new { window, steps = new[] { step }, then = "none", fallback = false } });
+        var reply = server.Rpc("tools/call", new { name = "act", arguments = new { window, steps = new[] { step }, then, fallback = false } });
         var data = Structured(reply);
         var first = data["steps"]!.AsArray()[0]!.AsObject();
-        return new JsonObject { ["technique"] = first["technique"]?.DeepClone(), ["status"] = first["status"]?.DeepClone(), ["foregroundTaken"] = first["foregroundTaken"]?.DeepClone() };
+        var observed = data["observation"]?["elements"] is JsonArray elements && elements.Count > 0;
+        return new JsonObject { ["technique"] = first["technique"]?.DeepClone(), ["status"] = first["status"]?.DeepClone(), ["foregroundTaken"] = first["foregroundTaken"]?.DeepClone(), ["observed"] = observed };
     }
 
     [Fact]
@@ -59,14 +60,15 @@ public class ThreeProfilesBehaviorTests
             Assert.Equal(expected, look["elements"]!.AsArray().OfType<JsonObject>().Single(e => e["name"]?.GetValue<string>() == "Nom" && e["role"]?.GetValue<string>() == "edit")["value"]!.GetValue<string>());
             var before = lab.Count("clic " + (clicked.Count + 1));
             // The status text is named "Statut" for UI Automation: "clic N" is only seen in the window's pixels (OCR).
-            clicked[agent] = Act(server, lab.Window, new { @do = "click", target = $"[{Index(look, "Valider", "button")}]", expect = "clic " + (clicked.Count + 1) }).ToJsonString();
+            clicked[agent] = Act(server, lab.Window, new { @do = "click", target = $"[{Index(look, "Valider", "button")}]", expect = "clic " + (clicked.Count + 1) }, then: "elements").ToJsonString();
             var deadline = Stopwatch.StartNew();
             while (lab.Count("clic " + (clicked.Count)) == before && deadline.ElapsedMilliseconds < 5000) Thread.Sleep(50);
             Assert.Equal(before + 1, lab.Count("clic " + clicked.Count));
         }
-        Assert.Equal("""{"technique":"background:uia","status":"verified","foregroundTaken":false}""", typed["claude"]);
+        Assert.Equal("""{"technique":"background:uia","status":"verified","foregroundTaken":false,"observed":false}""", typed["claude"]);
         Assert.All(typed.Values, t => Assert.Equal(typed["claude"], t));
         Assert.All(clicked.Values, c => Assert.Equal(clicked["claude"], c));
-        Assert.Equal("""{"technique":"background:uia","status":"verified","foregroundTaken":false}""", clicked["claude"]);
+        // then="elements": the updated window comes back in the same answer, for the three profiles.
+        Assert.Equal("""{"technique":"background:uia","status":"verified","foregroundTaken":false,"observed":true}""", clicked["claude"]);
     }
 }

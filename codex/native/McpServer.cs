@@ -233,10 +233,11 @@ static partial class McpServer
         foreach (var field in new[] { "foreground", "repeat", "confirm" }) actProps[field] = new JsonObject { ["type"] = "boolean" };
         actProps["accord"] = new JsonObject { ["type"] = "string" };
         actProps["time_budget"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 30 };
+        // The updated window after the steps (then, settle_ms) for the three profiles; "auto" by default for Claude only.
+        actProps["then"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("auto", "both", "image", "elements", "changes", "text", "none") };
+        actProps["settle_ms"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 5000 };
         if (agent == "claude")
         {
-            actProps["then"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("auto", "both", "image", "elements", "changes", "text", "none") };
-            actProps["settle_ms"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 5000 };
             actProps["steps"]!["minItems"] = 0;
             var launchProps = tools[3]!["inputSchema"]!["properties"]!.AsObject();
             launchProps["then"] = actProps["then"]!.DeepClone(); launchProps["wait_s"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 };
@@ -458,7 +459,7 @@ static partial class McpServer
             }
 
             case "look": return ObserveNative(state, args, modern);
-            case "act": return state.Agent == "claude" ? RunClaudeCompatibleAct(state, args, modern) : ActNative(state, args, modern);
+            case "act": return state.Agent == "claude" ? RunClaudeCompatibleAct(state, args, modern) : FinishLegacyAct(state, args, ActNative(state, args, modern));
 
             case "launch":
             {

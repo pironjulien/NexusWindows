@@ -412,13 +412,14 @@ static partial class McpServer
     static JsonObject TranslateFrame(JsonObject frame, JsonObject old, JsonObject current) => new() { ["left"] = Number(frame, "left") + Number(current, "left") - Number(old, "left"), ["top"] = Number(frame, "top") + Number(current, "top") - Number(old, "top"), ["width"] = Number(frame, "width"), ["height"] = Number(frame, "height") };
     static JsonObject FinishLegacyAct(SessionState state, JsonObject args, JsonObject result)
     {
-        if (state.Agent != "claude" || result["structuredContent"]?["forgotten"] != null || result["structuredContent"]?["operation"] != null || Str(args, "then", "auto") == "none" || state.BoundWindow is not { } target || !Win32.IsWindow((nint)target.Id)) return result;
+        // Presentation default of each client: Claude gets the updated window unless then="none"; Codex and Antigravity on request.
+        if (result["structuredContent"]?["forgotten"] != null || result["structuredContent"]?["operation"] != null || Str(args, "then", state.Agent == "claude" ? "auto" : "none") == "none" || state.BoundWindow is not { } target || !Win32.IsWindow((nint)target.Id)) return result;
         var status = Str(result["structuredContent"], "status");
         try
         {
             var delay = (int)Math.Clamp(Number(args, "settle_ms", 300), 0, 5000);
             var timer = Stopwatch.StartNew(); while (timer.ElapsedMilliseconds < delay) { EmergencyStop.ThrowIfStopped(); Thread.Sleep((int)Math.Min(50, delay - timer.ElapsedMilliseconds)); }
-            var presentation = Str(args, "then", "auto"); if (status is "unverified" or "failed" && presentation == "auto") presentation = "both";
+            var presentation = Str(args, "then", state.Agent == "claude" ? "auto" : "none"); if (status is "unverified" or "failed" && presentation == "auto") presentation = "both";
             var observed = ObserveCompatibleNative(state, new JsonObject { ["window"] = target.Id, ["show"] = presentation }, false);
             foreach (var block in observed["content"]!.AsArray()) result["content"]!.AsArray().Add(block!.DeepClone());
             result["structuredContent"]!["observation"] = observed["structuredContent"]?.DeepClone();

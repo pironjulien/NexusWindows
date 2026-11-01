@@ -22,6 +22,8 @@ and npm (`nexus-windows-codex`).
   for the three profiles (Claude only before; Codex and Antigravity left such a step unverified).
 - `windows` gives each window's process, framework (Win32, WPF, Chromium, UWP), size and state (minimized, maximized,
   foreground, hidden, taskbar or desktop surface) for the three profiles (Claude only before).
+- `act(then=…, settle_ms=…)` returns the updated window in the same answer for the three profiles. Claude keeps
+  `then="auto"` by default; Codex and Antigravity get it on request (`then="none"` by default, answers unchanged).
 - Chromium text (Chrome, Edge, Electron) may take up to 170 s for the three profiles, packet by packet, each packet
   still checked (focus, presence, STOP, client cancellation); Codex and Antigravity stopped a long text at 9 s.
 
