@@ -437,8 +437,11 @@ static partial class Program
         var menu = Win32.GetMenu(window);
         if (menu == 0 || Win32.GetMenuItemCount(menu) <= 0)
         {
-            // Menu WinForms (MenuStrip) : chemin par les noms, commande par UIA Invoke (ComWorker.MenuPath).
-            if (!Win32.ClassName(window).StartsWith("WindowsForms10.", StringComparison.Ordinal)) throw new BackgroundNotApplicableException("No Win32 menu bar in this window");
+            // Menu WinForms (MenuStrip) ou WPF (Menu) : chemin par les noms, sous-menus deplies et commande par UIA Invoke
+            // (ComWorker.MenuPath ; WPF depuis le 01/11 : « No Win32 menu bar » au banc commun).
+            var cls = Win32.ClassName(window);
+            if (!cls.StartsWith("WindowsForms10.", StringComparison.Ordinal) && !cls.StartsWith("HwndWrapper", StringComparison.Ordinal))
+                throw new BackgroundNotApplicableException("No Win32 menu bar in this window");
             return MenuByNames(window, path.Split('>').Select(s => (s.Trim(), (string?)null)).ToArray());
         }
         static string Clean(string label)
