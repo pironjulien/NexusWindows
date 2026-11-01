@@ -18,6 +18,8 @@ and npm (`nexus-windows-codex`).
 - Antigravity's `type` no longer rewrites the whole field with the value seen at the last look plus the new text: it
   appends like the other profiles, from the value read at the moment of the action (a change made since the look is
   no longer overwritten).
+- A postcondition on a radio button's `checked` reads its selection, and a `value` on a text or a label reads its text,
+  for the three profiles (Claude only before; Codex and Antigravity left such a step unverified).
 - Chromium text (Chrome, Edge, Electron) may take up to 170 s for the three profiles, packet by packet, each packet
   still checked (focus, presence, STOP, client cancellation); Codex and Antigravity stopped a long text at 9 s.
 
