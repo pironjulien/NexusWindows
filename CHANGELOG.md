@@ -10,6 +10,25 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+### Changed
+- The three profiles behave the same way wherever no client requires otherwise, each time with the better of the
+  former behaviors (Julien's decision of 01/11; the behavior test compares these defaults too):
+  - an `act` without a prior look observes the named window first, Codex included; an observation id stays optional
+    and, when given, designates the window and must still be current;
+  - element indices stay the same from one look to the next for the same element (Claude's numbering);
+  - `look` lists 150 lines by default (up to 2000 on request, the rest summarized with its regions), adds an image
+    when the tree is too poor, and numbers the unnamed controls on images (`marks="auto"`); `mode="text"` is the tree
+    for the three profiles, `show="text"` the document text;
+  - `act` and `launch` return the updated window in the same answer by default (`then="auto"`, `then="none"` to skip);
+  - a window moved since its image keeps its image usable for points and `region` (only a resize asks for a new look);
+    `region` takes the image id optionally, and a point carrying the region's own id is read in its pixels;
+  - text postconditions compare with spaces normalized (line breaks, non-breaking spaces), `includes` ignoring case;
+  - French and English key names and modifiers (`entrée`, `échap`, `ctl`, `maj`…) are accepted by the three profiles
+    and made canonical before the guards read them;
+  - a simulated Enter in the MCP server always needs its text submission scope (send and agreement checks);
+  - `remember` saves a routine unless `staticUI:false`, and `remember` with no steps forgets it;
+  - `windows` has one output schema (Codex's fields and the window details) for the three profiles.
+
 ## [3.13.0] - 2026-11-01
 
 ### Changed
