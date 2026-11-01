@@ -382,4 +382,26 @@ public class LaunchTests
         Assert.Equal(42, r[0]!["steamOwner"].I()); Assert.Equal("genuine-steam-session", r[0]!["sessionKind"].S());
         foreach (var result in r.Skip(1)) Assert.NotNull(result!["refused"]);
     }
+
+    // Explorer receives the backing path of a redirected one (a junction here, a packaged app's virtualized AppData
+    // on the user's PC: Explorer did not see it, answered "Windows cannot find" in a modal box, and launch hung).
+    [Fact]
+    public void Explorer_receives_the_backing_path_and_other_targets_unchanged()
+    {
+        using var b = new Bench();
+        var exe = b.File(@"cible\Labo Lancement.exe");
+        var link = Path.Combine(b.Root, "lien");
+        using (var mklink = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe") { ArgumentList = { "/c", "mklink", "/J", link, Path.GetDirectoryName(exe)! }, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true })!)
+        { mklink.WaitForExit(); Assert.Equal(0, mklink.ExitCode); }
+        try
+        {
+            var target = UserApplication.RealPath(Path.Combine(link, "Labo Lancement.exe"));
+            Assert.Equal(Path.GetFullPath(UserApplication.RealPath(exe)), target, ignoreCase: true);
+            Assert.Equal(UserApplication.RealPath(Path.GetDirectoryName(exe)!), UserApplication.RealPath(link), ignoreCase: true);
+            Assert.DoesNotContain(@"\\?\", target);
+        }
+        finally { Directory.Delete(link); } // the junction alone, never its target
+        foreach (var unchanged in new[] { "", "notepad.exe", "ms-settings:", @"shell:AppsFolder\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App", Path.Combine(b.Root, "absent.exe") })
+            Assert.Equal(unchanged, UserApplication.RealPath(unchanged));
+    }
 }

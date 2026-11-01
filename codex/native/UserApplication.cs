@@ -28,10 +28,32 @@ static unsafe class UserApplication
         catch (Exception error) { throw new UserApplicationUnavailableException("The interactive Explorer launch broker is unavailable; nothing was launched", error); }
         try
         {
+            var target = RealPath(info.FileName); var directory = RealPath(info.WorkingDirectory);
             started();
-            ((dynamic)application).ShellExecute(info.FileName, info.Arguments, info.WorkingDirectory, "open", show);
+            ((dynamic)application).ShellExecute(target, info.Arguments, directory, "open", show);
         }
         finally { Release(application); }
+    }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string name, uint access, uint share, nint security, uint disposition, uint flags, nint template);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern uint GetFinalPathNameByHandleW(Microsoft.Win32.SafeHandles.SafeFileHandle file, char* buffer, uint length, uint flags);
+
+    // The path as Explorer sees it. A worker started by a packaged app (Claude Desktop is MSIX) sees its package's
+    // virtualized AppData under the ordinary %LOCALAPPDATA% path; Explorer does not, answers "Windows cannot find"
+    // in a modal box and the synchronous ShellExecute never returns. The file system names the backing file.
+    // Anything else (URI, shell: name, bare program name, missing path) is passed unchanged.
+    internal static string RealPath(string path)
+    {
+        if (string.IsNullOrEmpty(path) || !Path.IsPathFullyQualified(path) || !File.Exists(path) && !Directory.Exists(path)) return path;
+        // No access right: only the name is read. FILE_FLAG_BACKUP_SEMANTICS opens a directory as well.
+        using var handle = CreateFileW(path, 0, 7 /* read | write | delete */, 0, 3 /* OPEN_EXISTING */, 0x02000000, 0);
+        if (handle.IsInvalid) return path;
+        var buffer = stackalloc char[32768];
+        var length = GetFinalPathNameByHandleW(handle, buffer, 32768, 0);
+        if (length == 0 || length >= 32768) return path;
+        var final = new string(buffer, 0, (int)length);
+        return final.StartsWith(@"\\?\UNC\", StringComparison.Ordinal) ? @"\\" + final[8..] : final.StartsWith(@"\\?\", StringComparison.Ordinal) ? final[4..] : final;
     }
 
     static object DesktopApplication()

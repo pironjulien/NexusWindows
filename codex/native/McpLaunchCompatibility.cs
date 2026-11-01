@@ -263,7 +263,8 @@ static partial class McpServer
     }
     static bool ClaudeSameExecutable(long pid, string executable)
     {
-        try { using var process = Process.GetProcessById(checked((int)pid)); return string.Equals(process.MainModule?.FileName, executable, StringComparison.OrdinalIgnoreCase); }
+        // Final paths: Explorer starts a virtualized AppData executable from its package's backing folder.
+        try { using var process = Process.GetProcessById(checked((int)pid)); return process.MainModule?.FileName is { } file && string.Equals(UserApplication.RealPath(file), UserApplication.RealPath(executable), StringComparison.OrdinalIgnoreCase); }
         catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { return false; }
     }
     static HashSet<uint> ClaudeContentPids(long window)

@@ -10,6 +10,15 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+### Fixed
+- `launch` no longer hangs on a program or folder that only exists in a packaged app's virtualized AppData (the engine
+  started by Claude Desktop, an MSIX app, sees its package's private copy of `%LOCALAPPDATA%`). Explorer, which starts
+  user applications, did not see that path: it showed a modal "Windows cannot find" box on the user's desktop and its
+  synchronous `ShellExecute` never returned, holding the shared foreground token, so the other two AIs got "Foreground
+  token unavailable" and the next call of the same client waited too. Explorer now receives the file system's backing
+  path, and the launched window is recognized by that path. On the common banc, the covered launch goes from 0/3
+  (120 s timeout) to launched in about 3.5 s for the three profiles.
+
 ## [3.15.0] - 2026-11-01
 
 ### Added
