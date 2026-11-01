@@ -224,7 +224,7 @@ static partial class McpServer
         }, key => state.Agent == "claude" ? NormalizeClaudeKeyChord(key) : key);
         if (step["expect"] is JsonObject expect && ExpectationHolds(state, snapshot, expect, ocr: true))
         {
-            if (ExactExpectation(expect) || state.Agent == "claude" && LegacyStateCheck(expect)) return StepResult("already-satisfied", "=", false, true, "Exact state already satisfied; no input sent");
+            if (ExactExpectation(expect) || LegacyStateCheck(expect)) return StepResult("already-satisfied", "=", false, true, "Exact state already satisfied; no input sent");
             throw new ActionRefusedException("Vague postcondition is already true before input; choose a condition that this sequence changes");
         }
         JsonObject? last = null;

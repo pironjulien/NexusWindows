@@ -502,7 +502,7 @@ static partial class McpServer
         CheckGesture(state, step, snapshot, target, textSubmit);
         if (step["expect"] is JsonObject expect && ExpectationHolds(state, snapshot, expect, ocr: true))
         {
-            if (kind == "wait" || ExactExpectation(expect) || state.Agent == "claude" && LegacyStateCheck(expect)) return StepResult("already-satisfied", "=", false, true, "Exact state already satisfied; no input sent");
+            if (kind == "wait" || ExactExpectation(expect) || LegacyStateCheck(expect)) return StepResult("already-satisfied", "=", false, true, "Exact state already satisfied; no input sent");
             throw new ActionRefusedException("Vague postcondition is already true before input; choose a condition that this gesture changes");
         }
         if (kind == "wait")
