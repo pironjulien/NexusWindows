@@ -10,6 +10,8 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.14.0] - 2026-11-01
+
 ### Changed
 - The three profiles behave the same way wherever no client requires otherwise, each time with the better of the
   former behaviors (Julien's decision of 01/11; the behavior test compares these defaults too):

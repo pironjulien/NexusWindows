@@ -1,7 +1,7 @@
 {
   "name": "nexus-windows",
   "displayName": "Nexus Windows",
-  "version": "3.13.0",
+  "version": "3.14.0",
   "description": "Windows desktop apps through native UI Automation: observe, click, type, menus, shortcuts and launch. Foreground interaction is explicit when required. Starts the native NexusWindows engine installed by NexusSystem (or NexusWindows' get.ps1).",
   "author": {
     "name": "Julien Piron",
