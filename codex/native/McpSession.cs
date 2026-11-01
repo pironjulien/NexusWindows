@@ -635,18 +635,19 @@ static partial class McpServer
         }
         else
         {
-            var image = state.Image ?? throw new ActionRefusedException("Point input requires the image returned by look");
+            var image = (step["screenshotId"] != null && state.RegionImage?.Id == Str(step, "screenshotId") ? state.RegionImage : state.Image)
+                ?? throw new ActionRefusedException("Point input requires the image returned by look");
             if (image.Window != state.BoundWindow!.Value.Id || step["screenshotId"] != null && Str(step, "screenshotId") != image.Id) throw new ActionRefusedException("Stale screenshot id");
-            if (image.Capture["windowFrame"] is not JsonObject originalFrame || (state.Agent == "claude" ? !SameFrameSize(originalFrame, frame) : !JsonNode.DeepEquals(originalFrame, frame))) throw new ActionRefusedException("Window moved or resized since image; look again");
+            if (image.Capture["windowFrame"] is not JsonObject originalFrame || !SameFrameSize(originalFrame, frame)) throw new ActionRefusedException("Window moved or resized since image; look again");
             if (step["box_2d"] is JsonArray box && box.Count == 4)
             {
-                var shotFrame = state.Agent == "claude" ? TranslateFrame(image.Capture["frame"]!.AsObject(), originalFrame, frame) : image.Capture["frame"]!.AsObject();
+                var shotFrame = TranslateFrame(image.Capture["frame"]!.AsObject(), originalFrame, frame);
                 x = Number(shotFrame, "left") + (box[1]!.GetValue<double>() + box[3]!.GetValue<double>()) * Number(shotFrame, "width") / 2000;
                 y = Number(shotFrame, "top") + (box[0]!.GetValue<double>() + box[2]!.GetValue<double>()) * Number(shotFrame, "height") / 2000;
             }
             else if (step["point"] is JsonObject point)
             {
-                var shotFrame = state.Agent == "claude" ? TranslateFrame(image.Capture["frame"]!.AsObject(), originalFrame, frame) : image.Capture["frame"]!.AsObject();
+                var shotFrame = TranslateFrame(image.Capture["frame"]!.AsObject(), originalFrame, frame);
                 x = Number(shotFrame, "left") + Number(point, "x") * Number(shotFrame, "width") / Number(image.Capture, "width");
                 y = Number(shotFrame, "top") + Number(point, "y") * Number(shotFrame, "height") / Number(image.Capture, "height");
             }

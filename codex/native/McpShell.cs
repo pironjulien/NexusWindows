@@ -102,7 +102,7 @@ static partial class McpServer
         PublishNativeIndices(state, snapshot, memory);
         state.CurrentObservation = JsonSerializer.SerializeToElement(snapshot, JsonOut);
         state.CurrentObservationId = state.NextObservationId(); state.ObservedAt = DateTimeOffset.UtcNow;
-        if (state.Image?.Window != window || memory.Image == null) state.Image = null;
+        if (state.Image?.Window != window || memory.Image == null) { state.Image = null; state.RegionImage = null; }
     }
 
     internal static bool OfficialShellIdentity(ShellActPlan plan, string path, string app, string windowsRoot)

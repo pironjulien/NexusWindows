@@ -226,7 +226,7 @@ static partial class McpServer
         var prior = state.BoundWindow; var target = ResolveWindow(state, args, modern);
         if (expected is { } known && (target.Id != known.Id || target.Pid != known.Pid || !target.App.Equals(known.App, StringComparison.OrdinalIgnoreCase) || Program.ProcessStartedUtc((uint)target.Pid) != expectedBirth))
             throw new ActionRefusedException("The launched window/process was replaced before observation; no screen returned");
-        if (prior?.Id != target.Id) { state.RetainedFocus = null; state.Image = null; state.Pending = null; state.CurrentObservation = null; state.CurrentObservationId = null; }
+        if (prior?.Id != target.Id) { state.RetainedFocus = null; state.Image = null; state.RegionImage = null; state.Pending = null; state.CurrentObservation = null; state.CurrentObservationId = null; }
         if (show == "none" && args["routine_info"] == null) return new JsonObject { ["content"] = new JsonArray { TextBlock("No observation requested; previous displayed indices retained.") } };
         state.CurrentObservation = null; state.CurrentObservationId = null;
         var snapshot = InspectNative(state); var memory = LookMemory(state, target.Id, snapshot);
@@ -244,8 +244,8 @@ static partial class McpServer
             if (needsOcr && wantsImage && marks != "none") full = ReadNativeCapture(state, snapshot, marks: marks);
             if (args["region"] is JsonArray region)
             {
-                var basis = state.Agent == "claude" ? memory.Image ?? full : state.Image?.Capture ?? throw new ActionRefusedException("A region needs the previous image");
-                if ((state.Agent == "codex" || args["image"] != null) && Str(args, "image") != state.Image?.Id) throw new ActionRefusedException("Image id does not match the current image");
+                var basis = memory.Image ?? full;
+                if (args["image"] != null && Str(args, "image") != state.Image?.Id) throw new ActionRefusedException("Image id does not match the current image");
                 if (basis["windowFrame"] is not JsonObject old || !SameFrameSize(old, snapshot["frame"]!.AsObject())) { args.Remove("region"); shot = full; }
                 else { var movedBasis = basis.DeepClone().AsObject(); movedBasis["frame"] = TranslateFrame(basis["frame"]!.AsObject(), old, snapshot["frame"]!.AsObject()); shot = ReadNativeCapture(state, snapshot, ImageRegion(movedBasis, region, false)); }
             }
@@ -255,16 +255,16 @@ static partial class McpServer
         var id = state.NextObservationId(); var shotId = "img-" + id;
         if (shot != null && wantsImage)
         {
-            if (state.Agent != "claude" || args["region"] == null) state.Image = new NativeImage(shotId, target.Id, shot);
-            if (state.Agent == "claude" && args["region"] == null) memory.Image = shot.DeepClone().AsObject();
+            // A full image takes points without an id; a region takes the points that carry its own screenshotId.
+            if (args["region"] == null) { state.Image = new NativeImage(shotId, target.Id, shot); memory.Image = shot.DeepClone().AsObject(); state.RegionImage = null; }
+            else state.RegionImage = new NativeImage(shotId, target.Id, shot);
         }
-        var reference = state.Agent == "claude" ? memory.Image : state.Image?.Capture;
+        var reference = memory.Image;
         if (reference == null && full != null) reference = full;
         if (reference?["windowFrame"] is JsonObject referenceFrame)
         {
             if (snapshot["frame"] is not JsonObject currentFrame || !SameFrameSize(referenceFrame, currentFrame)) reference = null;
-            else if (state.Agent == "claude") { reference = reference.DeepClone().AsObject(); reference["frame"] = TranslateFrame(reference["frame"]!.AsObject(), referenceFrame, snapshot["frame"]!.AsObject()); }
-            else if (!JsonNode.DeepEquals(referenceFrame, snapshot["frame"])) reference = null;
+            else { reference = reference.DeepClone().AsObject(); reference["frame"] = TranslateFrame(reference["frame"]!.AsObject(), referenceFrame, snapshot["frame"]!.AsObject()); }
         }
         var query = Str(args, "query");
         // 150 lines by default for the three profiles (the rest is summarized with its regions), up to 2000 on request.
@@ -337,7 +337,7 @@ static partial class McpServer
             if (args["output_path"] != null) { var output = Path.GetFullPath(Str(args, "output_path")); Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.Copy(Str(shot, "path"), output, true); data["output_path"] = output; }
             var areaKey = (args["region"] ?? args["zoom"])?.ToJsonString() ?? "full";
             var print = Routines.Digest(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)) + shot["frame"]!.ToJsonString());
-            data["image"] = state.Agent == "claude" && args["region"] != null ? state.Image?.Id : shotId; data["capture"] = shot.DeepClone();
+            data["image"] = shotId; data["capture"] = shot.DeepClone();
             if (show != "image" && memory.Sent.TryGetValue(areaKey, out var oldPrint) && oldPrint == print) content.Add(TextBlock("Image unchanged: same pixels and frame; show=image resends it."));
             else { content.Add(TextBlock($"image {shotId}; {shot.ToJsonString(JsonOut)}")); content.Add(new JsonObject { ["type"] = "image", ["data"] = Convert.ToBase64String(bytes), ["mimeType"] = "image/webp" }); memory.Sent[areaKey] = print; }
         }
@@ -442,7 +442,7 @@ static partial class McpServer
                 // An image of this same window (look or act then="image") stays usable for points: NativePoint still refuses
                 // it when the window moved or was resized, and the element under the point is read again before input.
                 memory.Shown.Clear(); state.Pending = null; state.RetainedFocus = null;
-                if (state.Image?.Window != named.Id) { memory.Image = null; state.Image = null; }
+                if (state.Image?.Window != named.Id) { memory.Image = null; state.Image = null; state.RegionImage = null; }
                 PublishNativeIndices(state, snapshot, memory);
                 state.CurrentObservation = JsonSerializer.SerializeToElement(snapshot); state.CurrentObservationId = state.NextObservationId(); state.ObservedAt = DateTimeOffset.UtcNow;
             }
@@ -483,7 +483,7 @@ static partial class McpServer
         Check(coordinate.X == 1380 && coordinate.Y == 800, "printed point maps to actual center");
         var moved = first.DeepClone().AsObject(); moved["frame"]!["left"] = 200;
         coordinate = NativePoint(claude, new JsonObject { ["point"] = new JsonObject { ["x"] = 1000, ["y"] = 546.875 } }, moved, null);
-        Check(coordinate.X == 1480 && coordinate.Y == 800, "Claude legacy point follows window movement");
+        Check(coordinate.X == 1480 && coordinate.Y == 800, "a point follows window movement");
         moved["frame"]!["width"] = 2000;
         Check(Refused(() => NativePoint(claude, new JsonObject { ["point"] = new JsonObject { ["x"] = 1, ["y"] = 1 } }, moved, null)), "resize invalidates image point");
         var before = new Dictionary<int, string> { [1] = "old", [2] = "same", [3] = "removed" };
