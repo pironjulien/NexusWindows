@@ -1,7 +1,9 @@
 // The same act on the same lab window gives the same technique and the same result for the three profiles (01/11, after
 // Codex typed in the foreground into a WPF field while Claude appended in the background). The WPF window
 // (fixtures/wpf_lab.ps1) is shown off-screen at the bottom of the Z order, never activated; physical fallback is refused,
-// so no input reaches the desktop. It needs a desktop session and Windows OCR: not run by the offline CI.
+// so no input reaches the desktop. The guards answer the same way too (01/11): no window named, a step already done,
+// the real mouse without foreground:true, a password field, a Windows panel in the background, the whole screen; only
+// Codex's contract still needs a look before an act. It needs a desktop session and Windows OCR: not run by the offline CI.
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 
@@ -72,5 +74,65 @@ public class ThreeProfilesBehaviorTests
         Assert.All(clicked.Values, c => Assert.Equal(clicked["claude"], c));
         // then="elements": the updated window comes back in the same answer, for the three profiles.
         Assert.Equal("""{"technique":"background:uia","status":"verified","foregroundTaken":false,"observed":true}""", clicked["claude"]);
+    }
+
+    // One line per rule: the error of a refused call, or the first step's status, mark, foreground and message.
+    static string Outcome(JsonNode reply)
+    {
+        var result = reply["result"]!.AsObject();
+        if (result["isError"]?.GetValue<bool>() == true) return "error: " + result["content"]![0]!["text"]!.GetValue<string>();
+        if (result["structuredContent"]?["steps"] is not JsonArray { Count: > 0 } steps) return "image: " + (result["content"]!.AsArray().Any(c => c?["type"]?.GetValue<string>() == "image"));
+        var step = steps[0]!.AsObject();
+        return $"{step["status"]} {step["mark"]} foregroundTaken={step["foregroundTaken"]} {step["message"]}";
+    }
+
+    [Fact]
+    public void The_guards_answer_the_same_way_for_the_three_profiles()
+    {
+        Assert.SkipWhen(Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true", "Live WPF window: run on a desktop (test.ps1).");
+        using var lab = new WpfLab();
+        var outcomes = new Dictionary<string, JsonObject>();
+        string Act(McpStdioTests.Server server, object arguments) => Outcome(server.Rpc("tools/call", new { name = "act", arguments }));
+        var already = new { @do = "click", target = "Valider", expect = new { selector = new { name = "Valider" }, exists = true } };
+        foreach (var agent in new[] { "claude", "codex", "antigravity" })
+        {
+            using var server = new McpStdioTests.Server(["--mcp", "--agent", agent]);
+            server.Rpc("initialize", new { protocolVersion = "2025-06-18", capabilities = new { }, clientInfo = new { name = "behavior-test", version = "1" } });
+            var row = new JsonObject
+            {
+                // No window named and none bound: never the window in the foreground.
+                ["noWindow"] = Outcome(server.Rpc("tools/call", new { name = "act", arguments = new { steps = new[] { already } } })),
+                // An act before any look: Claude and Antigravity observe the named window first, Codex's contract needs look.
+                ["withoutLook"] = Act(server, new { window = lab.Window, steps = new[] { already } }),
+            };
+            // From here each act follows its own look (Codex's contract consumes the observation).
+            string Looked(object step)
+            {
+                server.Rpc("tools/call", new { name = "look", arguments = new { window = lab.Window, detail = "full" } });
+                return Act(server, new { window = lab.Window, steps = new[] { step } });
+            }
+            // A step already done answers "=" and sends nothing.
+            row["alreadyDone"] = Looked(already);
+            // Hover needs the real mouse: refused without foreground:true, Codex included.
+            row["foregroundDefault"] = Looked(new { @do = "hover", target = "Valider" });
+            row["password"] = Looked(new { @do = "type", target = "Secret", text = "x" });
+            row["panelInBackground"] = Act(server, new { window = "start", foreground = false, steps = new[] { new { @do = "click", target = "Paramètres" } } });
+            row["fullScreen"] = Outcome(server.Rpc("tools/call", new { name = "look", arguments = new { window = "screen" } }));
+            outcomes[agent] = row;
+        }
+        var report = string.Join("\n", outcomes.Select(o => o.Key + " " + o.Value.ToJsonString()));
+        Assert.True(lab.Count("clic 1") == 0, report);
+        Assert.Equal("error: Look at the named window before acting", outcomes["codex"]["withoutLook"]!.GetValue<string>());
+        Assert.StartsWith("already-satisfied =", outcomes["claude"]["withoutLook"]!.GetValue<string>());
+        foreach (var row in outcomes.Values) row.Remove("withoutLook");
+        Assert.True(outcomes.Values.All(r => JsonNode.DeepEquals(r, outcomes["claude"])), report);
+        var claude = outcomes["claude"];
+        Assert.StartsWith("error:", claude["noWindow"]!.GetValue<string>());
+        Assert.StartsWith("already-satisfied =", claude["alreadyDone"]!.GetValue<string>());
+        Assert.StartsWith("refused", claude["foregroundDefault"]!.GetValue<string>());
+        Assert.Contains("foregroundTaken=false", claude["foregroundDefault"]!.GetValue<string>());
+        Assert.Contains("Password", claude["password"]!.GetValue<string>());
+        Assert.Contains("only exists in the foreground", claude["panelInBackground"]!.GetValue<string>());
+        Assert.Equal("image: True", claude["fullScreen"]!.GetValue<string>());
     }
 }

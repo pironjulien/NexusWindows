@@ -1,14 +1,15 @@
-# WPF window of the three-profile behavior test (Windows PowerShell 5.1, .NET Framework WPF): a "Nom" field, a "Valider"
-# button and a status text named "Statut" for UI Automation, so "clic N" exists only in its pixels. Shown off-screen at
+# WPF window of the three-profile behavior test (Windows PowerShell 5.1, .NET Framework WPF): a "Nom" field, a "Secret"
+# password field, a "Valider" button and a status text named "Statut" for UI Automation, so "clic N" exists only in its pixels. Shown off-screen at
 # the bottom of the Z order, never activated. Prints {"ready":true,"top":<hwnd>} then one {"event":...} line per click.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
 [xml]$xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="NexusWindows behavior test" Width="420" Height="200" ShowActivated="False" WindowStartupLocation="Manual">
+        Title="NexusWindows behavior test" Width="420" Height="230" ShowActivated="False" WindowStartupLocation="Manual">
   <StackPanel Margin="10">
     <TextBox x:Name="Nom" Margin="0,3" AutomationProperties.Name="Nom"/>
+    <PasswordBox x:Name="Secret" Margin="0,3" AutomationProperties.Name="Secret"/>
     <Button x:Name="Valider" Content="Valider" Width="120" Margin="0,6" HorizontalAlignment="Left"/>
     <TextBlock x:Name="Statut" Margin="0,6" FontSize="16" Text="pret" AutomationProperties.Name="Statut"/>
   </StackPanel>
