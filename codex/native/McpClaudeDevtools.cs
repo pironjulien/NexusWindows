@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-// No wire flag can grant this route. Only the in-process Claude session's registered launch lease can.
+// No wire flag can grant this route. Only the in-process session's own registered launch lease can.
 static partial class McpServer
 {
     [ThreadStatic] static ClaudeDomScope? claudeDomScope;
@@ -26,9 +26,9 @@ static partial class McpServer
         internal void Check()
         {
             EmergencyStop.ThrowIfStopped(); State.Interaction?.Check(); NativeInteraction.CheckInputLease();
-            if (State.Agent != "claude" || GardeFous.CurrentAgent != "claude" || State.BoundWindow?.Id != Window ||
+            if (State.Agent != GardeFous.CurrentAgent || State.BoundWindow?.Id != Window ||
                 !Win32.IsWindow((nint)Window) || Program.ProcessStartedUtc(Win32.ProcessOf((nint)Window)) != Birth || !Lease.Includes(Window))
-                throw new ActionRefusedException("Claude DevTools window/process binding changed; nothing else sent");
+                throw new ActionRefusedException("DevTools window/process binding changed; nothing else sent");
             Lease.Check();
             if (!ClaudePortOwner(Lease.Process.Id, Lease.Port)) throw new ActionRefusedException("Registered DevTools port ownership changed; nothing else sent");
         }
@@ -36,7 +36,7 @@ static partial class McpServer
     }
     static ClaudeDevtoolsLease? ClaudeLease(SessionState state)
     {
-        if (state.Agent != "claude" || GardeFous.CurrentAgent != "claude" || state.BoundWindow == null || !ClaudeOwnedLaunches.TryGetValue(state, out var bag)) return null;
+        if (state.Agent != GardeFous.CurrentAgent || state.BoundWindow == null || !ClaudeOwnedLaunches.TryGetValue(state, out var bag)) return null;
         lock (bag.Sync)
         {
             var matches = bag.Items.Where(l => l.Includes(state.BoundWindow.Value.Id)).ToList();

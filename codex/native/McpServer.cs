@@ -236,12 +236,9 @@ static partial class McpServer
         // The updated window after the steps (then, settle_ms) for the three profiles; "auto" by default for Claude only.
         actProps["then"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("auto", "both", "image", "elements", "changes", "text", "none") };
         actProps["settle_ms"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 5000 };
-        if (agent == "claude")
-        {
-            actProps["steps"]!["minItems"] = 0;
-            var launchProps = tools[3]!["inputSchema"]!["properties"]!.AsObject();
-            launchProps["then"] = actProps["then"]!.DeepClone(); launchProps["wait_s"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 };
-        }
+        var launchProps = tools[3]!["inputSchema"]!["properties"]!.AsObject();
+        launchProps["then"] = actProps["then"]!.DeepClone(); launchProps["wait_s"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 };
+        if (agent == "claude") actProps["steps"]!["minItems"] = 0;
         // Frozen, embedded legacy Codex schemas: no Node process or source-cache dependency in production.
         using var contractsStream = typeof(McpServer).Assembly.GetManifestResourceStream("NexusWindows.Contracts")!;
         using var contractsReader = new StreamReader(contractsStream);
@@ -461,36 +458,7 @@ static partial class McpServer
             case "look": return ObserveNative(state, args, modern);
             case "act": return state.Agent == "claude" ? RunClaudeCompatibleAct(state, args, modern) : RunShellAct(state, args, modern);
 
-            case "launch":
-            {
-                if (state.Agent == "claude") return LaunchClaudeNative(state, args, modern);
-                state.CurrentObservation = null;
-                state.CurrentObservationId = null;
-                var app = args["app"]?.GetValue<string>() ?? throw new InvalidOperationException("app is required");
-                var launchArgs = args["args"]?.GetValue<string>() ?? "";
-                var devtools = args["devtools"] is JsonValue dv && dv.TryGetValue<bool>(out var db) && db;
-                var restart = args["restart"] is JsonValue rv && rv.TryGetValue<bool>(out var rb) && rb;
-                var sw = Stopwatch.StartNew();
-                var res = ExecuteInternal(new
-                {
-                    operation = "launch",
-                    target = app,
-                    args = launchArgs,
-                    devtools,
-                    restart,
-                });
-                var opened = res.TryGetProperty("opened", out var opProp) && opProp.ValueKind == JsonValueKind.True;
-                var status = opened ? "opened" : "unknown";
-                Journal.WriteEntry(state.Agent, Version, state.SessionId, app, "launch", opened ? "verified" : "unknown", "shell", sw.ElapsedMilliseconds, false, null);
-                var data = JsonNode.Parse(res.GetRawText())!.AsObject();
-                data["status"] = status;
-                var mark = opened ? "✓" : "~";
-                return new JsonObject
-                {
-                    ["content"] = new JsonArray { TextBlock($"{mark} launch — {status}"), TextBlock(data) },
-                    ["structuredContent"] = data.DeepClone(),
-                };
-            }
+            case "launch": return LaunchClaudeNative(state, args, modern);
 
             case "window":
             {

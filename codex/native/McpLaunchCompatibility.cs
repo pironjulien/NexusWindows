@@ -9,8 +9,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-// Claude's historical launch surface, backed only by the native engine. The other profiles keep their own
-// launch contract. User applications are dispatched by the interactive shell, never inherited from the MCP job.
+// The launch surface of the three profiles (Claude's historical one), backed only by the native engine. Each profile
+// keeps its own block list, journal and DevTools profiles; only the default then= differs. User applications are dispatched by the interactive shell, never inherited from the MCP job.
 static partial class McpServer
 {
     sealed record ClaudeStartApp(string Name, string Id, string? Target = null, string Arguments = "");
@@ -127,7 +127,7 @@ static partial class McpServer
     }
     static void ClaudeCheckExecutable(string exe, string arguments, bool devtools)
     {
-        if (GardeFous.BlockReason(Path.GetFileName(exe), "", "claude") is { } blocked) throw new ActionRefusedException(blocked);
+        if (GardeFous.BlockReason(Path.GetFileName(exe), "", GardeFous.CurrentAgent) is { } blocked) throw new ActionRefusedException(blocked);
         var browser = ClaudeBrowser(exe); var chromium = ClaudeChromium(exe);
         if (devtools && browser && !ClaudeBrowserNames.Contains(Path.GetFileName(exe), StringComparer.OrdinalIgnoreCase))
             throw new ActionRefusedException("DevTools needs the browser's main executable; a browser proxy would open the user's profile");
@@ -145,7 +145,7 @@ static partial class McpServer
     {
         if (devtools) throw new ActionRefusedException("devtools=true needs the full Chromium/Electron executable path, not an opaque Start menu shortcut");
         foreach (var label in new[] { name, id.Split('!')[0].Split('_')[0], id.Split('!')[0].Split('_')[0].Split('.').Last() })
-            if (GardeFous.BlockReason(label, "", "claude") is { } blocked) throw new ActionRefusedException(blocked);
+            if (GardeFous.BlockReason(label, "", GardeFous.CurrentAgent) is { } blocked) throw new ActionRefusedException(blocked);
         if (args.Contains("single-argument", StringComparison.OrdinalIgnoreCase) || Program.SplitArgs(args).Any(t => t.Trim() == "--")) throw new ActionRefusedException("Opaque Start menu arguments may not neutralize the control/profile guards");
         foreach (var token in Program.SplitArgs(args).Select(t => t.Trim()))
             if (ClaudeSwitchKey(token) is { } key && (ClaudeControlSwitches.Contains(key) || key is "user-data-dir" or "profile-directory")) throw new ActionRefusedException("Opaque Start menu arguments may not select a browser profile or control channel");
@@ -309,23 +309,23 @@ static partial class McpServer
     }
     static string ClaudeNewProfile()
     {
-        var root = Path.Combine(NativeStateRoot("claude"), "devtools-profiles"); Directory.CreateDirectory(root);
+        var root = Path.Combine(NativeStateRoot(GardeFous.CurrentAgent), "devtools-profiles"); Directory.CreateDirectory(root);
         if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0) throw new ActionRefusedException("DevTools profile root may not be a reparse point");
         var path = Path.Combine(root, DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-") + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(path);
-        File.WriteAllText(Path.Combine(path, ".nexus-profile"), JsonSerializer.Serialize(new { created = DateTimeOffset.UtcNow, owner = "nexus-windows-claude", id = Path.GetFileName(path) }));
+        File.WriteAllText(Path.Combine(path, ".nexus-profile"), JsonSerializer.Serialize(new { created = DateTimeOffset.UtcNow, owner = "nexus-windows-" + GardeFous.CurrentAgent, id = Path.GetFileName(path) }));
         return path;
     }
     static JsonObject LaunchClaudeNative(SessionState state, JsonObject args, bool modern)
     {
-        if (state.Agent != "claude" || GardeFous.CurrentAgent != "claude") throw new ActionRefusedException("Claude launch compatibility cannot change the process profile");
-        var show = Str(args, "then", "auto");
+        if (state.Agent != GardeFous.CurrentAgent) throw new ActionRefusedException("Launch cannot change the process profile");
+        var show = Str(args, "then", state.Agent == "claude" ? "auto" : "none");
         if (show is not ("auto" or "elements" or "text" or "image" or "both" or "changes" or "none")) throw new ActionRefusedException("Unknown launch then mode");
         var wait = Number(args, "wait_s", 15);
         if (!double.IsFinite(wait) || wait < 0) throw new ActionRefusedException("wait_s must be finite and nonnegative");
         var plan = PlanClaudeLaunch(Str(args, "app"), Str(args, "args"), Bool(args, "devtools"), Bool(args, "restart"));
         state.CurrentObservation = null; state.CurrentObservationId = null;
         NativeMcpGuard.WaitForPause();
-        using var token = ForegroundToken.Acquire("Claude launch application"); NativeMcpGuard.RequirePause(); EmergencyStop.ThrowIfStopped();
+        using var token = ForegroundToken.Acquire("launch application"); NativeMcpGuard.RequirePause(); EmergencyStop.ThrowIfStopped();
         var probe = Win32.Probe(); var returned = "not-taken";
         void ReturnForeground()
         {
@@ -342,7 +342,7 @@ static partial class McpServer
                 var result = ObjectOf(ExecuteInternal(request));
                 if (plan.Kind == "steam" && plan.Devtools) RegisterClaudeSteamLease(state, result, plan.Executable!);
                 var response = ClaudeFinishLaunchGuarded(state, result, show, modern, ReturnForeground, probe.LastInput, () => returned);
-                Journal.WriteEntry("claude", Version, state.SessionId, plan.Name, "launch", Bool(result, "opened") ? "verified" : "unknown", "native:" + plan.Kind, timer.ElapsedMilliseconds, false, null);
+                Journal.WriteEntry(state.Agent, Version, state.SessionId, plan.Name, "launch", Bool(result, "opened") ? "verified" : "unknown", "native:" + plan.Kind, timer.ElapsedMilliseconds, false, null);
                 return response;
             }
             finally { ReturnForeground(); }
@@ -436,7 +436,7 @@ static partial class McpServer
         try
         {
             var response = ClaudeFinishLaunchGuarded(state, data, show, modern, ReturnForeground, probe.LastInput, () => returned);
-            Journal.WriteEntry("claude", Version, state.SessionId, plan.Kind is "document" or "folder" ? null : plan.Name, "launch", verified ? "verified" : "unknown", "native:" + plan.Kind, clock.ElapsedMilliseconds, false, null);
+            Journal.WriteEntry(state.Agent, Version, state.SessionId, plan.Kind is "document" or "folder" ? null : plan.Name, "launch", verified ? "verified" : "unknown", "native:" + plan.Kind, clock.ElapsedMilliseconds, false, null);
             return response;
         }
         finally { ReturnForeground(); }
@@ -534,7 +534,7 @@ static partial class McpServer
     }
     static void RegisterClaudeSteamLease(SessionState state, JsonObject result, string executable)
     {
-        if (state.Agent != "claude" || GardeFous.CurrentAgent != "claude" || !Steam.IsExecutable(executable)) throw new ActionRefusedException("Steam session registration needs the genuine client and fixed Claude profile");
+        if (state.Agent != GardeFous.CurrentAgent || !Steam.IsExecutable(executable)) throw new ActionRefusedException("Steam session registration needs the genuine client and a fixed profile");
         var port = (int)Number(result["steam"], "devtoolsPort");
         if (port <= 0 || port >= 65536 || !Bool(result["steam"], "devtoolsRequested")) return; // Launch already reports that CDP is unavailable.
         var table = Steam.Table(); var roots = Steam.Roots(executable, table); var held = new List<(Process Process, long Birth)>(); Process? owner = null;
@@ -667,12 +667,12 @@ static partial class McpServer
     }
     static void ClaudeRemoveOwnedProfile(string path)
     {
-        var root = Path.GetFullPath(Path.Combine(NativeStateRoot("claude"), "devtools-profiles")); path = Path.GetFullPath(path);
+        var root = Path.GetFullPath(Path.Combine(NativeStateRoot(GardeFous.CurrentAgent), "devtools-profiles")); path = Path.GetFullPath(path);
         if (!string.Equals(Path.GetDirectoryName(path), root, StringComparison.OrdinalIgnoreCase) || !File.Exists(Path.Combine(path, ".nexus-profile"))) return;
         try
         {
             var marker = JsonNode.Parse(File.ReadAllText(Path.Combine(path, ".nexus-profile")))!;
-            if (Str(marker, "owner") != "nexus-windows-claude" || Str(marker, "id") != Path.GetFileName(path)) return;
+            if (Str(marker, "owner") != "nexus-windows-" + GardeFous.CurrentAgent || Str(marker, "id") != Path.GetFileName(path)) return;
             if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0 || (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) return;
             var pending = new Stack<string>(); pending.Push(path);
             while (pending.TryPop(out var directory))
@@ -684,7 +684,7 @@ static partial class McpServer
     }
     static void GuardClaudeDevtools(SessionState state)
     {
-        if (state.Agent != "claude" || state.BoundWindow == null || !ClaudeOwnedLaunches.TryGetValue(state, out var bag)) return;
+        if (state.BoundWindow == null || !ClaudeOwnedLaunches.TryGetValue(state, out var bag)) return;
         lock (bag.Sync) foreach (var lease in bag.Items) if (lease.Includes(state.BoundWindow.Value.Id)) lease.Check();
     }
     public static int LaunchCompatibilitySelfTest()
