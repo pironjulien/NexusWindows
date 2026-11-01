@@ -10,6 +10,12 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+### Changed
+- Typing into a modern UI Automation field (WPF, UWP/WinUI, WinForms rich controls) appends in the background for the
+  three profiles: the current value is read in the action worker and extended by UIA `SetValue`, as Claude already
+  did. Codex used to type it with brief foreground input (`physical:native`). A test runs the same `type` and `click`
+  on the same WPF lab window for the three profiles and requires the same technique and result.
+
 ## [3.12.0] - 2026-10-31
 
 ### Added

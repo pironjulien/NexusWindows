@@ -186,7 +186,7 @@ static partial class Program
             }
             case "typeText":
                 if (classic && EditClasses.Contains(cls)) return EditReplace(own, Text(request, "text"), replaceAll: false);
-                if (GardeFous.CurrentAgent == "claude" && !classic && framework != "Chrome" && target.Role is ("edit" or "document" or "combobox"))
+                if (!classic && framework != "Chrome" && target.Role is ("edit" or "document" or "combobox"))
                     return UiaAppendValue(window, target, nodes, Text(request, "text"));
                 throw NothingSent("Background typing needs a native Edit control");
             case "focus":

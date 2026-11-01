@@ -2,13 +2,13 @@ using System.Text.Json;
 
 static partial class Program
 {
-    // Claude's UIA append reads the value in the action worker, never from the preceding observation. Chromium
-    // keeps its event-producing text route; the fixed policies of Codex and Antigravity are unchanged.
+    // UIA append, for the three profiles: the value is read in the action worker, never from the preceding observation.
+    // Chromium keeps its event-producing text route.
     static Outcome UiaAppendValue(nint window, Node target, List<Node> nodes, string text)
     {
         InputStarted = false;
-        if (GardeFous.CurrentAgent != "claude" || target.FrameworkId == "Chrome" || target.Password || target.Disabled || target.ValueTruncated)
-            throw new ActionRefusedException("The exact non-secret writable UIA field is required for Claude append");
+        if (target.FrameworkId == "Chrome" || target.Password || target.Disabled || target.ValueTruncated)
+            throw new ActionRefusedException("The exact non-secret writable UIA field is required for UIA append");
         var pid = Win32.ProcessOf(window);
         var birth = ProcessStartedUtc(pid) ?? throw new ActionRefusedException("Window process birth unavailable; no text sent");
         var controlBirth = ProcessStartedUtc((uint)target.ProcessId) ?? throw new ActionRefusedException("Field process birth unavailable; no text sent");

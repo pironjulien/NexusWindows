@@ -10,7 +10,7 @@ public class McpStdioTests
 {
     static readonly string Version = typeof(McpServer).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "";
 
-    sealed class Server : IDisposable
+    internal sealed class Server : IDisposable
     {
         readonly Process process;
         int id;
