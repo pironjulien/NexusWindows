@@ -101,7 +101,7 @@ function Install-NexusWindowsNativeRuntime([switch]$CheckOnly) {
             Copy-Item -LiteralPath (Join-Path $nexusWindowsSource 'commun\garde-fous.json') -Destination $output
             $artifacts = [ordered]@{}
             foreach ($file in Get-ChildItem -LiteralPath $output -File) { $artifacts[$file.Name] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash }
-            $runtime = [pscustomobject]@{ Schema=2; SourceRoot=$nexusWindowsSource; NativeHash=$hash; NativeExecutable=(Join-Path $target 'NexusWindows.exe'); Version='3.15.0'; NativeArtifacts=[pscustomobject]$artifacts }
+            $runtime = [pscustomobject]@{ Schema=2; SourceRoot=$nexusWindowsSource; NativeHash=$hash; NativeExecutable=(Join-Path $target 'NexusWindows.exe'); Version='3.15.1'; NativeArtifacts=[pscustomobject]$artifacts }
             Write-NexusWindowsJson (Join-Path $output 'runtime.json') $runtime
             New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
             # Both resolved paths are within the explicitly named common runtime directory.
