@@ -10,6 +10,23 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.1] - 2026-11-01
+
+### Fixed
+- `launch` never waits on a window that Windows opens instead of the application, and never leaves one on the user's
+  desktop; it answers with a refusal that says why (the three profiles, measured before and after):
+  - a document whose type has no associated application is refused before anything is sent (it waited for a window
+    while Windows' "choose an application" window stayed open: > 40 s, now 1.7 s);
+  - an address whose scheme no application handles: the "choose an application" window that Windows opens is closed
+    and the launch refused (> 40 s, now 1.9 s);
+  - an error box of Explorer's titled with the target ("Windows cannot find..."): refused at once, quoting the box,
+    which is closed;
+  - a file named `.exe` that is not a Windows program, which Windows fails silently: refused before anything is sent
+    (18 s with an unknown outcome, now 0.1 s);
+  - when Windows still awaits a decision in another window after 6.18 s (administrator consent, SmartScreen), the
+    shared foreground token is released and the launch reported as dispatched once with an unknown outcome.
+  An ordinary launch is unchanged (3.6 s with the window attributed and the foreground kept).
+
 ## [3.16.0] - 2026-11-01
 
 ### Changed

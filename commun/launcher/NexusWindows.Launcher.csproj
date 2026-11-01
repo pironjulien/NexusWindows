@@ -8,7 +8,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>NexusWindows</AssemblyName>
     <RootNamespace>NexusWindows.Launcher</RootNamespace>
-    <Version>3.16.0</Version>
+    <Version>3.16.1</Version>
     <PublishAot>true</PublishAot>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <InvariantGlobalization>true</InvariantGlobalization>
