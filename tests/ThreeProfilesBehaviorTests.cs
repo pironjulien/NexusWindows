@@ -58,7 +58,8 @@ public class ThreeProfilesBehaviorTests
             look = Structured(server.Rpc("tools/call", new { name = "look", arguments = new { window = lab.Window, detail = "full" } }));
             Assert.Equal(expected, look["elements"]!.AsArray().OfType<JsonObject>().Single(e => e["name"]?.GetValue<string>() == "Nom" && e["role"]?.GetValue<string>() == "edit")["value"]!.GetValue<string>());
             var before = lab.Count("clic " + (clicked.Count + 1));
-            clicked[agent] = Act(server, lab.Window, new { @do = "click", target = $"[{Index(look, "Valider", "button")}]" }).ToJsonString();
+            // The status text is named "Statut" for UI Automation: "clic N" is only seen in the window's pixels (OCR).
+            clicked[agent] = Act(server, lab.Window, new { @do = "click", target = $"[{Index(look, "Valider", "button")}]", expect = "clic " + (clicked.Count + 1) }).ToJsonString();
             var deadline = Stopwatch.StartNew();
             while (lab.Count("clic " + (clicked.Count)) == before && deadline.ElapsedMilliseconds < 5000) Thread.Sleep(50);
             Assert.Equal(before + 1, lab.Count("clic " + clicked.Count));
@@ -66,6 +67,6 @@ public class ThreeProfilesBehaviorTests
         Assert.Equal("""{"technique":"background:uia","status":"verified","foregroundTaken":false}""", typed["claude"]);
         Assert.All(typed.Values, t => Assert.Equal(typed["claude"], t));
         Assert.All(clicked.Values, c => Assert.Equal(clicked["claude"], c));
-        Assert.Contains("background", clicked["claude"]);
+        Assert.Equal("""{"technique":"background:uia","status":"verified","foregroundTaken":false}""", clicked["claude"]);
     }
 }

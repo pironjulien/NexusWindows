@@ -278,15 +278,31 @@ static partial class McpServer
         }
         Routines.ValidateExpectation(converted); return converted;
     }
-    static bool ExactExpectation(JsonObject expect) => expect["equals"] != null || expect["title"] != null || expect["all"] is JsonArray all && all.OfType<JsonObject>().All(ExactExpectation);
-    static bool ExpectationHolds(SessionState state, JsonObject snapshot, JsonObject expect)
+    static bool TextShownByOcr(SessionState state, JsonObject snapshot, string wanted)
     {
-        if (expect["all"] is JsonArray all) return all.OfType<JsonObject>().All(e => ExpectationHolds(state, snapshot, e));
+        try
+        {
+            var shot = ReadNativeCapture(state, snapshot);
+            var request = NativeRequest(state, "ocr"); request["path"] = Str(shot, "path");
+            var lines = ObjectOf(ExecuteInternal(request))["lines"] as JsonArray ?? new();
+            var shown = string.Join(" ", lines.OfType<JsonObject>().Select(line => Str(line, "text")));
+            return NormalizeLegacyText(shown).Contains(NormalizeLegacyText(wanted), StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception error) when (error is not EmergencyStopException) { return false; } // capture or OCR unavailable: the tree alone judges
+    }
+    static bool ExactExpectation(JsonObject expect) => expect["equals"] != null || expect["title"] != null || expect["all"] is JsonArray all && all.OfType<JsonObject>().All(ExactExpectation);
+    // ocr: a text the window shows but its tree does not carry (WPF TextBlock named by AutomationProperties.Name, drawn
+    // label) is also looked for by OCR in a background capture of the window, before the gesture (an already visible text
+    // cannot verify it) and after. Only for a text that must appear; "gone" stays judged on the tree.
+    static bool ExpectationHolds(SessionState state, JsonObject snapshot, JsonObject expect, bool ocr = false)
+    {
+        if (expect["all"] is JsonArray all) return all.OfType<JsonObject>().All(e => ExpectationHolds(state, snapshot, e, ocr));
         if (expect["text"] is JsonValue text)
         {
             var wanted = text.GetValue<string>();
             var found = Elements(snapshot).OfType<JsonObject>().Any(e => !Bool(e, "password") && (Str(e, "name").Contains(wanted, StringComparison.OrdinalIgnoreCase) || Str(e, "value").Contains(wanted, StringComparison.OrdinalIgnoreCase)));
-            return Bool(expect, "gone") ? !found : found;
+            if (Bool(expect, "gone")) return !found;
+            return found || ocr && wanted.Trim().Length > 0 && TextShownByOcr(state, snapshot, wanted);
         }
         var title = Win32.Title((nint)state.BoundWindow!.Value.Id);
         if (expect["title"] != null) return title == Str(expect, "title");
@@ -327,7 +343,7 @@ static partial class McpServer
             var timer = Stopwatch.StartNew(); var timeout = Math.Clamp(Number(step, "timeoutMs", 1618), 0, 30000);
             while (true)
             {
-                if (ExpectationHolds(state, after, expect)) return StepResult("verified", "✓", true, true, null, outcome);
+                if (ExpectationHolds(state, after, expect, ocr: true)) return StepResult("verified", "✓", true, true, null, outcome);
                 if (timer.ElapsedMilliseconds >= timeout) return StepResult("unmet", "~", false, false, "Postcondition not observed; no automatic replay", outcome);
                 EmergencyStop.ThrowIfStopped(); Thread.Sleep(50); after = InspectNative(state);
             }
@@ -483,7 +499,7 @@ static partial class McpServer
         }
         if (kind == "key" && target != null && !Bool(target, "focused")) throw new ActionRefusedException("The named key target is not focused; first click it with a focused:true postcondition, then send the key");
         CheckGesture(state, step, snapshot, target, textSubmit);
-        if (step["expect"] is JsonObject expect && ExpectationHolds(state, snapshot, expect))
+        if (step["expect"] is JsonObject expect && ExpectationHolds(state, snapshot, expect, ocr: true))
         {
             if (kind == "wait" || ExactExpectation(expect) || state.Agent == "claude" && LegacyStateCheck(expect)) return StepResult("already-satisfied", "=", false, true, "Exact state already satisfied; no input sent");
             throw new ActionRefusedException("Vague postcondition is already true before input; choose a condition that this gesture changes");

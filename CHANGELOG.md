@@ -27,6 +27,10 @@ and npm (`nexus-windows-codex`).
   reads of different windows are slower than the same reads in turn (0.45 s alone, 1.9 s each for three, also with
   clients outside NexusWindows). Full tree reads now take turns across the agents (a file lock in `.nexus`, bounded at
   4.854 s, after which a read goes ahead anyway).
+- A text postcondition (`expect: "clic 1"`) that the window shows but its accessibility tree does not carry (a WPF
+  TextBlock named by `AutomationProperties.Name`, a drawn label) is also looked for by OCR in a background capture of
+  the window, before the gesture (a text already shown cannot verify it) and after. The click arrived but the step
+  answered "Postcondition not observed". A text that must disappear (`gone`) is still judged on the tree.
 
 ## [3.12.0] - 2026-10-31
 
