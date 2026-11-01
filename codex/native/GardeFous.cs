@@ -670,8 +670,9 @@ static class GardeFous
 
         Assert(HardBlockReason("claude", "consent.exe").Length > 0, "claude consent.exe");
         Assert(HardBlockReason("claude", "Bitwarden.exe").Length > 0, "claude Bitwarden.exe");
-        Assert(HardBlockReason("claude", "codex.exe") == "", "claude codex.exe free");
-        Assert(HardBlockReason("claude", "credentialuibroker.exe") == "", "claude credentialuibroker free");
+        foreach (var agent in ValidAgents)
+            foreach (var process in new[] { "consent.exe", "lockapp.exe", "credentialuibroker.exe", "KeePassXC.exe", "Bitwarden.exe", "Codex.exe" })
+                Assert(HardBlockReason(agent, process).Length > 0, $"{agent} {process} (union of the three lists)");
         Assert(HardBlockReason("antigravity", "lockapp.exe").Length > 0, "agy lockapp.exe");
         Assert(HardBlockReason("antigravity", "KeePassXC.exe").Length > 0, "agy KeePassXC.exe");
         Assert(HardBlockReason("antigravity", "claude.exe") == "", "agy claude.exe free");

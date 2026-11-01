@@ -39,31 +39,16 @@ public class GardeFousTests
     }
 
     [Fact]
-    public void Hard_blocks_for_claude()
+    public void The_three_profiles_share_the_union_of_their_hard_blocks()
     {
-        foreach (var process in new[] { "consent.exe", "LogonUI.exe", "Bitwarden.exe" })
-            Assert.NotEqual("", GardeFous.HardBlockReason("claude", process, ""));
-        foreach (var process in new[] { "claude.exe", "antigravity.exe", "windowsterminal.exe", "explorer.exe", "codex.exe", "regedit.exe", "credentialuibroker.exe" })
-            Assert.Equal("", GardeFous.HardBlockReason("claude", process));
-        Assert.Equal("", GardeFous.HardBlockReason("claude", "x.exe", "Credential Dialog Xaml Host"));
-    }
-
-    [Fact]
-    public void Antigravity_keeps_its_2_8_1_behaviour()
-    {
-        Assert.NotEqual("", GardeFous.HardBlockReason("antigravity", "lockapp.exe"));
-        Assert.NotEqual("", GardeFous.HardBlockReason("antigravity", "KeePassXC.exe"));
-        Assert.Equal("", GardeFous.HardBlockReason("antigravity", "claude.exe"));
-        Assert.Equal("", GardeFous.HardBlockReason("antigravity", "credentialuibroker.exe"));
-    }
-
-    [Fact]
-    public void Codex_keeps_its_own_window_only()
-    {
-        foreach (var process in new[] { "Codex.exe", "ChatGPT.exe", "credentialuibroker.exe", "consent.exe", "Dashlane.exe", "NordPass.exe", "RoboForm.exe" })
-            Assert.NotEqual("", GardeFous.HardBlockReason("codex", process));
-        foreach (var process in new[] { "windowsterminal.exe", "openconsole.exe", "conhost.exe", "sechealthui.exe", "claude.exe", "explorer.exe" })
-            Assert.Equal("", GardeFous.HardBlockReason("codex", process));
+        foreach (var agent in GardeFous.ValidAgents)
+        {
+            foreach (var process in new[] { "consent.exe", "LogonUI.exe", "lockapp.exe", "credentialuibroker.exe", "Bitwarden.exe", "KeePassXC.exe", "Dashlane.exe", "Codex.exe", "ChatGPT.exe" })
+                Assert.NotEqual("", GardeFous.HardBlockReason(agent, process));
+            Assert.NotEqual("", GardeFous.HardBlockReason(agent, "x.exe", "Credential Dialog Xaml Host"));
+            foreach (var process in new[] { "claude.exe", "antigravity.exe", "windowsterminal.exe", "openconsole.exe", "explorer.exe", "regedit.exe", "sechealthui.exe" })
+                Assert.Equal("", GardeFous.HardBlockReason(agent, process));
+        }
     }
 
     [Fact]

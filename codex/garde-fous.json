@@ -24,9 +24,9 @@
     }
   },
   "agents": {
-    "_": "Catégories de blocage dur appliquées par chaque outil. Les gestionnaires de mots de passe et le bureau sécurisé sont bloqués partout ; la fenêtre d'identifiants Windows ne l'est que là où elle est listée (ailleurs, saisie permise sur ordre de l'utilisateur). Un outil dont l'application principale affiche ses propres demandes d'autorisation bloque aussi cette fenêtre.",
-    "claude": ["bureau_securise", "gestionnaires_mots_de_passe"],
-    "antigravity": ["bureau_securise", "gestionnaires_mots_de_passe"],
+    "_": "Catégories de blocage dur appliquées par chaque outil. NexusWindows applique aux trois agents l'union de leurs listes (01/11/2026) : bureau sécurisé, fenêtre d'identifiants Windows, gestionnaires de mots de passe et fenêtre d'autorisation de Codex, qu'aucun autre agent ne doit pouvoir accepter à sa place.",
+    "claude": ["bureau_securise", "identifiants_windows", "gestionnaires_mots_de_passe", "fenetre_autorisation_codex"],
+    "antigravity": ["bureau_securise", "identifiants_windows", "gestionnaires_mots_de_passe", "fenetre_autorisation_codex"],
     "codex": ["bureau_securise", "identifiants_windows", "gestionnaires_mots_de_passe", "fenetre_autorisation_codex"]
   },
   "confirmation": {
