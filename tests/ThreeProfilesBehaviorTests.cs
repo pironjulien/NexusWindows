@@ -138,6 +138,9 @@ public class ThreeProfilesBehaviorTests
         Assert.StartsWith("already-satisfied =", claude["withoutLook"]!.GetValue<string>());
         Assert.StartsWith("refused", claude["foregroundDefault"]!.GetValue<string>());
         Assert.Contains("foregroundTaken=false", claude["foregroundDefault"]!.GetValue<string>());
+        // A gesture only the real mouse can do says so the same way for the three profiles: ask, then foreground:true.
+        Assert.Contains("Needs the foreground", claude["foregroundDefault"]!.GetValue<string>());
+        Assert.Contains("foreground:true", claude["foregroundDefault"]!.GetValue<string>());
         Assert.Contains("Password", claude["password"]!.GetValue<string>());
         Assert.Contains("only exists in the foreground", claude["panelInBackground"]!.GetValue<string>());
         // The full screen is captured, unless a blocked application is visible on the desktop at that moment.

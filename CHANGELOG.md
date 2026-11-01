@@ -10,6 +10,13 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+### Changed
+- A step that only the real mouse or keyboard can do in this window is refused the same way for the three profiles:
+  `needsForeground: true` and a message starting "Needs the foreground", which says to ask the user's agreement and
+  then repeat the step with `foreground:true`. On the common banc in the background, every such refusal (WPF raw click,
+  WPF keys, WPF context menu, WinForms and WPF double click, desktop drag and drop) now says so; with the foreground
+  granted, each of these gestures succeeds.
+
 ## [3.15.1] - 2026-11-01
 
 ### Fixed
