@@ -33,7 +33,6 @@ static partial class McpServer
     static string NodeKey(JsonObject element) => IdentityPart(element).ToJsonString(JsonOut);
     static void PublishNativeIndices(SessionState state, JsonObject snapshot, NativeLookMemory memory)
     {
-        if (state.Agent != "claude") return;
         var translated = new Dictionary<int, int>();
         foreach (var element in Elements(snapshot).OfType<JsonObject>())
         {
@@ -79,7 +78,7 @@ static partial class McpServer
         {
             var text = Str(line, "text"); if (text.Length == 0) continue;
             var key = "ocr|" + text + "|" + Number(line, "left") + "|" + Number(line, "top");
-            if (!memory.Ids.TryGetValue(key, out var id)) memory.Ids[key] = id = state.Agent == "claude" ? ++memory.Next : (int)Elements(snapshot).OfType<JsonObject>().Select(e => Number(e, "index")).DefaultIfEmpty(-1).Max() + 1;
+            if (!memory.Ids.TryGetValue(key, out var id)) memory.Ids[key] = id = ++memory.Next;
             Elements(snapshot).Add(new JsonObject { ["index"] = id, ["role"] = "text", ["name"] = text, ["ocr"] = true,
                 ["bounds"] = new JsonArray(Number(line, "left"), Number(line, "top"), Number(line, "width"), Number(line, "height")), ["ocrFrame"] = frame.DeepClone(), ["ancestors"] = new JsonArray() });
         }
@@ -474,7 +473,7 @@ static partial class McpServer
         next["elements"] = new JsonArray(originalElements[0]!.DeepClone(), originalElements[2]!.DeepClone(), originalElements[1]!.DeepClone());
         next["elements"]![1]!["index"] = 1; next["elements"]![2]!["index"] = 2;
         PublishNativeIndices(claude, next, cldMemory);
-        Check(Number(Elements(next).OfType<JsonObject>().Single(e => Str(e, "name") == "Alpha"), "index") == alphaId, "Claude ids stable across reorder");
+        Check(Number(Elements(next).OfType<JsonObject>().Single(e => Str(e, "name") == "Alpha"), "index") == alphaId, "ids stable across reorder");
         var reference = JsonNode.Parse("""{"width":2000,"height":1125,"frame":{"left":100,"top":100,"width":2560,"height":1440},"windowFrame":{"left":100,"top":100,"width":2560,"height":1440}}""")!.AsObject();
         Check(NativeLine(alpha, reference).EndsWith("@1000,547", StringComparison.Ordinal), "printed points use rendered image pixels, not physical pixels");
         claude.Image = new NativeImage("img-fixture", 100, reference);
