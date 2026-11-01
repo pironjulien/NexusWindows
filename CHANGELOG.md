@@ -13,6 +13,11 @@ and npm (`nexus-windows-codex`).
 ## [3.15.1] - 2026-11-01
 
 ### Fixed
+- A shortcut sent in the background to a window where nothing has the keyboard focus (a window never activated) goes
+  to the window itself instead of being refused because "focus cannot be verified" (Ctrl+K on the Win32 and WinForms
+  labs).
+- A WPF menu is opened in the background by UI Automation, by its names, as WinForms menus already were, instead of
+  "No Win32 menu bar".
 - `launch` no longer hangs on a program or folder that only exists in a packaged app's virtualized AppData (the engine
   started by Claude Desktop, an MSIX app, sees its package's private copy of `%LOCALAPPDATA%`). Explorer, which starts
   user applications, did not see that path: it showed a modal "Windows cannot find" box on the user's desktop and its
