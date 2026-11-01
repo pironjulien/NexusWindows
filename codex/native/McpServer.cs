@@ -459,7 +459,7 @@ static partial class McpServer
             }
 
             case "look": return ObserveNative(state, args, modern);
-            case "act": return state.Agent == "claude" ? RunClaudeCompatibleAct(state, args, modern) : FinishLegacyAct(state, args, ActNative(state, args, modern));
+            case "act": return state.Agent == "claude" ? RunClaudeCompatibleAct(state, args, modern) : RunShellAct(state, args, modern);
 
             case "launch":
             {

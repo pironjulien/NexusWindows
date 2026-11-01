@@ -25,11 +25,7 @@ static partial class McpServer
         }
         internal static void ValidateSteps(string agent, JsonArray steps, bool legacy)
         {
-            if (legacy)
-            {
-                if (agent != "claude") throw new ActionRefusedException("The historical foreground scope belongs to the Claude profile only");
-                return;
-            }
+            if (legacy) return;
             foreach (var step in steps.OfType<JsonObject>())
             {
                 if (step["expect"] is not JsonObject || new[] { "point", "from", "to", "x", "y", "box_2d" }.Any(k => step[k] != null))
@@ -115,17 +111,17 @@ static partial class McpServer
         internal bool OwnsShellWindow(nint hwnd) => shellWindows.TryGetValue(hwnd, out var identity) && StillMatches(identity);
         internal static void CheckInputLease() => current?.Check();
         internal static bool HasShellLease(nint target) => current is { legacy: true, disposed: false } scope
-            && scope.state.Agent == "claude" && scope.targetIdentity?.Window == target && scope.shellWindows.Count > 0;
+            && scope.targetIdentity?.Window == target && scope.shellWindows.Count > 0;
         internal static bool AllowsForeground(nint target, nint candidate)
         {
-            if (current is not { legacy: true, disposed: false } scope || scope.state.Agent != "claude" || scope.targetIdentity?.Window != target) return false;
+            if (current is not { legacy: true, disposed: false } scope || scope.targetIdentity?.Window != target) return false;
             scope.Check();
             var root = candidate == 0 ? 0 : Win32.GetAncestor(candidate, Win32.GA_ROOT); if (root != 0) candidate = root;
-            try { return ShellIdentityPermitted(scope.state.Agent, scope.legacy, scope.targetIdentity.Value, ReadIdentity(target), ReadIdentity(candidate), scope.shellWindows); }
+            try { return ShellIdentityPermitted(scope.legacy, scope.targetIdentity.Value, ReadIdentity(target), ReadIdentity(candidate), scope.shellWindows); }
             catch (ActionRefusedException) { return false; }
         }
-        internal static bool ShellIdentityPermitted(string agent, bool legacy, WindowIdentity bound, WindowIdentity target, WindowIdentity candidate, IReadOnlyDictionary<nint, WindowIdentity> observed) =>
-            agent == "claude" && legacy && SameIdentity(bound, target)
+        internal static bool ShellIdentityPermitted(bool legacy, WindowIdentity bound, WindowIdentity target, WindowIdentity candidate, IReadOnlyDictionary<nint, WindowIdentity> observed) =>
+            legacy && SameIdentity(bound, target)
             && observed.TryGetValue(target.Window, out var shownTarget) && SameIdentity(shownTarget, target)
             && observed.TryGetValue(candidate.Window, out var shownCandidate) && SameIdentity(shownCandidate, candidate);
         internal bool UserResumed => NativeMcpGuard.UserResumed;

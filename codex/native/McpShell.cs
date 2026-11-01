@@ -12,9 +12,8 @@ static partial class McpServer
     static readonly ShellActPlan StartPlan = new("start", "win", "startmenuexperiencehost", "Windows.UI.Core.CoreWindow", @"SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\StartMenuExperienceHost.exe", "Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy");
     static readonly ShellActPlan SearchPlan = new("search", "", "searchhost", "Windows.UI.Core.CoreWindow", @"SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\SearchHost.exe", "MicrosoftWindows.Client.CBS_cw5n1h2txyewy");
 
-    internal static ShellActPlan? PlanShellAct(string agent, JsonObject args)
+    internal static ShellActPlan? PlanShellAct(JsonObject args)
     {
-        if (agent != "claude") return null;
         var name = Str(args, "window", Str(args, "hwnd")).Trim().ToLowerInvariant();
         var plan = name switch
         {
@@ -28,12 +27,12 @@ static partial class McpServer
         return plan;
     }
 
-    // This is the single Claude act boundary: the final observation is made before releasing the foreground lease.
+    // This is the single act boundary of the three profiles: the final observation is made before releasing the foreground lease.
     static JsonObject RunShellAct(SessionState state, JsonObject args, bool modern)
     {
-        var plan = PlanShellAct(state.Agent, args); // A background panel request fails before a lease or SendInput.
+        var plan = PlanShellAct(args); // A background panel request fails before a lease or SendInput.
         if (plan != null) return RunPanelAct(state, args, modern, plan);
-        if (state.Agent != "claude" || !RoutineBoolean(args, "foreground", false))
+        if (!RoutineBoolean(args, "foreground", false))
             return FinishLegacyAct(state, args, ActNative(state, args, modern));
         var operation = Str(RoutineCompatibilityArgs(state.Agent, args), "operation", "run");
         if (operation is not ("run" or "continue") || state.CurrentObservation == null || DateTimeOffset.UtcNow - state.ObservedAt > TimeSpan.FromSeconds(60))
@@ -90,7 +89,7 @@ static partial class McpServer
 
     static (long Id, string App, string Title, long Pid)? ResolveBoundShellWindow(SessionState state, JsonNode? window)
     {
-        if (state.Agent != "claude" || state.Interaction is not { } scope || state.BoundWindow is not { } bound
+        if (state.Interaction is not { } scope || state.BoundWindow is not { } bound
             || !long.TryParse(window?.ToString(), out var requested) || requested != bound.Id || !scope.OwnsShellWindow((nint)bound.Id)) return null;
         scope.Check();
         return bound;

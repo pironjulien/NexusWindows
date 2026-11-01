@@ -430,7 +430,7 @@ static partial class McpServer
     static JsonObject RunClaudeCompatibleAct(SessionState state, JsonObject args, bool modern)
     {
         var controls = RoutineCompatibilityArgs(state.Agent, args);
-        if (PlanShellAct(state.Agent, args) == null && Str(controls, "operation", "run") == "run")
+        if (PlanShellAct(args) == null && Str(controls, "operation", "run") == "run")
         {
             var prior = state.BoundWindow;
             var named = ResolveWindow(state, args, modern);

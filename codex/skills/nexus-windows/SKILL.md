@@ -23,7 +23,8 @@ today's MCP fields from the Node API or compatibility aliases below. `look(windo
 `observation` for `act` in that same session. After navigation, a tab/dialog change or an external action, look again.
 Modern equality proof is `expect:{selector,field:'value',equals:expectedText}`, not `expect:{selector,value:...}`.
 MCP `act` stays in the background unless it is given `foreground:true`, which allows the physical fallback (still
-refused per step by `fallback:false`).
+refused per step by `fallback:false`). The Windows panels `"quick settings"`, `"notifications"` and `"start"` exist only
+in the foreground: MCP `act(window=…, foreground:true)` with the user's agreement; they close at the end.
 
 For a native Open dialog, use `windows` / `dialogOf` and look at the dialog's own HWND; its owner may be disabled.
 Fill the observed file-name combo using its `role` and `automationId` (often `1148`, only if actually observed), then

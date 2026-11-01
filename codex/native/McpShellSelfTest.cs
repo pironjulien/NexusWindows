@@ -14,18 +14,15 @@ static partial class McpServer
             Refused(() => RunShellAct(new SessionState("claude"), background, true));
             Check(!Program.InputStarted, "background panel rejected before all native input");
             var foreground = background.DeepClone().AsObject(); foreground["foreground"] = true;
-            Check(PlanShellAct("claude", foreground) != null, "historical shell alias recognized");
-            Check(PlanShellAct("codex", foreground) == null && PlanShellAct("antigravity", foreground) == null, "shell aliases do not widen another profile");
+            Check(PlanShellAct(foreground) != null, "shell alias recognized for the three profiles");
         }
-        Refused(() => PlanShellAct("claude", new JsonObject { ["window"] = "start" }));
-        Refused(() => PlanShellAct("claude", new JsonObject { ["window"] = "start", ["foreground"] = "true" }));
-        Check(PlanShellAct("claude", new JsonObject { ["window"] = "ordinary application" }) == null, "ordinary windows retain normal resolution");
+        Refused(() => PlanShellAct(new JsonObject { ["window"] = "start" }));
+        Refused(() => PlanShellAct(new JsonObject { ["window"] = "start", ["foreground"] = "true" }));
+        Check(PlanShellAct(new JsonObject { ["window"] = "ordinary application" }) == null, "ordinary windows retain normal resolution");
         foreach (var accepted in new[] { "win", "win+a", "win+n" }) Check(ShellShortcutKeys(accepted).Length > 0, "allowlisted shortcut");
         foreach (var rejected in new[] { "win+r", "win+l", "alt+f4", "win+e", "", "WIN+A" }) Refused(() => ShellShortcutKeys(rejected));
         var coordinates = new JsonArray(new JsonObject { ["kind"] = "click", ["x"] = 10, ["y"] = 20 });
-        NativeInteraction.ValidateSteps("claude", coordinates, true); assertions++;
-        Refused(() => NativeInteraction.ValidateSteps("codex", coordinates, true));
-        Refused(() => NativeInteraction.ValidateSteps("antigravity", coordinates, true));
+        foreach (var agent in new[] { "claude", "codex", "antigravity" }) { NativeInteraction.ValidateSteps(agent, coordinates, true); assertions++; }
         Refused(() => NativeInteraction.ValidateSteps("codex", coordinates, false));
         Refused(() => NativeInteraction.ValidateSteps("claude", coordinates, false));
         Refused(() => NativeInteraction.ValidateSteps("codex", new JsonArray(new JsonObject { ["kind"] = "click" }), false));
@@ -46,15 +43,15 @@ static partial class McpServer
         var target = new NativeInteraction.WindowIdentity(100, 10, "birth-one", "Main", 0);
         var search = new NativeInteraction.WindowIdentity(200, 20, "birth-two", "Search", 0);
         var observed = new Dictionary<nint, NativeInteraction.WindowIdentity> { [100] = target, [200] = search };
-        bool Allowed(string agent, bool legacy, NativeInteraction.WindowIdentity actualTarget, NativeInteraction.WindowIdentity actualFront) => NativeInteraction.ShellIdentityPermitted(agent, legacy, target, actualTarget, actualFront, observed);
-        Check(Allowed("claude", true, target, search), "observed Search sibling admitted under Claude historical lease");
-        Check(!Allowed("codex", true, target, search) && !Allowed("antigravity", true, target, search) && !Allowed("claude", false, target, search), "other profiles and strict scopes stay closed");
-        Check(!Allowed("claude", true, target, search with { Window = 201 }), "unobserved sibling refused");
-        Check(!Allowed("claude", true, target, search with { Pid = 21 }), "recycled foreground HWND refused");
-        Check(!Allowed("claude", true, target, search with { Started = "new-birth" }), "reused PID refused");
-        Check(!Allowed("claude", true, target with { Started = "new-birth" }, search), "replaced target process refused");
-        Check(!Allowed("claude", true, target, search with { Class = "Imitation" }), "changed foreground identity refused");
-        Check(!Allowed("claude", true, target, search with { Owner = 99 }), "changed owner refused");
+        bool Allowed(bool legacy, NativeInteraction.WindowIdentity actualTarget, NativeInteraction.WindowIdentity actualFront) => NativeInteraction.ShellIdentityPermitted(legacy, target, actualTarget, actualFront, observed);
+        Check(Allowed(true, target, search), "observed Search sibling admitted under the historical lease");
+        Check(!Allowed(false, target, search), "strict scopes stay closed");
+        Check(!Allowed(true, target, search with { Window = 201 }), "unobserved sibling refused");
+        Check(!Allowed(true, target, search with { Pid = 21 }), "recycled foreground HWND refused");
+        Check(!Allowed(true, target, search with { Started = "new-birth" }), "reused PID refused");
+        Check(!Allowed(true, target with { Started = "new-birth" }, search), "replaced target process refused");
+        Check(!Allowed(true, target, search with { Class = "Imitation" }), "changed foreground identity refused");
+        Check(!Allowed(true, target, search with { Owner = 99 }), "changed owner refused");
         // Windows regression trap: transferring focus first cloaks/suspends the source queue, so its later Escape
         // cannot be consumed. The real cleanup coordinator must close and observe the panel before GiveBack.
         var order = new List<string>(); var escaped = false; var closed = false; var suspended = false;
