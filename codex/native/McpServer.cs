@@ -718,8 +718,12 @@ static partial class McpServer
         catch { }
     }
 
+    // True in the MCP server process (any profile): a simulated Enter there needs its text submission scope.
+    public static bool Serving { get; private set; }
+
     public static int Run(string agent)
     {
+        Serving = true;
         var normalizedAgent = (agent ?? "codex").Trim().ToLowerInvariant();
         if (!GardeFous.ValidAgents.Contains(normalizedAgent, StringComparer.Ordinal))
             throw new InvalidOperationException($"Unknown agent '{agent}' (expected: claude, codex, antigravity)");

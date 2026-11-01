@@ -298,7 +298,7 @@ static class Physical
                                 // MCP multiline text owns an in-process submission scope bound by the facade.
                                 // A reactive recipient/send control is checked after the typed prefix,
                                 // at this actual Enter boundary, before any key event is sent.
-                                McpServer.BeforeTextEnter(requireScope: GardeFous.CurrentAgent == "claude");
+                                McpServer.BeforeTextEnter(requireScope: McpServer.Serving);
                                 Guard(window); // The contextual read may have taken time: focus/STOP/user again.
                                 Send(started, Key(0x0D, false), Key(0x0D, true));
                             }
