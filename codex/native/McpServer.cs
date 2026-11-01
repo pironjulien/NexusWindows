@@ -250,6 +250,8 @@ static partial class McpServer
             {
                 tool["description"] = contract["description"]!.DeepClone();
                 foreach (var kv in contract["inputSchema"]!["properties"]!.AsObject()) tool["inputSchema"]!["properties"]![kv.Key] = kv.Value!.DeepClone();
+                // The engine's defaults are those of the three profiles; the frozen Node adapter keeps its own.
+                if (Str(tool, "name") == "look") tool["inputSchema"]!["properties"]!["marks"]!["description"] = "Numbers drawn on the image, each the index of its tree line: auto (default, unnamed controls), none, all";
                 if (contract["inputSchema"]!["anyOf"] != null) tool["inputSchema"]!["anyOf"] = contract["inputSchema"]!["anyOf"]!.DeepClone();
             }
             if (contract["outputSchema"] != null && !(agent == "claude" && Str(tool, "name") == "windows")) tool["outputSchema"] = contract["outputSchema"]!.DeepClone();

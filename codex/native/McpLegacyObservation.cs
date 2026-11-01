@@ -219,7 +219,8 @@ static partial class McpServer
         args = args.DeepClone().AsObject();
         var screen = Str(args, "window").Trim().ToLowerInvariant();
         if (screen is "screen" or "écran" or "ecran") return FullScreenNative(state, args);
-        var nativeText = state.Agent != "claude" && args["show"] == null && Str(args, "mode", "text") == "text";
+        // mode="text" is the tree (the published schema of the three profiles); show="text" is the document text.
+        var nativeText = args["show"] == null && Str(args, "mode") == "text";
         var show = nativeText ? "elements" : Str(args, "show", Str(args, "mode", "auto"));
         if (show is not ("auto" or "both" or "image" or "elements" or "text" or "changes" or "none" or "table")) throw new InvalidOperationException("Unknown look presentation");
         var prior = state.BoundWindow; var target = ResolveWindow(state, args, modern);
@@ -237,7 +238,7 @@ static partial class McpServer
         JsonObject? full = null, shot = null;
         if (wantsImage || needsOcr)
         {
-            var marks = Bool(args, "annotate") ? "all" : Str(args, "marks", state.Agent == "claude" ? "auto" : "none");
+            var marks = Bool(args, "annotate") ? "all" : Str(args, "marks", "auto");
             full = ReadNativeCapture(state, snapshot, marks: needsOcr ? "none" : marks);
             if (needsOcr) AppendNativeOcr(state, snapshot, full, memory);
             if (needsOcr && wantsImage && marks != "none") full = ReadNativeCapture(state, snapshot, marks: marks);
@@ -266,7 +267,8 @@ static partial class McpServer
             else if (!JsonNode.DeepEquals(referenceFrame, snapshot["frame"])) reference = null;
         }
         var query = Str(args, "query");
-        var maximum = (int)Math.Clamp(Number(args, "max_elements", state.Agent == "claude" ? 150 : 2000), state.Agent == "claude" ? 10 : 1, state.Agent == "claude" ? 600 : 2000);
+        // 150 lines by default for the three profiles (the rest is summarized with its regions), up to 2000 on request.
+        var maximum = (int)Math.Clamp(Number(args, "max_elements", 150), 10, 2000);
         bool Wanted(JsonObject e) => query.Length == 0 || Str(e, "name").Contains(query, StringComparison.OrdinalIgnoreCase) || Str(e, "value").Contains(query, StringComparison.OrdinalIgnoreCase);
         // Dense windows (Claude, Slack, Teams: hundreds of nested unnamed panes): every profile reads a skeleton first, then one
         // region with within=N, like agent-desktop's --skeleton/--root (31/10). Unnamed containers stay targetable by name
