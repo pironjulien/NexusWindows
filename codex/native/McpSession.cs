@@ -536,7 +536,9 @@ static partial class McpServer
             if (kind == "scroll") { request["deltaY"] = (int)(-120 * Number(step, "scrollY")); request["deltaX"] = (int)(120 * Number(step, "scrollX")); }
             if (kind == "drag")
             {
-                request["operation"] = "physical"; request["action"] = "drag";
+                // In the background first (a Chromium page with a DevTools port, Pointer.cs); the real mouse only as the
+                // foreground:true fallback, like the other pointer actions.
+                request["action"] = "drag";
                 var destinationArgs = new JsonObject { ["x"] = step["to_x"]?.DeepClone(), ["y"] = step["to_y"]?.DeepClone(), ["screenshotId"] = step["screenshotId"]?.DeepClone() };
                 JsonObject? destinationTarget = null;
                 if (step["to"] is JsonArray to && to.Count == 2) destinationArgs["point"] = new JsonObject { ["x"] = to[0]!.DeepClone(), ["y"] = to[1]!.DeepClone() };
@@ -547,19 +549,11 @@ static partial class McpServer
             }
         }
         JsonObject outcome;
-        try
-        {
-            if (Str(request, "operation") == "physical" && !(kind == "drag" && ClaudeDevtoolsInScope((nint)state.BoundWindow!.Value.Id)))
-            {
-                if (!physicalAllowed) throw new ActionRefusedException("This action needs foreground:true; nothing sent");
-                outcome = PhysicalNative(state, request);
-            }
-            else outcome = ObjectOf(ExecuteInternal(request));
-        }
+        try { outcome = ObjectOf(ExecuteInternal(request)); }
         catch (BackgroundNotApplicableException e) when (!Program.InputStarted && physicalAllowed && !HasClaudeDevtools(state))
         {
             // Only a proven refusal before input permits this fallback. An unchanged result never does.
-            request["operation"] = "physical"; request["action"] = kind switch { "click" => "click", "focus" => "focus", "setValue" => "replaceText", "typeText" => "type", "key" => "key", "scroll" => "wheel", "hover" => "move", _ => throw new ActionRefusedException("No physical fallback for " + kind + ": " + e.Message) };
+            request["operation"] = "physical"; request["action"] = kind switch { "click" => "click", "focus" => "focus", "setValue" => "replaceText", "typeText" => "type", "key" => "key", "scroll" => "wheel", "hover" => "move", "drag" => "drag", _ => throw new ActionRefusedException("No physical fallback for " + kind + ": " + e.Message) };
             if (kind == "typeText") request["text"] = Str(step, "text");
             // Unlike a value replacement, physical multiline input sends real Enter keys. Bind its
             // original field and recheck new/changed outward controls before each such key, for every agent.

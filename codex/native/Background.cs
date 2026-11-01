@@ -575,7 +575,7 @@ static partial class Program
         var (outcome, taken, giveBack, before) = PostedUnderToken(window, "posted pointer (may activate the target)", () =>
             McpServer.TryClaudeDevtoolsInput(window, "point", null, request, () => InputStarted = true, out var dom) ? dom :
                 Pointer.Act(window, action, Int("x"), Int("y"), frame, button,
-                    Math.Max(1, Int("count")), Int("deltaY"), Int("deltaX"), () => InputStarted = true));
+                    Math.Max(1, Int("count")), Int("deltaY"), Int("deltaX"), () => InputStarted = true, Int("toX"), Int("toY")));
         var after = Win32.Probe();
         return new
         {

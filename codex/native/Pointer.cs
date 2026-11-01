@@ -97,15 +97,15 @@ static class Pointer
         return cls.StartsWith("HwndWrapper") || cls == "ApplicationFrameWindow" || cls.StartsWith("Windows.UI.") || cls.StartsWith("Mozilla");
     }
 
-    public static Outcome Act(nint window, string action, int x, int y, int[] frame, string button, int count, int deltaY, int deltaX, Action started)
+    public static Outcome Act(nint window, string action, int x, int y, int[] frame, string button, int count, int deltaY, int deltaX, Action started, int toX = 0, int toY = 0)
     {
         // Pixels reels de chaque ecran, comme la capture (Capture.cs) : point, cadre et repere client dans le meme espace.
         var previous = Win32.SetThreadDpiAwarenessContext(-4); // PER_MONITOR_AWARE_V2
-        try { return ActPhysicalPixels(window, action, x, y, frame, button, count, deltaY, deltaX, started); }
+        try { return ActPhysicalPixels(window, action, x, y, frame, button, count, deltaY, deltaX, started, toX, toY); }
         finally { if (previous != 0) Win32.SetThreadDpiAwarenessContext(previous); }
     }
 
-    static Outcome ActPhysicalPixels(nint window, string action, int x, int y, int[] frame, string button, int count, int deltaY, int deltaX, Action started)
+    static Outcome ActPhysicalPixels(nint window, string action, int x, int y, int[] frame, string button, int count, int deltaY, int deltaX, Action started, int toX = 0, int toY = 0)
     {
         var cls = ClassOf(window);
         var chromium = cls.StartsWith("Chrome_WidgetWin_");
@@ -113,8 +113,13 @@ static class Pointer
         var tk = cls == "TkTopLevel";
         var classic = !chromium && !wpf && cls != "ApplicationFrameWindow" && !cls.StartsWith("Windows.UI.") &&
             cls != "TkTopLevel" && !cls.StartsWith("Mozilla");
-        if (action is not ("click" or "wheel" or "hover")) throw new InvalidOperationException("Unknown pointer action");
-        if (!classic && !(chromium && action is "click" or "wheel") && !(wpf && action == "wheel") && !(tk && action is "click" or "wheel" or "hover"))
+        if (action is not ("click" or "wheel" or "hover" or "drag")) throw new InvalidOperationException("Unknown pointer action");
+        // Glisser-deposer (01/11) : seule une page Chromium ou CEF au port DevTools prouve le recoit en arriere-plan. Ailleurs
+        // la boucle de glisser de Windows (OLE DoDragDrop) lit la vraie souris : des messages postes lui feraient lacher
+        // ce qu'elle porte sous le curseur reel de Julien. Jamais poste : vraie souris seulement, avec foreground:true.
+        if (action == "drag" && !((chromium || ChromiumInput.IsCefHost(window)) && Cdp.HasPort(window)))
+            throw new BackgroundNotApplicableException("Drag and drop follows the real mouse in this interface (Windows drag loop): no background technique; foreground:true allows the real mouse");
+        if (!classic && !(chromium && action is "click" or "wheel" or "drag") && !(wpf && action == "wheel") && !(tk && action is "click" or "wheel" or "hover"))
             throw new BackgroundNotApplicableException("This interface ignores posted mouse input (measured): no background technique");
         if (!Win32.IsWindowEnabled(window)) throw new ActionRefusedException("Window is disabled (a modal dialog may be open)");
         if (Win32.IsIconic(window)) throw new ActionRefusedException("Window is minimized: observe again");
@@ -124,6 +129,11 @@ static class Pointer
             (frame.Length == 4 && (now.Left != frame[0] || now.Top != frame[1] || now.Width != frame[2] || now.Height != frame[3])))
             throw new ActionRefusedException("Window moved or resized since the native capture: observe again");
         if (x < now.Left || y < now.Top || x >= now.Right || y >= now.Bottom) throw new ActionRefusedException("Point is outside the window");
+        if (action == "drag")
+        {
+            if (toX < now.Left || toY < now.Top || toX >= now.Right || toY >= now.Bottom) throw new ActionRefusedException("Drop point is outside the window");
+            return Cdp.Drag(window, x, y, toX, toY, started);
+        }
         // Une seule technique par geste : celle de l'interface, jamais une seconde apres un envoi (banc commun du 21/10).
         // Chromium without a DevTools port (the user's own browser, a long web page): the posted wheel is ignored, so the
         // page's UI Automation ScrollPattern under the point scrolls it, read back like WPF (Chrome Web Store, 31/10).

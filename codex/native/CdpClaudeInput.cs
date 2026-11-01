@@ -299,10 +299,22 @@ static partial class Cdp
             else if (action == "drag")
             {
                 var end = Point(Int("toX"), Int("toY"));
-                Send("Input.dispatchMouseEvent", new { type = "mouseMoved", x = at.X, y = at.Y });
-                Send("Input.dispatchMouseEvent", new { type = "mousePressed", x = at.X, y = at.Y, button = "left", clickCount = 1 });
-                for (var i = 1; i <= 12; i++) Send("Input.dispatchMouseEvent", new { type = "mouseMoved", x = at.X + (end.X - at.X) * i / 12, y = at.Y + (end.Y - at.Y) * i / 12, button = "left", buttons = 1 });
-                Send("Input.dispatchMouseEvent", new { type = "mouseReleased", x = end.X, y = end.Y, button = "left", clickCount = 1 });
+                // An HTML5 drag is intercepted (never the system drag loop, which follows the real mouse) and dropped by
+                // Input.dispatchDragEvent at the end, like Cdp.Drag.
+                session.Call("Input.setInterceptDrags", new { enabled = true });
+                try
+                {
+                    Send("Input.dispatchMouseEvent", new { type = "mouseMoved", x = at.X, y = at.Y });
+                    Send("Input.dispatchMouseEvent", new { type = "mousePressed", x = at.X, y = at.Y, button = "left", buttons = 1, clickCount = 1 });
+                    for (var i = 1; i <= 12; i++) Send("Input.dispatchMouseEvent", new { type = "mouseMoved", x = at.X + (end.X - at.X) * i / 12, y = at.Y + (end.Y - at.Y) * i / 12, button = "left", buttons = 1 });
+                    session.Evaluate("0");
+                    var intercepted = session.Events.FirstOrDefault(e => e.Method == "Input.dragIntercepted");
+                    if (intercepted.Method is not null)
+                        foreach (var type in new[] { "dragEnter", "dragOver", "drop" })
+                            Send("Input.dispatchDragEvent", new { type, x = end.X, y = end.Y, data = intercepted.Params.GetProperty("data") });
+                    Send("Input.dispatchMouseEvent", new { type = "mouseReleased", x = end.X, y = end.Y, button = "left", buttons = 0, clickCount = 1 });
+                }
+                finally { try { session.Call("Input.setInterceptDrags", new { enabled = false }); } catch (Exception) { } }
             }
             else if (action == "click")
             {

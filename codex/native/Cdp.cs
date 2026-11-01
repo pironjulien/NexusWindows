@@ -179,10 +179,12 @@ static partial class Cdp
         return 0;
     }
 
-    // Une connexion DevTools a une page (une requete a la fois, reponses correlees par id, evenements ignores).
+    // Une connexion DevTools a une page (une requete a la fois, reponses correlees par id ; les evenements recus en chemin
+    // sont gardes pour qui les attend : Input.dragIntercepted).
     sealed class Session : IDisposable
     {
         readonly ClientWebSocket socket = new();
+        public readonly List<(string Method, JsonElement Params)> Events = [];
         int id;
         string? fixtureWireSession;
         public Session(string url)
@@ -220,7 +222,12 @@ static partial class Cdp
                     message.Write(buffer, 0, part.Count);
                 } while (!part.EndOfMessage);
                 using var reply = JsonDocument.Parse(message.ToArray());
-                if (!reply.RootElement.TryGetProperty("id", out var got) || got.GetInt32() != mine) continue; // evenements
+                if (!reply.RootElement.TryGetProperty("id", out var got))
+                {
+                    if (reply.RootElement.TryGetProperty("method", out var name) && reply.RootElement.TryGetProperty("params", out var data)) Events.Add((name.GetString() ?? "", data.Clone()));
+                    continue;
+                }
+                if (got.GetInt32() != mine) continue;
                 if (reply.RootElement.TryGetProperty("error", out var error)) { Trace("rejected"); throw new InvalidOperationException($"DevTools {method}: {error}"); }
                 Trace("acknowledged");
                 return reply.RootElement.GetProperty("result").Clone();
@@ -238,15 +245,74 @@ static partial class Cdp
 
     public static Outcome Wheel(nint window, int x, int y, int deltaY, int deltaX, Action started)
     {
+        var (cdpX, cdpY) = ScrollPlan.DevTools(deltaY, deltaX);
+        var page = Open(window, x, y);
+        using (page.Session)
+        {
+            var wheel = new { type = "mouseWheel", x = (x - page.Surface.Left) / page.Ratio, y = (y - page.Surface.Top) / page.Ratio, deltaX = cdpX, deltaY = cdpY };
+            Dispatch(page.Session.Call, wheel, started);
+            return new("background:devtools", $"Input.dispatchMouseEvent mouseWheel (port {page.Port}; {page.Measured})", "sent");
+        }
+    }
+
+    // Glisser-deposer dans la page, en arriere-plan (banc commun du 01/11 : refuse sans premier plan jusque-la). Bouton
+    // presse au depart, deplacements, puis relache a l'arrivee. Un glisser HTML5 (draggable) est intercepte par Chromium
+    // (Input.setInterceptDrags) au lieu d'ouvrir la boucle de glisser du systeme, qui lirait la vraie souris : ses donnees
+    // sont deposees a l'arrivee par Input.dispatchDragEvent (dragEnter, dragOver, drop). Un glisser a la souris (pointeur,
+    // canevas) recoit les memes evenements de souris. Memes preuves que la molette avant toute entree ; envoi unique.
+    public static Outcome Drag(nint window, int x, int y, int toX, int toY, Action started)
+    {
+        var page = Open(window, x, y);
+        using (page.Session)
+        {
+            var s = page.Session;
+            if (toX < page.Surface.Left || toY < page.Surface.Top || toX >= page.Surface.Right || toY >= page.Surface.Bottom)
+                throw new ActionRefusedException("Drop point is outside the page's rendered surface: nothing was sent");
+            double Cx(int px) => (px - page.Surface.Left) / page.Ratio;
+            double Cy(int py) => (py - page.Surface.Top) / page.Ratio;
+            var (ax, ay, bx, by) = (Cx(x), Cy(y), Cx(toX), Cy(toY));
+            EmergencyStop.ThrowIfStopped();
+            started();
+            var mechanism = "mouse drag";
+            try
+            {
+                s.Call("Input.setInterceptDrags", new { enabled = true });
+                s.Call("Input.dispatchMouseEvent", new { type = "mouseMoved", x = ax, y = ay });
+                s.Call("Input.dispatchMouseEvent", new { type = "mousePressed", x = ax, y = ay, button = "left", buttons = 1, clickCount = 1 });
+                const int Steps = 12;
+                for (var i = 1; i <= Steps; i++)
+                    s.Call("Input.dispatchMouseEvent", new { type = "mouseMoved", x = ax + (bx - ax) * i / Steps, y = ay + (by - ay) * i / Steps, button = "left", buttons = 1 });
+                s.Evaluate("0"); // un aller-retour de plus : l'interception emise au dernier deplacement est lue
+                var intercepted = s.Events.FirstOrDefault(e => e.Method == "Input.dragIntercepted");
+                if (intercepted.Method is not null)
+                {
+                    var data = intercepted.Params.GetProperty("data");
+                    foreach (var type in new[] { "dragEnter", "dragOver", "drop" })
+                        s.Call("Input.dispatchDragEvent", new { type, x = bx, y = by, data });
+                    mechanism = "HTML5 drag intercepted, Input.dispatchDragEvent drop";
+                }
+                s.Call("Input.dispatchMouseEvent", new { type = "mouseReleased", x = bx, y = by, button = "left", buttons = 0, clickCount = 1 });
+            }
+            catch (Exception error) { throw new InvalidOperationException("DevTools drag sent without full acknowledgement; outcome unknown, do not replay", error); }
+            finally { try { s.Call("Input.setInterceptDrags", new { enabled = false }); } catch (Exception) { } }
+            return new("background:devtools", $"Input.dispatchMouseEvent {mechanism} (port {page.Port}; {page.Measured})", "sent");
+        }
+    }
+
+    sealed record Page(Session Session, int Port, Win32.Rect Surface, double Ratio, string Measured);
+
+    // Page DevTools prouvee de la fenetre et surface rendue sous le point : port de la ligne de commande, ecoute par le seul
+    // processus de la fenetre, page au titre prouve, taille CSS et DPR. Tout echec : non applicable, rien n'est envoye.
+    static Page Open(nint window, int x, int y)
+    {
         var pid = Win32.ProcessOf(window);
         var port = PortFrom(CommandLine(pid)) ?? throw new BackgroundNotApplicableException(
-            "Chromium ignores a posted wheel (measured) and the target has no DevTools port: nothing was sent");
+            "Chromium ignores a posted wheel or drag (measured) and the target has no DevTools port: nothing was sent");
         if (!OwnsPort(pid, Listeners(port)))
             throw new BackgroundNotApplicableException($"127.0.0.1:{port} is not listened to by the window's own process alone: nothing was sent");
         var surfaces = Surfaces(window);
         if (surfaces.Count != 1)
             throw new BackgroundNotApplicableException($"{surfaces.Count} visible rendered surfaces in the window (multi-view apps are out of scope): nothing was sent");
-        var (cdpX, cdpY) = ScrollPlan.DevTools(deltaY, deltaX);
         string url;
         try
         {
@@ -261,28 +327,24 @@ static partial class Cdp
         Session session;
         try { session = new Session(url); }
         catch (Exception error) { throw new BackgroundNotApplicableException($"DevTools page unreachable before input ({error.GetType().Name}): nothing was sent"); }
-        using (session)
+        try
         {
-            Win32.Rect surface;
-            double ratio;
-            string measured;
-            try
-            {
-                Prove(session.Evaluate, FreshEvaluator(url), () => Win32.Title(window));
-                var metrics = session.Evaluate("JSON.stringify([window.innerWidth, window.innerHeight, window.devicePixelRatio])");
-                var values = metrics.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.String
-                    ? JsonSerializer.Deserialize<double[]>(v.GetString()!) : null;
-                if (values is not { Length: 3 }) throw new BackgroundNotApplicableException("Page size or devicePixelRatio unreadable: nothing was sent");
-                var (index, gapWidth, gapHeight) = PickSurface(surfaces, x, y, values[0], values[1], values[2]);
-                surface = surfaces[index];
-                ratio = values[2];
-                // Releve pour le banc : taille CSS, DPR, rectangle de la zone et ecart mesure.
-                measured = $"inner {values[0]}x{values[1]} at DPR {values[2]}, surface [{surface.Left},{surface.Top},{surface.Right},{surface.Bottom}], gap {gapWidth}/{gapHeight} px";
-            }
-            catch (Exception error) when (BeforeInput(error) is var mapped && mapped != error) { throw mapped; }
-            var wheel = new { type = "mouseWheel", x = (x - surface.Left) / ratio, y = (y - surface.Top) / ratio, deltaX = cdpX, deltaY = cdpY };
-            Dispatch(session.Call, wheel, started);
-            return new("background:devtools", $"Input.dispatchMouseEvent mouseWheel (port {port}; {measured})", "sent");
+            Prove(session.Evaluate, FreshEvaluator(url), () => Win32.Title(window));
+            var metrics = session.Evaluate("JSON.stringify([window.innerWidth, window.innerHeight, window.devicePixelRatio])");
+            var values = metrics.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.String
+                ? JsonSerializer.Deserialize<double[]>(v.GetString()!) : null;
+            if (values is not { Length: 3 }) throw new BackgroundNotApplicableException("Page size or devicePixelRatio unreadable: nothing was sent");
+            var (index, gapWidth, gapHeight) = PickSurface(surfaces, x, y, values[0], values[1], values[2]);
+            var surface = surfaces[index];
+            // Releve pour le banc : taille CSS, DPR, rectangle de la zone et ecart mesure.
+            var measured = $"inner {values[0]}x{values[1]} at DPR {values[2]}, surface [{surface.Left},{surface.Top},{surface.Right},{surface.Bottom}], gap {gapWidth}/{gapHeight} px";
+            return new Page(session, port, surface, values[2], measured);
+        }
+        catch (Exception error)
+        {
+            session.Dispose();
+            if (BeforeInput(error) is var mapped && mapped != error) throw mapped;
+            throw;
         }
     }
 
