@@ -22,10 +22,11 @@ static partial class ChromiumInput
     const uint WM_ACTIVATE = 0x0006, WM_NCACTIVATE = 0x0086, WM_CHAR = 0x0102;
     public const int Budget = 9000, Unit = 8, FirstSettleMs = 150;
     // Texte : contrat historique du profil Claude (NexusClaude server._run, timeout_s=180, frappe par tranches sans
-    // plafond global de 9 s). Chaque paquet reste relu et garde (focus, presence, STOP, annulation du client MCP) ;
-    // Codex et Antigravity gardent Budget.
-    public const int ClaudeTextBudget = 170_000;
-    public static int TextBudget => GardeFous.CurrentAgent == "claude" ? ClaudeTextBudget : Budget;
+    // plafond global de 9 s), pour les trois profils MCP depuis le 01/11. Chaque paquet reste relu et garde (focus,
+    // presence, STOP, annulation du client MCP). Le helper --server garde Budget : son client Node borne une action
+    // Chromium a CHROMIUM_BUDGET_MS (lib/native.mjs).
+    public const int McpTextBudget = 170_000;
+    public static int TextBudget { get; set; } = McpTextBudget;
     static readonly HashSet<uint> Primed = new();
 
     public readonly record struct Result(Outcome Outcome, bool Taken, string? GiveBack);

@@ -833,13 +833,12 @@ static partial class McpServer
         RequestCancellation.End();
         RequestCancellation.ThrowIfCancelled();
         Assert(!RequestCancellation.Cancel("7"), "a finished request cannot be cancelled");
-        Assert(ChromiumInput.ClaudeTextBudget == 170_000 && ChromiumInput.Budget == 9000, "Claude text keeps the historical budget, others 9 s");
+        Assert(ChromiumInput.McpTextBudget == 170_000 && ChromiumInput.Budget == 9000, "MCP text keeps the historical 170 s budget, other gestures 9 s");
 
         foreach (var agent in GardeFous.ValidAgents)
         {
             GardeFous.CurrentAgent = agent;
             var state = new SessionState(agent);
-            Assert(ChromiumInput.TextBudget == (agent == "claude" ? ChromiumInput.ClaudeTextBudget : ChromiumInput.Budget), $"{agent} text budget");
 
             // 1. server/discover (2026-07-28)
             var discover = HandleMessage(state, """{"jsonrpc":"2.0","id":1,"method":"server/discover"}""")!;

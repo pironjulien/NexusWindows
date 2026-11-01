@@ -94,6 +94,7 @@ static partial class Program
         // The low-level Codex provider has a fixed profile. Only the MCP process entrypoint selects another installed agent.
         GardeFous.CurrentAgent = "codex";
         Environment.SetEnvironmentVariable("NEXUS_AGENT", "codex");
+        ChromiumInput.TextBudget = ChromiumInput.Budget;
         if (args.SequenceEqual(new[] { "--server" }))
         {
             // One sequential MTA worker. Every request reacquires the window and controls.
