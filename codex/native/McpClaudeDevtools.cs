@@ -59,7 +59,7 @@ static partial class McpServer
     public static bool ClaudeDevtoolsInScope(nint window) => claudeDomScope is { } scope && scope.Window == (long)window;
     internal static bool ClaudeFixtureDiagnosticsEnabled()
     {
-        if (claudeDomScope is not { } scope || scope.State.Agent != "claude" || scope.Lease.OwnSession ||
+        if (claudeDomScope is not { } scope || scope.Lease.OwnSession ||
             !Guid.TryParse(Environment.GetEnvironmentVariable("NEXUS_CDP_FIXTURE_DIAGNOSTICS"), out var run)) return false;
         var custom = Environment.GetEnvironmentVariable("NEXUS_WINDOWS_HOME");
         if (string.IsNullOrEmpty(custom)) return false;
