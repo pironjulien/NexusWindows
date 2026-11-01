@@ -318,9 +318,10 @@ static partial class McpServer
         if (field == "checked" && actual == null && Str(matches[0], "role") == "radio") actual = matches[0]["selected"];
         if (field == "value" && actual == null && Str(matches[0], "role") is "text" or "label") actual = matches[0]["name"];
         if (actual == null && (expect["equals"] != null || expect["includes"] != null)) return false;
-        if (expect["equals"] is JsonValue eq && state.Agent == "claude" && field == "value" && eq.TryGetValue<string>(out var expectedText)) return NormalizeLegacyText(actual?.ToString()) == NormalizeLegacyText(expectedText);
+        // Text is compared with its spaces normalized (line breaks, non-breaking spaces), and includes ignores case.
+        if (expect["equals"] is JsonValue eq && field == "value" && eq.TryGetValue<string>(out var expectedText)) return NormalizeLegacyText(actual?.ToString()) == NormalizeLegacyText(expectedText);
         if (expect["equals"] != null) return JsonNode.DeepEquals(actual, expect["equals"]);
-        if (expect["includes"] != null) return (state.Agent == "claude" ? NormalizeLegacyText(actual?.ToString()) : actual?.ToString() ?? "").Contains(state.Agent == "claude" ? NormalizeLegacyText(Str(expect, "includes")) : Str(expect, "includes"), state.Agent == "claude" ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        if (expect["includes"] != null) return NormalizeLegacyText(actual?.ToString()).Contains(NormalizeLegacyText(Str(expect, "includes")), StringComparison.OrdinalIgnoreCase);
         return expect.ContainsKey("exists") && Bool(expect, "exists");
     }
     static JsonObject? NativeResultWithoutProofRead(JsonObject step, JsonObject? outcome, string? error)
