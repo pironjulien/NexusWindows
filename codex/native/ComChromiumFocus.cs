@@ -23,11 +23,10 @@ static partial class ComWorker
 
     static void RequireBoundChromiumWindow(nint window, JsonElement request)
     {
-        if (GardeFous.CurrentAgent != "claude") throw Before("The bound Chromium text focus route requires the fixed Claude profile");
         RequireWindowIdentity(window, request);
         if (Win32.ClassName(window) != request.GetProperty("expectedWindowClass").GetString()) throw Before("Chromium window class changed; no focus sent");
         using var process = Process.GetProcessById((int)Win32.ProcessOf(window));
-        if (GardeFous.BlockReason(process.ProcessName, Win32.ClassName(window), "claude") is { } blocked) throw new ActionRefusedException(blocked);
+        if (GardeFous.BlockReason(process.ProcessName, Win32.ClassName(window), GardeFous.CurrentAgent) is { } blocked) throw new ActionRefusedException(blocked);
     }
 
     static Outcome BoundChromiumFocus(nint element, nint window, JsonElement request, bool take)

@@ -24,6 +24,10 @@ and npm (`nexus-windows-codex`).
   foreground, hidden, taskbar or desktop surface) for the three profiles (Claude only before).
 - `act(then=…, settle_ms=…)` returns the updated window in the same answer for the three profiles. Claude keeps
   `then="auto"` by default; Codex and Antigravity get it on request (`then="none"` by default, answers unchanged).
+- Typing one line into a Chromium field or rich editor (Chrome, Edge, Electron) takes Claude's DOM-focus text route
+  for the three profiles, read back packet by packet. At the banc, Codex and Antigravity reported a false success on
+  the rich editor of Edge and Electron (the page received nothing); they now write it, like Claude. Claude alone keeps
+  this route for `set` and for line breaks (see the open points in RECETTES.md).
 - Chromium text (Chrome, Edge, Electron) may take up to 170 s for the three profiles, packet by packet, each packet
   still checked (focus, presence, STOP, client cancellation); Codex and Antigravity stopped a long text at 9 s.
 

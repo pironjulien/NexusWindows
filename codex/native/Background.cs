@@ -99,8 +99,12 @@ static partial class Program
         if (McpServer.TryClaudeDevtoolsInput(window, op, target, request, () => InputStarted = true, out var dom)) return dom;
         InputStarted = true;
         var own = target.NativeWindow;
-        if (GardeFous.CurrentAgent == "claude" && ChromiumInput.IsChromium(window) && !ComUia.IsSynthetic(target.RuntimeId)
-            && (target.Role is "edit" or "document") && (op is "setValue" or "typeText"))
+        // Chromium text bound to the DOM focus, read back packet by packet (banc of 01/11: the only route that writes a rich
+        // editor; the other one reported a false success). Typing on one line takes it for the three profiles. Claude
+        // alone keeps it for setValue (UIA SetValue writes a field where this one failed, banc of 01/11) and for line
+        // breaks (its Enter guard, NativeTextSubmitScope, is opened for Claude only): changing either is Julien's call.
+        if (ChromiumInput.IsChromium(window) && !ComUia.IsSynthetic(target.RuntimeId) && (target.Role is "edit" or "document")
+            && (GardeFous.CurrentAgent == "claude" ? op is "setValue" or "typeText" : op == "typeText" && Text(request, "text").IndexOfAny(['\r', '\n']) < 0))
         {
             int? quiet = request.TryGetProperty("quietMs", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : null;
             InputStarted = false;

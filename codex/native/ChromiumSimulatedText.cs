@@ -140,11 +140,10 @@ static partial class ChromiumInput
             try { return read(); }
             finally { RecordTiming(phase, stamp); }
         }
-        if (GardeFous.CurrentAgent != "claude") throw new ActionRefusedException("The Claude simulated-text route cannot change the fixed policy profile");
         if (target.FrameworkId != "Chrome" || target.Role is not ("edit" or "document") || target.Password || target.Disabled || target.RuntimeId.Length == 0)
             throw new ActionRefusedException("Simulated text needs the exact non-secret editable Chromium target");
         using var process = Process.GetProcessById((int)Win32.ProcessOf(window));
-        if (GardeFous.BlockReason(process.ProcessName, Win32.ClassName(window), "claude") is { } blocked) throw new ActionRefusedException(blocked);
+        if (GardeFous.BlockReason(process.ProcessName, Win32.ClassName(window), GardeFous.CurrentAgent) is { } blocked) throw new ActionRefusedException(blocked);
         uint? input = null; var windowPid = Win32.ProcessOf(window); var birth = Program.ProcessStartedUtc(windowPid); var windowClass = Win32.ClassName(window);
         var alreadyForeground = InForeground(window);
         if (birth == null) throw new ActionRefusedException("Window process identity unavailable; no simulated text sent");
@@ -313,7 +312,6 @@ static partial class Program
     // change its rectangle legitimately; process/window, target runtime, selector and every ancestor stay binding.
     internal static void RevalidateClaudeTextTarget(nint window, Node original, JsonElement request)
     {
-        if (GardeFous.CurrentAgent != "claude") throw new ActionRefusedException("Fixed Claude profile required for simulated text");
         using var tree = ComUia.Shared.ReadIdentity(window, original.RuntimeId, original.NativeWindow, readAncestorText: false);
         var target = tree.Nodes.SingleOrDefault(n => n.RuntimeId.SequenceEqual(original.RuntimeId));
         if (target == null || target.Disabled || target.Password || target.Offscreen || target.FrameworkId != "Chrome" || target.ProcessId != original.ProcessId
