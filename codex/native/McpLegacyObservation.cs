@@ -219,7 +219,7 @@ static partial class McpServer
     {
         args = args.DeepClone().AsObject();
         var screen = Str(args, "window").Trim().ToLowerInvariant();
-        if (state.Agent != "codex" && screen is "screen" or "écran" or "ecran") return FullScreenNative(state, args);
+        if (screen is "screen" or "écran" or "ecran") return FullScreenNative(state, args);
         var nativeText = state.Agent != "claude" && args["show"] == null && Str(args, "mode", "text") == "text";
         var show = nativeText ? "elements" : Str(args, "show", Str(args, "mode", "auto"));
         if (show is not ("auto" or "both" or "image" or "elements" or "text" or "changes" or "none" or "table")) throw new InvalidOperationException("Unknown look presentation");
