@@ -181,8 +181,14 @@ static partial class McpServer
         var window = (nint)state.BoundWindow!.Value.Id;
         var thread = Win32.GetWindowThreadProcessId(window, out _);
         var info = new KeyGuiThreadInfo { Size = Marshal.SizeOf<KeyGuiThreadInfo>() };
-        var nativeReady = thread != 0 && KeyGetGuiThreadInfo(thread, ref info) && info.Focus != 0 && Win32.IsWindow(info.Focus) &&
+        var threadRead = thread != 0 && KeyGetGuiThreadInfo(thread, ref info);
+        var nativeReady = threadRead && info.Focus != 0 && Win32.IsWindow(info.Focus) &&
             (info.Focus == window || KeyIsChild(window, info.Focus) || NativeInteraction.AllowsForeground(window, info.Focus));
+        // Nothing focused anywhere in the window's thread (a window never activated): Windows hands keys to the window
+        // itself, so they reach no field. The keys go to the named window, read back like a focus (01/11: Ctrl+K refused
+        // on the Win32 and WinForms labs, "focus cannot be verified").
+        var windowItself = threadRead && info.Focus == 0 && selector == null && !Elements(snapshot).OfType<JsonObject>().Any(e => Bool(e, "focused"));
+        if (windowItself) { nativeReady = true; info.Focus = window; }
         JsonObject? focused;
         if (selector != null)
         {
