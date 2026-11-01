@@ -26,8 +26,27 @@ and npm (`nexus-windows-codex`).
   `then="auto"` by default; Codex and Antigravity get it on request (`then="none"` by default, answers unchanged).
 - Typing one line into a Chromium field or rich editor (Chrome, Edge, Electron) takes Claude's DOM-focus text route
   for the three profiles, read back packet by packet. At the banc, Codex and Antigravity reported a false success on
-  the rich editor of Edge and Electron (the page received nothing); they now write it, like Claude. Claude alone keeps
-  this route for `set` and for line breaks (see the open points in RECETTES.md).
+  the rich editor of Edge and Electron (the page received nothing); they now write it, like Claude. Line breaks take
+  it too for the three profiles, each Enter checked against the send and agreement safeguards.
+- `set` on a Chromium field writes it by UI Automation `SetValue` for the three profiles: Claude's simulated typing
+  failed there at the banc (0/3) where the other two profiles succeeded.
+- One set of guards for the three profiles (Julien's decisions of 01/11; the behavior test now compares them too):
+  - a password field is refused to the three (Antigravity could write into one);
+  - the real mouse and keyboard are used only with `foreground:true`, Codex included (it took them by default);
+  - the Windows panels (`"start"`, `"quick settings"`, `"notifications"`) and one foreground lease for a whole
+    `act` with `foreground:true` are open to the three (Claude only before);
+  - `launch` takes Claude's route for the three: Start menu names, any URI through its Windows association, Store
+    apps, documents and folders proven open, `devtools` on an isolated profile, Steam DevTools lease, `then`/`wait_s`
+    (`then="none"` by default for Codex and Antigravity); Codex and Antigravity opened only executables, paths, app
+    ids and `ms-settings:`;
+  - a step whose `{selector, exists}` postcondition already holds answers "=" without sending anything, for the three
+    (Codex and Antigravity refused it as vague);
+  - without a named or bound window, the three refuse (Claude acted on the foreground window);
+  - the hard blocks are the union of the three lists for each profile: secure desktop, Windows credentials window,
+    password managers and Codex's own approval window;
+  - `look(window="screen")` captures the whole screen for Codex too;
+  - an `act` without a prior look observes the named window first for Antigravity as for Claude; Codex's contract
+    still needs the look's observation id.
 - Chromium text (Chrome, Edge, Electron) may take up to 170 s for the three profiles, packet by packet, each packet
   still checked (focus, presence, STOP, client cancellation); Codex and Antigravity stopped a long text at 9 s.
 
