@@ -176,7 +176,7 @@ static partial class McpServer
         var kind = action switch { "set" or "clear" => "setValue", "type" => "typeText", "check" or "uncheck" or "double_click" or "right_click" => "click", "expand" or "collapse" => "secondary", "focus" => "focus", _ => action };
         if (kind is not ("click" or "setValue" or "typeText" or "key" or "secondary" or "select" or "menu" or "scroll" or "hover" or "drag" or "wait" or "focus")) throw new InvalidOperationException($"Unsupported native action {action}");
         step["kind"] = kind; step.Remove("do");
-        if (state.Agent == "claude" && kind == "key") step["key"] = NormalizeClaudeKeySequence(Str(step, "key"));
+        if (kind == "key") step["key"] = NormalizeKeySequence(Str(step, "key"));
         if (action is not ("secondary")) step.Remove("action");
         if (step["target"] is JsonArray at && at.Count == 2)
         { step["point"] = new JsonObject { ["x"] = at[0]!.DeepClone(), ["y"] = at[1]!.DeepClone() }; step.Remove("target"); }

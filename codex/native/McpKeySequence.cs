@@ -145,6 +145,10 @@ static partial class McpServer
         return string.Join('+', modifiers.Append(key));
     }
     internal static string NormalizeClaudeKeySequence(string spec) => string.Join(' ', KeySequencePlan(spec, _ => { }, NormalizeClaudeKeyChord));
+    // The three profiles: French and English key names and modifiers become canonical before the guards read them; any
+    // other syntax (a virtual key, a Codex chord) is left for the key parser, which refuses what it does not know.
+    internal static string NormalizeKeyChord(string spec) { try { return NormalizeClaudeKeyChord(spec); } catch (ActionRefusedException) { return spec.Trim(); } }
+    internal static string NormalizeKeySequence(string spec) => string.Join(' ', KeySequencePlan(spec, _ => { }, NormalizeKeyChord));
     static string[] KeySequencePlan(string spec, Action<string> validate, Func<string, string>? normalize = null)
     {
         var keys = spec.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -221,7 +225,7 @@ static partial class McpServer
             if (devtools) Cdp.ValidateDomKey(key);
             else if (physicalAllowed) Keys.ParseFor(key, layout);
             else Keys.ParseForWindow(window, key);
-        }, key => state.Agent == "claude" ? NormalizeClaudeKeyChord(key) : key);
+        }, NormalizeKeyChord);
         if (step["expect"] is JsonObject expect && ExpectationHolds(state, snapshot, expect, ocr: true))
         {
             if (ExactExpectation(expect) || LegacyStateCheck(expect)) return StepResult("already-satisfied", "=", false, true, "Exact state already satisfied; no input sent");
@@ -328,6 +332,7 @@ static partial class McpServer
         for (var function = 1; function <= 24; function++) Check(NormalizeClaudeKeyChord("F" + function) == "f" + function, "all legacy function keys are retained");
         foreach (var invalid in new[] { "", "ctrl+", "ctrl+shift+", "ctrl+++", "ctrl+shift", "hyper+x", "f25", "unknown" }) Refused(() => NormalizeClaudeKeyChord(invalid));
         Check(NormalizeClaudeKeySequence("ctl+a suppr") == "ctrl+a delete", "the whole legacy sequence is canonical before policy evaluation");
+        Check(NormalizeKeySequence("ctl+a suppr") == "ctrl+a delete" && NormalizeKeyChord(" VK_F5 ") == "VK_F5", "aliases for the three profiles, other syntaxes left to the key parser");
         Check(GardeFous.KeyKinds(NormalizeClaudeKeySequence("ctl+entrée")).SequenceEqual(new[] { "send" }) && GardeFous.KeyKinds(NormalizeClaudeKeySequence("entrée")).SequenceEqual(new[] { "submit" }), "translated names retain outward-action policy");
         Check(GardeFous.CheckBlindPaste(KeySequencePlan(NormalizeClaudeKeySequence("ctl+v entrée"), _ => { }).Select(key => ("key", key, false))).Length > 0, "legacy aliases cannot hide a paste-then-submit batch");
         var sends = new List<string>(); var proofs = 0;
