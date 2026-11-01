@@ -10,6 +10,15 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+### Added
+- Drag and drop in the background in a Chromium or Electron page opened with a DevTools port, for the three profiles:
+  the mouse is pressed, moved and released through DevTools, and an HTML5 drag (`draggable`) is intercepted and
+  dropped by `Input.dispatchDragEvent` instead of opening the Windows drag loop, which follows the real mouse. On the
+  common banc's new drag-and-drop task, Edge and Electron go from refused to the exact drop, with no intrusion.
+  In desktop applications (Win32, WinForms, WPF) a drag is never posted: the application may start the Windows drag
+  loop (OLE), which follows the real mouse and would drop under the user's cursor. It stays refused in the background
+  and takes the real mouse only with `foreground:true`.
+
 ## [3.14.0] - 2026-11-01
 
 ### Changed
