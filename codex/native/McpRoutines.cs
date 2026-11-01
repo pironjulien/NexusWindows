@@ -81,7 +81,7 @@ static partial class McpServer
         var operation = Str(args, "operation", "run");
         ValidateRoutineControls(args, operation);
         var oldBound = state.BoundWindow;
-        var named = ResolveWindow(state, args, modern && state.Agent != "codex");
+        var named = ResolveWindow(state, args, modern);
         if (oldBound is { } old && old.Id != named.Id && operation is "run" or "continue" or "inspect")
         {
             state.CurrentObservation = null; state.CurrentObservationId = null; state.Pending = null;
@@ -113,7 +113,6 @@ static partial class McpServer
         if (state.CurrentObservation == null || state.CurrentObservationId == null) throw new ActionRefusedException("Look at the named window before acting");
         if (DateTimeOffset.UtcNow - state.ObservedAt > TimeSpan.FromSeconds(60)) throw new ActionRefusedException("Observation expired after 60 seconds; look again");
         var obsArg = Str(args, "observation");
-        if (modern && obsArg.Length == 0 && state.Agent == "codex") throw new ActionRefusedException("act needs the observation id returned by look");
         if (obsArg.Length > 0 && obsArg != state.CurrentObservationId) throw new ActionRefusedException("Observation already consumed or replaced; look again");
         var observed = ObjectOf(state.CurrentObservation.Value);
         var start = InspectNative(state);

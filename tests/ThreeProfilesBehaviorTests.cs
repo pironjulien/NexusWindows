@@ -2,8 +2,8 @@
 // Codex typed in the foreground into a WPF field while Claude appended in the background). The WPF window
 // (fixtures/wpf_lab.ps1) is shown off-screen at the bottom of the Z order, never activated; physical fallback is refused,
 // so no input reaches the desktop. The guards answer the same way too (01/11): no window named, a step already done,
-// the real mouse without foreground:true, a password field, a Windows panel in the background, the whole screen; only
-// Codex's contract still needs a look before an act. It needs a desktop session and Windows OCR: not run by the offline CI.
+// the real mouse without foreground:true, a password field, a Windows panel in the background, the whole screen, an act
+// without a prior look. It needs a desktop session and Windows OCR: not run by the offline CI.
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 
@@ -102,7 +102,7 @@ public class ThreeProfilesBehaviorTests
             {
                 // No window named and none bound: never the window in the foreground.
                 ["noWindow"] = Outcome(server.Rpc("tools/call", new { name = "act", arguments = new { steps = new[] { already } } })),
-                // An act before any look: Claude and Antigravity observe the named window first, Codex's contract needs look.
+                // An act before any look observes the named window first.
                 ["withoutLook"] = Act(server, new { window = lab.Window, steps = new[] { already } }),
             };
             // From here each act follows its own look (Codex's contract consumes the observation).
@@ -122,13 +122,11 @@ public class ThreeProfilesBehaviorTests
         }
         var report = string.Join("\n", outcomes.Select(o => o.Key + " " + o.Value.ToJsonString()));
         Assert.True(lab.Count("clic 1") == 0, report);
-        Assert.Equal("error: Look at the named window before acting", outcomes["codex"]["withoutLook"]!.GetValue<string>());
-        Assert.StartsWith("already-satisfied =", outcomes["claude"]["withoutLook"]!.GetValue<string>());
-        foreach (var row in outcomes.Values) row.Remove("withoutLook");
         Assert.True(outcomes.Values.All(r => JsonNode.DeepEquals(r, outcomes["claude"])), report);
         var claude = outcomes["claude"];
         Assert.StartsWith("error:", claude["noWindow"]!.GetValue<string>());
         Assert.StartsWith("already-satisfied =", claude["alreadyDone"]!.GetValue<string>());
+        Assert.StartsWith("already-satisfied =", claude["withoutLook"]!.GetValue<string>());
         Assert.StartsWith("refused", claude["foregroundDefault"]!.GetValue<string>());
         Assert.Contains("foregroundTaken=false", claude["foregroundDefault"]!.GetValue<string>());
         Assert.Contains("Password", claude["password"]!.GetValue<string>());

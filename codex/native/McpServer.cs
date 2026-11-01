@@ -344,7 +344,8 @@ static partial class McpServer
         var winNode = args["window"] ?? args["hwnd"];
         if (winNode == null)
         {
-            if (modern) throw new InvalidOperationException("Name the window (window=...): from protocol 2026-07-28 no window is carried over from another call; nothing was sent");
+            // From protocol 2026-07-28 a window is named, or designated by the observation id of the look it was seen in.
+            if (modern && Str(args, "observation").Length == 0) throw new InvalidOperationException("Name the window (window=...): from protocol 2026-07-28 no window is carried over from another call; nothing was sent");
             if (state.BoundWindow is { } bound) return bound;
             throw new InvalidOperationException("Name a window (look window=...)");
         }
@@ -454,8 +455,8 @@ static partial class McpServer
             }
 
             case "look": return ObserveNative(state, args, modern);
-            // An act without a prior look observes the named window first, except for Codex, whose contract needs look's id.
-            case "act": return state.Agent == "codex" ? RunShellAct(state, args, modern) : RunClaudeCompatibleAct(state, args, modern);
+            // An act without a prior look observes the named window first, for the three profiles.
+            case "act": return RunClaudeCompatibleAct(state, args, modern);
 
             case "launch": return LaunchClaudeNative(state, args, modern);
 
