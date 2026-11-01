@@ -15,7 +15,8 @@ static partial class McpServer
         using var process = Process.GetProcessById((int)Win32.ProcessOf(hwnd));
         return ((long)hwnd, "process:" + process.MainModule!.FileName, name, process.Id);
     }
-    static void AddClaudeWindowFields(JsonObject row, long id, string app)
+    // Process, framework, size and state of each listed window, for the three profiles.
+    static void AddWindowFields(JsonObject row, long id, string app)
     {
         var hwnd = (nint)id; var cls = Win32.ClassName(hwnd);
         Win32.GetWindowRect(hwnd, out var rect);

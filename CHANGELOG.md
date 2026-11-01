@@ -20,6 +20,8 @@ and npm (`nexus-windows-codex`).
   no longer overwritten).
 - A postcondition on a radio button's `checked` reads its selection, and a `value` on a text or a label reads its text,
   for the three profiles (Claude only before; Codex and Antigravity left such a step unverified).
+- `windows` gives each window's process, framework (Win32, WPF, Chromium, UWP), size and state (minimized, maximized,
+  foreground, hidden, taskbar or desktop surface) for the three profiles (Claude only before).
 - Chromium text (Chrome, Edge, Electron) may take up to 170 s for the three profiles, packet by packet, each packet
   still checked (focus, presence, STOP, client cancellation); Codex and Antigravity stopped a long text at 9 s.
 

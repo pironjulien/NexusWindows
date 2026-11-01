@@ -445,7 +445,7 @@ static partial class McpServer
                         row["owner"] = w.Owner;
                         row["dialogOf"] = new JsonObject { ["id"] = w.Owner, ["title"] = w.OwnerTitle };
                     }
-                    if (state.Agent == "claude") AddClaudeWindowFields(row, w.Id, w.App);
+                    AddWindowFields(row, w.Id, w.App);
                     rows.Add(row);
                 }
                 var content = new JsonArray { TextBlock(rows) };
