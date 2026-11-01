@@ -63,7 +63,7 @@ unsafe sealed partial class ComUia
     [DllImport("oleaut32.dll")] static extern int VariantClear(ref Variant value);
 
     static ComUia? shared;
-    readonly nint automation, treeRequest, elementRequest, childrenRequest, walker;
+    readonly nint automation, treeRequest, wpfTreeRequest, elementRequest, childrenRequest, walker;
     public static ComUia Shared => shared ??= new ComUia();
 
     ComUia()
@@ -79,6 +79,9 @@ unsafe sealed partial class ComUia
         Check(((delegate* unmanaged[Stdcall]<nint, int*, int>)vtable[58])(automation, &autoSetFocus)); // get_AutoSetFocus
         if (autoSetFocus != 0) throw new BackgroundNotApplicableException("UI Automation refused AutoSetFocus = FALSE");
         treeRequest = Request(TreeScopeSubtree);
+        // WPF: the MSAA state (default button) costs a bridge per element, 0.4 of the 1.1 s of the lab window's 663
+        // elements (01/11); it is read only on the elements that can be invoked (Describe), the only ones it concerns.
+        wpfTreeRequest = Request(TreeScopeSubtree, legacyState: false);
         elementRequest = Request(TreeScopeElement);
         childrenRequest = Request(TreeScopeChildren);
         nint w;
@@ -87,11 +90,11 @@ unsafe sealed partial class ComUia
     }
     // Demande de cache : toutes les proprietes lues par l'inspection, vue Controle, elements complets (motifs courants
     // encore appelables ensuite).
-    nint Request(int scope)
+    nint Request(int scope, bool legacyState = true)
     {
         nint request, condition;
         Check(((delegate* unmanaged[Stdcall]<nint, nint*, int>)Vt(automation)[20])(automation, &request));  // CreateCacheRequest
-        foreach (var property in TreeProperties) Check(((delegate* unmanaged[Stdcall]<nint, int, int>)Vt(request)[3])(request, property));
+        foreach (var property in TreeProperties) if (legacyState || property != LegacyIAccessibleStateProperty) Check(((delegate* unmanaged[Stdcall]<nint, int, int>)Vt(request)[3])(request, property));
         Check(((delegate* unmanaged[Stdcall]<nint, int, int>)Vt(request)[7])(request, scope));                // put_TreeScope
         Check(((delegate* unmanaged[Stdcall]<nint, nint*, int>)Vt(automation)[18])(automation, &condition)); // get_ControlViewCondition
         try { Check(((delegate* unmanaged[Stdcall]<nint, nint, int>)Vt(request)[9])(request, condition)); } // put_TreeFilter
@@ -216,7 +219,8 @@ unsafe sealed partial class ComUia
             return true;
         }, 0);
         nint root;
-        Check(((delegate* unmanaged[Stdcall]<nint, nint, nint, nint*, int>)Vt(automation)[10])(automation, hwnd, levels ? elementRequest : treeRequest, &root)); // ElementFromHandleBuildCache
+        var wpf = !levels && Win32.ClassName(hwnd).StartsWith("HwndWrapper", StringComparison.Ordinal);
+        Check(((delegate* unmanaged[Stdcall]<nint, nint, nint, nint*, int>)Vt(automation)[10])(automation, hwnd, levels ? elementRequest : wpf ? wpfTreeRequest : treeRequest, &root)); // ElementFromHandleBuildCache
         if (root == 0) throw new InvalidOperationException("No UI Automation root");
         var tree = new UiTree();
         // Chaque element appartient soit a la pile (pas encore decrit), soit a l'arbre : libere une seule fois.
@@ -250,7 +254,7 @@ unsafe sealed partial class ComUia
                 var (element, depth, ancestors) = pending.Peek();
                 if (tree.Nodes.Count >= MaxNodes || depth > MaxDepth)
                     throw new InvalidOperationException("Accessibility tree exceeds inspection bound; target a smaller window");
-                var node = Describe(element, depth, ancestors);
+                var node = Describe(element, depth, ancestors, currentDefaultState: wpf);
                 pending.Pop();
                 if (node.RuntimeId.Length > 0 && !seen.Add(string.Join(",", node.RuntimeId)))
                 {
@@ -478,7 +482,7 @@ unsafe sealed partial class ComUia
         }
     }
 
-    Node Describe(nint element, int depth, int[] ancestors, bool readDocumentText = true)
+    Node Describe(nint element, int depth, int[] ancestors, bool readDocumentText = true, bool currentDefaultState = false)
     {
         var password = CachedBool(element, IsPasswordProperty) ?? false;
         var role = Role(CachedInt(element, ControlTypeProperty) ?? 0);
@@ -514,8 +518,11 @@ unsafe sealed partial class ComUia
             Checked = check, NativeWindow = nativeWindow, FrameworkId = framework, ProcessId = CachedInt(element, ProcessIdProperty) ?? 0,
             HasInvoke = CachedBool(element, IsInvokeAvailable) == true, HasToggle = CachedBool(element, IsToggleAvailable) == true,
             HasText = hasText, Bounds = Bounds(element), Offscreen = CachedBool(element, IsOffscreenProperty) == true,
-            AccessKey = CachedString(element, AccessKeyProperty) ?? "", IsDefault = ((CachedInt(element, LegacyIAccessibleStateProperty) ?? 0) & 0x100) != 0,
+            AccessKey = CachedString(element, AccessKeyProperty) ?? "",
         };
+        // STATE_SYSTEM_DEFAULT: from the cache, or read live on an invokable element of a WPF read (wpfTreeRequest).
+        var state = currentDefaultState ? node.HasInvoke ? CurrentInt(element, LegacyIAccessibleStateProperty) : 0 : CachedInt(element, LegacyIAccessibleStateProperty);
+        node.IsDefault = ((state ?? 0) & 0x100) != 0;
         if (CachedBool(element, IsExpandCollapseAvailable) == true)
         {
             switch (CachedInt(element, ExpandCollapseStateProperty))
@@ -690,6 +697,12 @@ unsafe sealed partial class ComUia
         var pattern = CurrentBool(cell, IsPasswordProperty) == true ? 0 : Pattern(cell, ValuePatternId);
         try { if (pattern != 0 && Value(pattern) is { Length: > 0 } value) return value; } finally { Release(pattern); }
         return CurrentName(cell);
+    }
+    static int? CurrentInt(nint element, int property)
+    {
+        Variant value;
+        if (((delegate* unmanaged[Stdcall]<nint, int, Variant*, int>)Vt(element)[10])(element, property, &value) < 0) return null; // GetCurrentPropertyValue
+        try { return value.Vt == VT_I4 ? value.Int : null; } finally { VariantClear(ref value); }
     }
     static bool? CurrentBool(nint element, int property)
     {
