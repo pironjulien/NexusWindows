@@ -442,7 +442,7 @@ static partial class Program
                     root = boxIndex < target.Ancestors.Length ? nodes[target.Ancestors[boxIndex]] : target;
                 }
                 else root = nodes[0];
-                if (target.Password && GardeFous.CurrentAgent != "antigravity") throw new ActionRefusedException("Password controls require the dedicated supported workflow");
+                if (target.Password) throw new ActionRefusedException("Password controls require the dedicated supported workflow");
                 if (op == "secondary" && Text(request, "action") != "ScrollIntoView" && !target.Actions.Contains(Text(request, "action"))) throw new ActionRefusedException("Secondary action is not exposed");
                 // Visible d'abord (meme regle que les autres agents) : un element hors champ dont rien ne recoupe sa fenetre
                 // n'est jamais clique par cible ; le faire defiler, puis reobserver.

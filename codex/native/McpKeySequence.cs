@@ -195,7 +195,7 @@ static partial class McpServer
         }
         if (requireReady && !nativeReady && !Bool(focused, "focused"))
             throw new ActionRefusedException("The keyboard focus cannot be verified in the named window; no key sent");
-        if (state.Agent == "codex" && Bool(focused, "password")) throw new ActionRefusedException("Password controls are refused for Codex; no key sent");
+        if (Bool(focused, "password")) throw new ActionRefusedException("Password controls are refused; no key sent");
         return new JsonObject { ["nativeWindow"] = nativeReady ? JsonValue.Create((long)info.Focus) : null, ["element"] = focused != null ? ElementIdentity(snapshot, focused) : null };
     }
     static string KeyPermissionStamp(JsonObject snapshot, JsonObject focus, string title)

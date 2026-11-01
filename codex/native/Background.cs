@@ -381,7 +381,7 @@ static partial class Program
     static Outcome EditReplace(nint edit, string text, bool replaceAll)
     {
         var style = Win32.Style(edit);
-        if ((style & Win32.ES_PASSWORD) != 0 && GardeFous.CurrentAgent != "antigravity") throw RefusedBeforeInput("Password controls require the dedicated supported workflow");
+        if ((style & Win32.ES_PASSWORD) != 0) throw RefusedBeforeInput("Password controls require the dedicated supported workflow");
         if ((style & Win32.ES_READONLY) != 0) throw NothingSent("Read-only field");
         if (!Win32.IsWindowEnabled(edit)) throw NothingSent("Field is disabled");
         var multiline = (style & Win32.ES_MULTILINE) != 0;
