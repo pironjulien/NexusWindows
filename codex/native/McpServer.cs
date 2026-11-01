@@ -216,7 +216,8 @@ static partial class McpServer
                 ["inputSchema"] = JsonNode.Parse("""{"type":"object","additionalProperties":false,"properties":{"action":{"type":"string","enum":["read","write","restore"],"default":"read"},"text":{"type":"string"}}}""") });
         }
 
-        if (agent == "claude") tools[0]!["outputSchema"] = JsonNode.Parse("""{"type":"object","required":["windows"],"properties":{"windows":{"type":"array","items":{"type":"object","required":["hwnd","title","process","framework","width","height","minimized","maximized","foreground","hidden","owner","surface"],"properties":{"hwnd":{"type":"integer"},"title":{"type":"string"},"process":{"type":"string"},"framework":{"type":"string"},"width":{"type":"integer"},"height":{"type":"integer"},"minimized":{"type":"boolean"},"maximized":{"type":"boolean"},"foreground":{"type":"boolean"},"hidden":{"type":"boolean"},"owner":{"type":"integer"},"surface":{"type":"string"}}}}}}""");
+        // One windows schema for the three profiles: the rows carry the Codex fields and the window details.
+        tools[0]!["outputSchema"] = JsonNode.Parse("""{"type":"object","required":["windows"],"properties":{"windows":{"type":"array","items":{"type":"object","required":["id","hwnd","app","title","process","framework","width","height","minimized","maximized","foreground","hidden","owner","surface"],"properties":{"hwnd":{"type":"integer"},"title":{"type":"string"},"process":{"type":"string"},"framework":{"type":"string"},"width":{"type":"integer"},"height":{"type":"integer"},"minimized":{"type":"boolean"},"maximized":{"type":"boolean"},"foreground":{"type":"boolean"},"hidden":{"type":"boolean"},"owner":{"type":"integer","description":"id of the window that owns this dialog"},"surface":{"type":"string"},"id":{"type":"integer"},"app":{"type":"string","description":"process:<path> or the Store app id"},"pid":{"type":"integer"},"nativeOnly":{"type":"boolean"},"dialogOf":{"type":"object","required":["id"],"properties":{"id":{"type":"integer"},"title":{"type":"string"}}}}}}}}""");
         var windowsProps = tools[0]!["inputSchema"]!["properties"]!.AsObject();
         windowsProps["visible_only"] = new JsonObject { ["type"] = "boolean" };
         windowsProps["by_app"] = new JsonObject { ["type"] = "boolean" };
@@ -258,7 +259,7 @@ static partial class McpServer
                 }
                 if (contract["inputSchema"]!["anyOf"] != null) tool["inputSchema"]!["anyOf"] = contract["inputSchema"]!["anyOf"]!.DeepClone();
             }
-            if (contract["outputSchema"] != null && !(agent == "claude" && Str(tool, "name") == "windows")) tool["outputSchema"] = contract["outputSchema"]!.DeepClone();
+            if (contract["outputSchema"] != null && Str(tool, "name") != "windows") tool["outputSchema"] = contract["outputSchema"]!.DeepClone();
         }
         return tools;
     }
