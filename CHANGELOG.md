@@ -10,6 +10,8 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.15.0] - 2026-11-01
+
 ### Added
 - Drag and drop in the background in a Chromium or Electron page opened with a DevTools port, for the three profiles:
   the mouse is pressed, moved and released through DevTools, and an HTML5 drag (`draggable`) is intercepted and
