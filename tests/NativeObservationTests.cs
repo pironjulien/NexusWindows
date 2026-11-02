@@ -256,6 +256,29 @@ public class NativeObservationTests
         Refused(observed, current);
     }
 
+    [Fact]
+    public void A_nested_modal_window_is_a_local_context_independent_of_the_chat_behind_it()
+    {
+        var observed = Snapshot(); Node(observed, 2)["role"] = "window";
+        Assert.True(Validate(observed, ChangedChat(observed)));
+    }
+
+    [Fact]
+    public void A_field_change_inside_a_nested_modal_window_requires_a_new_look()
+    {
+        var observed = Snapshot(); Node(observed, 2)["role"] = "window";
+        var current = ChangedChat(observed); Node(current, 4)["value"] = "changed modal field";
+        Refused(observed, current);
+    }
+
+    [Fact]
+    public void Replacing_the_nested_modal_window_cannot_reuse_its_observed_command()
+    {
+        var observed = Snapshot(); Node(observed, 2)["role"] = "window";
+        var current = ChangedChat(observed); Node(current, 2)["runtimeId"] = new JsonArray(7, 999);
+        Refused(observed, current);
+    }
+
     [Theory]
     [InlineData("role", "button")]
     [InlineData("name", "A different sidebar status")]

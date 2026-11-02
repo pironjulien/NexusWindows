@@ -86,7 +86,8 @@ static partial class McpServer
     {
         CheckNativeApplication(observed, current);
         var target = BindObservedNativeTarget(observed, current, args, steps);
-        if (target != null && NativeTargetContext(observed, target) is { } context && Str(context, "role") != "window")
+        if (target != null && NativeTargetContext(observed, target) is { } context &&
+            (Str(context, "role") != "window" || context["ancestors"] is JsonArray { Count: > 0 }))
         {
             var step = steps[0]!.AsObject();
             var selector = step["selector"] as JsonObject ?? step["focus"]!.AsObject();
