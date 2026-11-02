@@ -10,6 +10,12 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.2] - 2026-11-02
+
+### Fixed
+- The Claude Code and Codex guide shows what a step of `act` looks like (`{"action": "click", "target": "..."}`),
+  with a complete example call; it listed the step names without ever giving their shape.
+
 ## [3.16.1] - 2026-11-01
 
 ### Fixed
