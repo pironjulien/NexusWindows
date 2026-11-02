@@ -12,7 +12,7 @@ using System.Text.Json.Nodes;
 // - Applique les garde-fous communs (GardeFous.cs), journalise chaque action (Journal.cs) et pilote Windows en processus via Program.Execute.
 static partial class McpServer
 {
-    public const string Version = "3.16.2";
+    public const string Version = "3.16.3";
     static readonly string[] ModernProtocolVersions = ["2026-07-28"];
     static readonly string[] LegacyProtocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
     const string ProtocolVersionMeta = "io.modelcontextprotocol/protocolVersion";
@@ -282,6 +282,8 @@ static partial class McpServer
         public Dictionary<string, string> ReviewedRoutines { get; } = new(StringComparer.Ordinal);
         public HashSet<string> FailedRoutines { get; } = new(StringComparer.Ordinal);
         public Dictionary<long, List<string>> LookLines { get; } = new();
+        // Batches sent and not yet followed by an explicit look of their window (McpRepeatGuard.cs).
+        public RepeatGuard Repeats { get; } = new();
         readonly Dictionary<string, (string Print, string Id)> sentImages = new(StringComparer.Ordinal);
         int observationCounter;
 
@@ -417,7 +419,7 @@ static partial class McpServer
     {
         GardeFous.CurrentAgent = state.Agent; // A tool payload never selects its agent/policy profile.
         if (args.ContainsKey("agent") || args.ContainsKey("profile") || args.ContainsKey("policyFile")) throw new ActionRefusedException("Agent profile and policy are fixed at startup; nothing was sent");
-        if (state.Agent == "antigravity" && rawName == "computer_take_screenshot" && Bool(args, "full_screen")) return FullScreenNative(state, args);
+        if (state.Agent == "antigravity" && rawName == "computer_take_screenshot" && Bool(args, "full_screen")) { var screen = FullScreenNative(state, args); state.Repeats.Observed(0); return screen; }
         if (state.Agent == "antigravity") args = TranslateNativeAlias(rawName, args);
         var name = state.Agent == "antigravity" ? CanonicalNormalizeToolName(rawName) : rawName;
         switch (name)
@@ -463,7 +465,17 @@ static partial class McpServer
                 };
             }
 
-            case "look": return ObserveNative(state, args, modern);
+            case "look":
+            {
+                var observed = ObserveNative(state, args, modern);
+                // An explicit look (show="none" reads nothing) releases the batches already sent to that window.
+                if (observed["structuredContent"] != null)
+                {
+                    if (Str(args, "window").Trim().ToLowerInvariant() is "screen" or "écran" or "ecran") state.Repeats.Observed(0);
+                    else if (state.BoundWindow is { } looked) state.Repeats.Observed(looked.Id);
+                }
+                return observed;
+            }
             // An act without a prior look observes the named window first, for the three profiles.
             case "act": return RunClaudeCompatibleAct(state, args, modern);
 

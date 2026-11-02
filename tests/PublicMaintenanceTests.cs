@@ -17,6 +17,11 @@ public sealed class PublicMaintenanceTests
         Directory.CreateDirectory(home);
         File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), Path.Combine(home, "NexusWindows.exe"));
         File.WriteAllText(Path.Combine(home, "installation.json"), "{\"previous\":true}");
+        // An earlier engine version and a launcher set aside, used by no session: the update removes them.
+        var earlier = Path.Combine(home, "native", new string('c', 64));
+        Directory.CreateDirectory(earlier);
+        File.WriteAllText(Path.Combine(earlier, "NexusWindows.exe"), "earlier engine");
+        File.WriteAllText(Path.Combine(home, "NexusWindows.exe.old-" + Guid.NewGuid().ToString("N")), "earlier launcher");
         var clientFiles = new Dictionary<string, string>
         {
             [".claude.json"] = "{\"mcpServers\":{\"nexus-windows\":{\"command\":\"mine.exe\"}}}",
@@ -36,6 +41,9 @@ public sealed class PublicMaintenanceTests
         Directory.CreateDirectory(Path.Combine(packageRoot, "engine"));
         File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), Path.Combine(packageRoot, "NexusWindows.exe"));
         File.Copy(SelfTest.Engine, Path.Combine(packageRoot, "engine", "NexusWindows.exe"));
+        // The engine host runs its assembly (the update's --prune-installed); the published NexusWindows.dll stays a fixture.
+        foreach (var file in new[] { "NexusCodex.UIA.dll", "NexusCodex.UIA.runtimeconfig.json", "NexusCodex.UIA.deps.json" })
+            File.Copy(Path.Combine(AppContext.BaseDirectory, file), Path.Combine(packageRoot, "engine", file));
         File.WriteAllText(Path.Combine(packageRoot, "engine", "NexusWindows.dll"), "fixture dll never executed");
         File.WriteAllText(Path.Combine(packageRoot, "engine", "garde-fous.json"), "{}");
         var zip = Path.Combine(root, "package.zip");
@@ -59,6 +67,9 @@ public sealed class PublicMaintenanceTests
         var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(home, "installation.json")))!;
         Assert.Equal(2, manifest["Schema"].I());
         Assert.True(File.Exists(manifest["NativeExecutable"].S()));
+        Assert.False(Directory.Exists(earlier), await output);
+        Assert.Empty(Directory.GetFiles(home, "NexusWindows.exe.old-*"));
+        Assert.Single(Directory.GetDirectories(Path.Combine(home, "native")));
         foreach (var (relative, bytes) in before) Assert.Equal(bytes, File.ReadAllBytes(Path.Combine(profile, relative)));
         Assert.False(Directory.Exists(Path.Combine(profile, ".gemini", "config", "plugins")));
         Assert.False(Directory.Exists(Path.Combine(home, "backups")));

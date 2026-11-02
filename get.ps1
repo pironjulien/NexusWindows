@@ -9,7 +9,8 @@
 # `gh attestation verify <file> --repo pironjulien/NexusWindows --signer-repo pironjulien/NexusSystem`), installs the
 # engine as an immutable version under %USERPROFILE%\.nexus\nexus-windows\native\<sha-256>, then the stable launcher
 # %USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe that every client declares (`--mcp --agent claude|codex|antigravity`).
-# Running sessions keep their engine; new ones get the new version. Finally the clients found on this PC are declared:
+# Running sessions keep their engine; new ones get the new version. Earlier versions go once no running session or
+# declaration uses them. Finally the clients found on this PC are declared:
 # Claude Code (or its nexus-windows plugin), Claude Desktop, Codex, Antigravity. An entry of your own is kept.
 # Run it again to update.
 # -UpdateOnly updates an existing engine without creating or changing client declarations. NexusSystem uses this
@@ -101,13 +102,7 @@ function Update-Launcher([string]$Source) {
     } finally { if (Test-Path -LiteralPath $staged) { Remove-Item -LiteralPath $staged -Force } }
 }
 
-function Remove-Leftovers {
-    foreach ($old in @(Get-ChildItem -LiteralPath $Home_ -Filter 'NexusWindows.exe.old-*' -File -ErrorAction SilentlyContinue)) {
-        try { Remove-Item -LiteralPath $old.FullName -Force -ErrorAction Stop } catch { Write-Verbose "In use: $($old.Name)" }
-    }
-}
-
-function Invoke-Register([string[]]$Arguments) {
+function Invoke-Register([string[]]$Arguments, [string]$Executable = $Stable) {
     # The registration runs in the (test) profile: every client path is taken from these variables.
     $saved = @{}
     foreach ($name in 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'CODEX_HOME', 'NEXUS_WINDOWS_NO_CLI') { $saved[$name] = [Environment]::GetEnvironmentVariable($name) }
@@ -119,7 +114,7 @@ function Invoke-Register([string[]]$Arguments) {
             $env:CODEX_HOME = Join-Path $ProfileRoot '.codex'
             $env:NEXUS_WINDOWS_NO_CLI = '1'
         }
-        $output = @(& $Stable @Arguments 2>&1 | ForEach-Object { "$_" })
+        $output = @(& $Executable @Arguments 2>&1 | ForEach-Object { "$_" })
         $code = $LASTEXITCODE
     } finally { foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) } }
     foreach ($line in $output) { if ($line -notlike 'NEXUS_PACK_RESULT *') { Say "  $line" } }
@@ -190,7 +185,9 @@ function Install-NexusWindows {
         # 2. installation.json, then the stable launcher: a new session never pairs the new launcher with an old engine.
         Write-Json (Join-Path $Home_ 'installation.json') $runtime
         Update-Launcher $launcher
-        Remove-Leftovers
+        # Earlier engine versions, launchers set aside and leftovers, once nothing runs or declares them (the new
+        # engine's --prune-installed, under this installation's mutex); never a reason to fail the installation.
+        try { $null = Invoke-Register @('--prune-installed') (Join-Path $target 'NexusWindows.exe') } catch { Say "  Earlier versions not pruned: $($_.Exception.Message)" Yellow }
         Say "NexusWindows $version is in $Home_." Green
     } finally {
         Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue

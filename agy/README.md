@@ -118,8 +118,11 @@ Tool descriptions, server instructions, tool and parameter names are in English;
   cause and what to try) and, when the effect was not read back, a WebP image of the window (common Nexus image rule:
   ≤ 2000 px and 2.56 MP, lossless up to 500 KB, never over 500 KB; not attached again when the screen is unchanged;
   `look(zoom=box_2d)` enlarges an area for small text). An
-  unknown or failed result requires a fresh `look` before deciding the remaining actions; the compatible
-  `repeat` argument does not authorize replaying an uncertain input or replace a current observation.
+  unknown or failed result requires a fresh `look` before deciding the remaining actions. Anti-repeat guard (the
+  three profiles): the same batch resent to the same window, with no `look` of it in between and the window
+  unchanged since that batch, is refused and nothing is sent; a changed window (next page, new value) lets it
+  through. `repeat=true` repeats on purpose a batch that was verified (✓); it never authorizes replaying an uncertain
+  (~) or failed (✗) input, which needs a `look` first.
 - **Background first, even with `foreground=True`**: a `box_2d` or (x, y) target is mapped to the element under the
   point in the window's own UI Automation tree (covered windows included) and handled like a label target; a click on
   a text field *retains* it, so `type` without target, `ctrl+a`, `ctrl+v` and erase keys become background writes
