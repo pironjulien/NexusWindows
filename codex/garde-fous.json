@@ -24,9 +24,9 @@
     }
   },
   "agents": {
-    "_": "Catégories de blocage dur appliquées par chaque outil. NexusWindows applique aux trois agents l'union de leurs listes (01/11/2026) : bureau sécurisé, fenêtre d'identifiants Windows, gestionnaires de mots de passe et fenêtre d'autorisation de Codex, qu'aucun autre agent ne doit pouvoir accepter à sa place.",
-    "claude": ["bureau_securise", "identifiants_windows", "gestionnaires_mots_de_passe", "fenetre_autorisation_codex"],
-    "antigravity": ["bureau_securise", "identifiants_windows", "gestionnaires_mots_de_passe", "fenetre_autorisation_codex"],
+    "_": "Catégories de blocage dur appliquées par chaque outil. Les gestionnaires de mots de passe, identifiants Windows et bureau sécurisé sont bloqués partout ; la fenêtre d'autorisation de Codex n'est bloquée que pour Codex lui-même pour empêcher son auto-approbation.",
+    "claude": ["bureau_securise", "identifiants_windows", "gestionnaires_mots_de_passe"],
+    "antigravity": ["bureau_securise", "identifiants_windows", "gestionnaires_mots_de_passe"],
     "codex": ["bureau_securise", "identifiants_windows", "gestionnaires_mots_de_passe", "fenetre_autorisation_codex"]
   },
   "confirmation": {

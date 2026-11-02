@@ -39,16 +39,23 @@ public class GardeFousTests
     }
 
     [Fact]
-    public void The_three_profiles_share_the_union_of_their_hard_blocks()
+    public void Shared_hard_blocks_and_codex_own_window()
     {
         foreach (var agent in GardeFous.ValidAgents)
         {
-            foreach (var process in new[] { "consent.exe", "LogonUI.exe", "lockapp.exe", "credentialuibroker.exe", "Bitwarden.exe", "KeePassXC.exe", "Dashlane.exe", "Codex.exe", "ChatGPT.exe" })
+            foreach (var process in new[] { "consent.exe", "LogonUI.exe", "lockapp.exe", "credentialuibroker.exe", "Bitwarden.exe", "KeePassXC.exe", "Dashlane.exe" })
                 Assert.NotEqual("", GardeFous.HardBlockReason(agent, process));
             Assert.NotEqual("", GardeFous.HardBlockReason(agent, "x.exe", "Credential Dialog Xaml Host"));
             foreach (var process in new[] { "claude.exe", "antigravity.exe", "windowsterminal.exe", "openconsole.exe", "explorer.exe", "regedit.exe", "sechealthui.exe" })
                 Assert.Equal("", GardeFous.HardBlockReason(agent, process));
         }
+
+        Assert.NotEqual("", GardeFous.HardBlockReason("codex", "Codex.exe"));
+        Assert.NotEqual("", GardeFous.HardBlockReason("codex", "ChatGPT.exe"));
+        Assert.Equal("", GardeFous.HardBlockReason("claude", "Codex.exe"));
+        Assert.Equal("", GardeFous.HardBlockReason("claude", "ChatGPT.exe"));
+        Assert.Equal("", GardeFous.HardBlockReason("antigravity", "Codex.exe"));
+        Assert.Equal("", GardeFous.HardBlockReason("antigravity", "ChatGPT.exe"));
     }
 
     [Fact]
