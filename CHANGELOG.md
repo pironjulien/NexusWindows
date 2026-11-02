@@ -13,6 +13,15 @@ and npm (`nexus-windows-codex`).
 ### Fixed
 - Garde-fous : retrait du blocage dur de la fenêtre de Codex pour les trois profils (`fenetre_autorisation_codex` supprimé des listes actives). Claude, Antigravity et Codex peuvent interagir librement avec la fenêtre de Codex / ChatGPT.
 
+## [3.16.5] - 2026-11-02
+
+### Fixed
+- A direct semantic action on a stable control no longer fails because another part of the window changes (for
+  example, a chat updating beside the project sidebar). The observed runtime identity, complete ancestry, local
+  command context and application identity are revalidated before input. Replaced or ambiguous controls, changed
+  local values, selection and modals still refuse. Pixel/OCR actions, keyboard commands, batches and routines keep
+  their whole-window structure check.
+
 ## [3.16.4] - 2026-11-02
 
 ### Fixed

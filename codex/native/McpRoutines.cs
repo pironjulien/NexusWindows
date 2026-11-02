@@ -75,11 +75,15 @@ static partial class McpServer
         }
         return start;
     }
-    static void CheckStructureSinceLook(SessionState state)
+    static void CheckStructureSinceLook(SessionState state, JsonObject args)
     {
         if (state.CurrentObservation == null) throw new ActionRefusedException("Look at the named window before acting");
-        if (StructureNative(ObjectOf(state.CurrentObservation.Value)) != StructureNative(InspectNative(state)))
-            throw new ActionRefusedException("Interface structure changed since look; observe again before input");
+        args = RoutineCompatibilityArgs(args);
+        var observed = ObjectOf(state.CurrentObservation.Value);
+        var steps = new JsonArray();
+        if (args["routine"] == null && args["steps"] is JsonArray raw)
+            foreach (var step in raw) steps.Add(NormalizeStep(state, observed, step!.AsObject(), allowFutureTarget: true));
+        ValidateNativeObservation(observed, InspectNative(state), args, steps);
     }
     static JsonObject ActNative(SessionState state, JsonObject args, bool modern, bool structureCheckedBeforeLease = false)
     {
@@ -122,9 +126,7 @@ static partial class McpServer
         if (obsArg.Length > 0 && obsArg != state.CurrentObservationId) throw new ActionRefusedException("Observation already consumed or replaced; look again");
         var observed = ObjectOf(state.CurrentObservation.Value);
         var start = InspectNative(state);
-        if (!structureCheckedBeforeLease && StructureNative(observed) != StructureNative(start)) throw new ActionRefusedException("Interface structure changed since look; observe again before input");
-        if (Str(observed, "processStartedUtc").Length == 0 || Str(observed, "processStartedUtc") != Str(start, "processStartedUtc") || Str(observed, "revision") != Str(start, "revision"))
-            throw new ActionRefusedException("Application identity changed since look; nothing sent");
+        CheckNativeApplication(observed, start);
         JsonArray steps, results, anchors; JsonArray? definition = null; string? remember = null, routine = null;
         var next = 0; var transitions = 0; JsonObject? entryForRun = null;
         if (operation == "continue")
@@ -173,6 +175,9 @@ static partial class McpServer
                 else if (args["params"] != null) throw new InvalidOperationException("params applies only to routine learning or replay");
             }
         }
+        var localTargetContext = !structureCheckedBeforeLease
+            ? ValidateNativeObservation(observed, start, args, steps)
+            : ValidateNativeTargetContext(observed, start, args, steps);
         ValidateRoutineAuthorizations(args, steps.Count, next);
         state.CurrentObservation = null; state.CurrentObservationId = null;
         var paste = GardeFous.CheckBlindPaste(steps.OfType<JsonObject>().SelectMany(s => (Str(s, "kind") == "key" ? Str(s, "key").Split(' ', StringSplitOptions.RemoveEmptyEntries) : new[] { Str(s, "key") }).Select(key => (Str(s, "kind"), key, Bool(s, "confirm")))));
@@ -224,6 +229,13 @@ static partial class McpServer
                 if (Str(before, "processStartedUtc") != Str(start, "processStartedUtc") || Str(before, "revision") != Str(start, "revision")) throw new ActionRefusedException("Application identity changed during batch");
                 before = PrepareNativeTarget(state, step, before, () => preparationInputAttempted = true);
                 if (Str(before, "processStartedUtc") != Str(start, "processStartedUtc") || Str(before, "revision") != Str(start, "revision")) throw new ActionRefusedException("Application identity changed while preparing the target; no primary action sent");
+                if (localTargetContext)
+                {
+                    // Recheck the local action context after activation/materialization and immediately before the
+                    // primary gesture. A live sibling may change; a local selection, field or modal may not.
+                    before = InspectNative(state);
+                    ValidateNativeTargetContext(observed, before, args, steps);
+                }
                 var anchor = AnchorNative(before, step);
                 if (entryForRun != null && !Bool(entryForRun["migration"], "requiresAnchors") && (entryForRun["anchors"] as JsonArray)?[i]?.GetValue<string>() != anchor) throw new ActionRefusedException("Routine target/context changed; look and inspect before an explicit new run");
                 if (anchors.Count <= i) anchors.Add(anchor);
