@@ -347,6 +347,7 @@ test('live background validation on self-created covered windows', { skip: !exec
       assert.equal((await labNative.inspect({ id: winformsBench.console, app })).ok, true);
       // Vrai fichier de politique lu par le helper : powershell.exe ajouté à l'application de Codex lui-même → refus.
       const policy = JSON.parse(readFileSync(EMBEDDED_POLICY, 'utf8'));
+      if (!policy.agents.codex.includes('fenetre_autorisation_codex')) policy.agents.codex.push('fenetre_autorisation_codex');
       policy.blocage_dur.fenetre_autorisation_codex.processus.push('powershell.exe');
       const blockedFile = path.join(work, 'garde-fous-bloque.json');
       await writeFile(blockedFile, JSON.stringify(policy));

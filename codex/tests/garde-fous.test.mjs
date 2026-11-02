@@ -21,14 +21,14 @@ test('the embedded copy is identical to the shared NexusWindows policy', { skip:
   assert.equal(readFileSync(gardeFous.EMBEDDED_POLICY, 'utf8'), readFileSync(gardeFous.SHARED_POLICY, 'utf8'));
 });
 
-test('the policy has a codex entry: own app, sign-in screens and password managers blocked; consoles free', () => {
+test('the policy has a codex entry: sign-in screens and password managers blocked; own app and consoles free', () => {
   const data = JSON.parse(readFileSync(gardeFous.EMBEDDED_POLICY, 'utf8'));
   const blocks = data.agents.codex.map(c => data.blocage_dur[c]);
   const processes = blocks.flatMap(b => b.processus ?? []);
-  for (const p of ['codex.exe', 'chatgpt.exe', 'consent.exe', 'lockapp.exe', 'logonui.exe', 'credentialuibroker.exe']) assert.ok(processes.includes(p), p);
+  for (const p of ['consent.exe', 'lockapp.exe', 'logonui.exe', 'credentialuibroker.exe']) assert.ok(processes.includes(p), p);
   const prefixes = blocks.flatMap(b => b.prefixes_processus ?? []);
   for (const p of ['keepass', 'bitwarden', '1password', 'dashlane', 'nordpass', 'roboform', 'lastpass']) assert.ok(prefixes.includes(p), p);
-  for (const p of ['windowsterminal.exe', 'openconsole.exe', 'conhost.exe', 'sechealthui.exe', 'powershell_ise.exe']) assert.equal(processes.includes(p), false, p);
+  for (const p of ['codex.exe', 'chatgpt.exe', 'windowsterminal.exe', 'openconsole.exe', 'conhost.exe', 'sechealthui.exe', 'powershell_ise.exe']) assert.equal(processes.includes(p), false, p);
   assert.ok(gardeFous.load(gardeFous.EMBEDDED_POLICY).confirm);
 });
 

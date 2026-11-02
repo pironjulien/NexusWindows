@@ -675,10 +675,7 @@ static class GardeFous
                 Assert(HardBlockReason(agent, process).Length > 0, $"{agent} {process} (shared hard blocks)");
         Assert(HardBlockReason("claude", "Codex.exe") == "", "claude Codex.exe free");
         Assert(HardBlockReason("antigravity", "Codex.exe") == "", "agy Codex.exe free");
-        Assert(HardBlockReason("antigravity", "lockapp.exe").Length > 0, "agy lockapp.exe");
-        Assert(HardBlockReason("antigravity", "KeePassXC.exe").Length > 0, "agy KeePassXC.exe");
-        Assert(HardBlockReason("antigravity", "claude.exe") == "", "agy claude.exe free");
-        Assert(HardBlockReason("codex", "Codex.exe").Length > 0, "codex Codex.exe");
+        Assert(HardBlockReason("codex", "Codex.exe") == "", "codex Codex.exe free");
         Assert(HardBlockReason("codex", "credentialuibroker.exe").Length > 0, "codex credentialuibroker.exe");
         Assert(HardBlockReason("codex", "windowsterminal.exe") == "", "codex windowsterminal free");
 

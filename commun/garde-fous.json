@@ -24,10 +24,10 @@
     }
   },
   "agents": {
-    "_": "Catégories de blocage dur appliquées par chaque outil. Les gestionnaires de mots de passe, identifiants Windows et bureau sécurisé sont bloqués partout ; la fenêtre d'autorisation de Codex n'est bloquée que pour Codex lui-même pour empêcher son auto-approbation.",
+    "_": "Catégories de blocage dur appliquées par chaque outil. Les gestionnaires de mots de passe, identifiants Windows et bureau sécurisé sont bloqués partout pour les trois profils.",
     "claude": ["bureau_securise", "identifiants_windows", "gestionnaires_mots_de_passe"],
     "antigravity": ["bureau_securise", "identifiants_windows", "gestionnaires_mots_de_passe"],
-    "codex": ["bureau_securise", "identifiants_windows", "gestionnaires_mots_de_passe", "fenetre_autorisation_codex"]
+    "codex": ["bureau_securise", "identifiants_windows", "gestionnaires_mots_de_passe"]
   },
   "confirmation": {
     "_": "Confirmation étanche : un geste dont la cible porte l'un de ces mots exige confirm=true, posé seulement sur l'ordre explicite de l'utilisateur ou après son oui. Ni Entrée, ni Espace, ni Ctrl+Entrée, ni Alt+lettre, ni un clic en coordonnées ne la contournent. Mise en production, push et déploiement : volontairement absents de cette liste. Appeler : un appel téléphonique ou vocal sortant est une communication chez un tiers. Verbes d'action seulement : « Boîte d'envoi », « Éléments envoyés » ne comptent pas (rôles non actifs).",

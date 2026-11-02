@@ -11,7 +11,7 @@ and npm (`nexus-windows-codex`).
 ## [Unreleased]
 
 ### Fixed
-- Garde-fous : retrait du blocage dur de la fenêtre de Codex pour Claude et Antigravity (`fenetre_autorisation_codex` réservé à Codex seul pour empêcher son auto-approbation). Claude et Antigravity peuvent à nouveau interagir avec la fenêtre de Codex.
+- Garde-fous : retrait du blocage dur de la fenêtre de Codex pour les trois profils (`fenetre_autorisation_codex` supprimé des listes actives). Claude, Antigravity et Codex peuvent interagir librement avec la fenêtre de Codex / ChatGPT.
 
 ## [3.16.4] - 2026-11-02
 
