@@ -75,7 +75,13 @@ static partial class McpServer
         }
         return start;
     }
-    static JsonObject ActNative(SessionState state, JsonObject args, bool modern)
+    static void CheckStructureSinceLook(SessionState state)
+    {
+        if (state.CurrentObservation == null) throw new ActionRefusedException("Look at the named window before acting");
+        if (StructureNative(ObjectOf(state.CurrentObservation.Value)) != StructureNative(InspectNative(state)))
+            throw new ActionRefusedException("Interface structure changed since look; observe again before input");
+    }
+    static JsonObject ActNative(SessionState state, JsonObject args, bool modern, bool structureCheckedBeforeLease = false)
     {
         args = RoutineCompatibilityArgs(args);
         var operation = Str(args, "operation", "run");
@@ -116,7 +122,7 @@ static partial class McpServer
         if (obsArg.Length > 0 && obsArg != state.CurrentObservationId) throw new ActionRefusedException("Observation already consumed or replaced; look again");
         var observed = ObjectOf(state.CurrentObservation.Value);
         var start = InspectNative(state);
-        if (StructureNative(observed) != StructureNative(start)) throw new ActionRefusedException("Interface structure changed since look; observe again before input");
+        if (!structureCheckedBeforeLease && StructureNative(observed) != StructureNative(start)) throw new ActionRefusedException("Interface structure changed since look; observe again before input");
         if (Str(observed, "processStartedUtc").Length == 0 || Str(observed, "processStartedUtc") != Str(start, "processStartedUtc") || Str(observed, "revision") != Str(start, "revision"))
             throw new ActionRefusedException("Application identity changed since look; nothing sent");
         JsonArray steps, results, anchors; JsonArray? definition = null; string? remember = null, routine = null;

@@ -10,6 +10,14 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.4] - 2026-11-02
+
+### Fixed
+- `act(foreground=true)` on a Chromium window looked at in the background (Chrome behind other windows or minimized)
+  is no longer refused every time with "Interface structure changed since look": the structure is compared with the
+  look before the window is brought forward, since Chromium then publishes its page content (a larger tree, not a
+  changed interface); the batch starts from a fresh inspection.
+
 ## [3.16.3] - 2026-11-02
 
 ### Fixed

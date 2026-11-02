@@ -44,8 +44,11 @@ static partial class McpServer
             state.CurrentObservation = null; state.CurrentObservationId = null; state.Pending = null;
             throw new ActionRefusedException("The named window differs from the last look; observe it before acting");
         }
+        // The look was taken in the background: compare it before the lease, since bringing a Chromium window forward
+        // publishes its page content (a new tree, not a changed interface). The lease then starts from a fresh inspection.
+        if (operation == "run") CheckStructureSinceLook(state);
         using var scope = NativeInteraction.BeginLegacy(state);
-        var result = FinishLegacyAct(state, args, ActNative(state, args, modern));
+        var result = FinishLegacyAct(state, args, ActNative(state, args, modern, structureCheckedBeforeLease: operation == "run"));
         result["structuredContent"]!["foregroundReturned"] = scope.ReturnForeground();
         return result;
     }
