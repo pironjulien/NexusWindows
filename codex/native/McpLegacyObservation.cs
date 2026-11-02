@@ -446,6 +446,9 @@ static partial class McpServer
                 PublishNativeIndices(state, snapshot, memory);
                 state.CurrentObservation = JsonSerializer.SerializeToElement(snapshot); state.CurrentObservationId = state.NextObservationId(); state.ObservedAt = DateTimeOffset.UtcNow;
             }
+            // A run of steps or of a routine: the same batch resent blind is refused (McpRepeatGuard.cs).
+            if (args["steps"] is JsonArray { Count: > 0 } || controls["routine"] is JsonValue)
+                return GuardedAct(state, args, named.Id, () => RunShellAct(state, args, modern));
         }
         return RunShellAct(state, args, modern);
     }

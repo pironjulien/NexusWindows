@@ -78,6 +78,8 @@ static partial class Program
         if (args.Length == 1 && args[0] == "--migrate-routines") return McpServer.MigrateRoutines();
         // Declaration to the MCP clients (Registration.cs): installers and get.ps1, never a session.
         if (args.Length >= 2 && args[0] == "--register") return Registration.Command(args);
+        // Earlier engine versions and leftovers (InstalledVersions.cs): installers, after recording the new version.
+        if (args.Length == 1 && args[0] == "--prune-installed") return InstalledVersions.Command();
         if (args.Length == 2 && args[0] == "--refresh-installed" && args[1] == "antigravity")
             return Registration.RefreshInstalledCommand();
         if (args.Length >= 1 && args[0] == "--mcp")

@@ -10,6 +10,23 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.3] - 2026-11-02
+
+### Fixed
+- The anti-repeat guard of `act` is back, for the three profiles. The Antigravity engine had it since 16/10 (Gemini
+  had resent the same batch six times); it went with the Python engines in 3.9.0, and since 3.13.0 an `act` without a
+  prior look observes first, so a blind resend went through. A batch strictly identical to one already sent to the
+  same window is refused, nothing sent, when that window had no `look` in between and has not changed since that
+  batch (its elements, values, states and their place in the window; its pixels when its tree is too poor). A changed
+  window (next page, new value) lets the same batch through. `repeat=true` repeats on purpose a batch that was
+  verified (✓), never one that ended with an effect not seen (~) or a failure (✗). The refusal says what to do: look,
+  then send only the steps still needed, or adapt the batch.
+- Installing or updating removes the earlier engine versions (`native\<sha-256>`), the launchers set aside
+  (`NexusWindows.exe.old-*`), interrupted installation folders, and the disposable browser profiles of
+  `launch(devtools=true)` whose browser has closed. The installed version, every version a running session executes
+  and every version a client or daemon declaration still names stay; a folder still in use is never half removed.
+  On this PC 31 versions (433 MB) had piled up since 30/10.
+
 ## [3.16.2] - 2026-11-02
 
 ### Fixed

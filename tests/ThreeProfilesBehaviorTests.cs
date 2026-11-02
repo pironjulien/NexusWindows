@@ -149,4 +149,48 @@ public class ThreeProfilesBehaviorTests
         Assert.EndsWith("stable=True", claude["lookDefault"]!.GetValue<string>());
         Assert.True(claude["actDefault"]!.GetValue<bool>(), report);
     }
+
+    // The anti-repeat guard (02/11), the same for the three profiles: the click whose effect is only in the pixels leaves
+    // the tree unchanged, so the same batch resent without a look is refused and nothing reaches the window; a look
+    // releases it; typing changes the window, so the same typing goes through; repeat:true never replays an uncertain click.
+    [Fact]
+    public void The_same_batch_resent_blind_is_refused_the_same_way_for_the_three_profiles()
+    {
+        Assert.SkipWhen(Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true", "Live WPF window: run on a desktop (test.ps1).");
+        using var lab = new WpfLab();
+        var outcomes = new Dictionary<string, JsonObject>();
+        int Clicks() { lock (lab.Events) return lab.Events.Count(e => e.Contains("\"clic ", StringComparison.Ordinal)); }
+        int Settled() { Thread.Sleep(800); return Clicks(); }
+        foreach (var agent in new[] { "claude", "codex", "antigravity" })
+        {
+            using var server = new McpStdioTests.Server(["--mcp", "--agent", agent]);
+            server.Rpc("initialize", new { protocolVersion = "2025-06-18", capabilities = new { }, clientInfo = new { name = "behavior-test", version = "1" } });
+            // Its postcondition is never met: the click is sent, its outcome is not verified.
+            var click = new { window = lab.Window, steps = new[] { new { @do = "click", target = "Valider", expect = new { selector = new { name = "Statut" }, field = "value", equals = "jamais" } } }, then = "none", fallback = false };
+            string Send(object arguments) => Outcome(server.Rpc("tools/call", new { name = "act", arguments }));
+            var row = new JsonObject();
+            server.Rpc("tools/call", new { name = "look", arguments = new { window = lab.Window } });
+            row["first"] = Send(click).Split(' ')[0]; var afterFirst = Settled();
+            row["resent"] = Send(click);
+            row["resentWithRepeat"] = Send(new { click.window, click.steps, click.then, click.fallback, repeat = true });
+            row["blindClicks"] = Settled() - afterFirst;
+            server.Rpc("tools/call", new { name = "look", arguments = new { window = lab.Window } });
+            row["afterLook"] = Send(click).Split(' ')[0];
+            var type = new { window = lab.Window, steps = new[] { new { @do = "type", target = "Nom", text = agent[..1] } }, then = "none" };
+            row["typed"] = Send(type).Split(' ')[0];
+            row["typedAgain"] = Send(type).Split(' ')[0];
+            outcomes[agent] = row;
+        }
+        var report = string.Join("\n", outcomes.Select(o => o.Key + " " + o.Value.ToJsonString()));
+        Assert.True(outcomes.Values.All(r => JsonNode.DeepEquals(r, outcomes["claude"])), report);
+        var claude = outcomes["claude"]!;
+        Assert.True(claude["first"]!.GetValue<string>() is not ("error:" or "verified"), report);
+        Assert.Contains(McpServer.RepeatRefusal, claude["resent"]!.GetValue<string>());
+        Assert.Contains(McpServer.RepeatUncertainRefusal, claude["resentWithRepeat"]!.GetValue<string>());
+        Assert.Equal(0, claude["blindClicks"]!.GetValue<int>());
+        Assert.Equal(claude["first"]!.GetValue<string>(), claude["afterLook"]!.GetValue<string>());
+        Assert.Equal("verified", claude["typed"]!.GetValue<string>());
+        Assert.Equal("verified", claude["typedAgain"]!.GetValue<string>());
+        Assert.Equal(6, Settled()); // two per profile: the first and the one after the look
+    }
 }

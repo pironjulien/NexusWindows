@@ -101,7 +101,7 @@ function Install-NexusWindowsNativeRuntime([switch]$CheckOnly) {
             Copy-Item -LiteralPath (Join-Path $nexusWindowsSource 'commun\garde-fous.json') -Destination $output
             $artifacts = [ordered]@{}
             foreach ($file in Get-ChildItem -LiteralPath $output -File) { $artifacts[$file.Name] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash }
-            $runtime = [pscustomobject]@{ Schema=2; SourceRoot=$nexusWindowsSource; NativeHash=$hash; NativeExecutable=(Join-Path $target 'NexusWindows.exe'); Version='3.16.2'; NativeArtifacts=[pscustomobject]$artifacts }
+            $runtime = [pscustomobject]@{ Schema=2; SourceRoot=$nexusWindowsSource; NativeHash=$hash; NativeExecutable=(Join-Path $target 'NexusWindows.exe'); Version='3.16.3'; NativeArtifacts=[pscustomobject]$artifacts }
             Write-NexusWindowsJson (Join-Path $output 'runtime.json') $runtime
             New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
             # Both resolved paths are within the explicitly named common runtime directory.
@@ -113,6 +113,11 @@ function Install-NexusWindowsNativeRuntime([switch]$CheckOnly) {
         else { $installed = Get-NexusWindowsNativeRuntime; if ($installed.NativeHash -cne $hash) { throw 'Manifest commun non aligné.' } }
         # installation.json first, then the launcher: a new session never starts the new launcher on the old engine.
         $runtime | Add-Member -NotePropertyName StableExecutable -NotePropertyValue (Install-NexusWindowsLauncher -CheckOnly:$CheckOnly) -Force
+        # Earlier versions and leftovers, once nothing runs or declares them (the engine's --prune-installed, under this
+        # mutex); only for the real runtime home, whose profile the engine reads.
+        if (-not $CheckOnly -and [IO.Path]::GetFullPath($nexusWindowsRuntimeHome) -ieq [IO.Path]::GetFullPath((Join-Path $env:USERPROFILE '.nexus\nexus-windows'))) {
+            try { & $runtime.NativeExecutable --prune-installed | Out-Host } catch { Write-Warning "Versions antérieures non élaguées : $($_.Exception.Message)" }
+        }
         $runtime
     } finally { if ($held) { $mutex.ReleaseMutex() }; $mutex.Dispose() }
 }
