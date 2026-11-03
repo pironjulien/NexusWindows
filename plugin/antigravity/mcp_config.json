@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "nexus-windows": {
-      "command": "%USERPROFILE%\\.nexus\\nexus-windows\\NexusWindows.exe",
-      "args": ["--mcp", "--agent", "antigravity"]
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "${PLUGIN_ROOT}\\scripts\\start.cmd", "--mcp", "--agent", "antigravity"]
     }
   }
 }

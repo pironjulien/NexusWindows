@@ -10,7 +10,14 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.6] - 2026-11-03
+
 ### Added
+- Antigravity Marketplace bundle: `plugin/antigravity` passes `agy plugin validate --strict` as a self-contained
+  plugin. Its `mcp_config.json` starts `scripts/start.cmd` from `${PLUGIN_ROOT}`, which runs the installed engine
+  (`%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe`) or says on stderr how to install it. A `README.md` gives the
+  Marketplace detail page, and the skill tells the agent how to install a missing engine from the latest release
+  (`get.ps1` checked against `SHA256SUMS.txt`). NexusSystem installs keep writing their own declaration.
 - Benchmark results: NexusWindows 3.16.5 and Cua Driver 0.38.0 on the same Windows background tasks, with method,
   per-task table and raw data (`docs/benchmarks/2026-11-03-cua-driver`).
 

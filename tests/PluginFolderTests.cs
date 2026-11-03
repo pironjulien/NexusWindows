@@ -42,4 +42,16 @@ public sealed class PluginFolderTests
         Assert.True(File.Exists(Plugin("antigravity", "skills", "nexus-windows", "SKILL.md")));
         Assert.True(File.Exists(Plugin("antigravity", (string)Json("antigravity", "plugin.json")["logo"]!)));
     }
+
+    [Fact]
+    public void The_antigravity_bundle_starts_the_installed_engine_through_its_own_launcher()
+    {
+        // A Marketplace copy gets no declaration from NexusSystem: ${PLUGIN_ROOT} is the only path Antigravity expands.
+        var args = Json("antigravity", "mcp_config.json")["mcpServers"]!["nexus-windows"]!["args"]!.AsArray().Select(a => (string?)a).ToArray();
+        Assert.Equal(@"${PLUGIN_ROOT}\scripts\start.cmd", args[2]);
+        var launcher = File.ReadAllText(Plugin("antigravity", "scripts", "start.cmd"));
+        Assert.Contains(@"%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe", launcher);
+        Assert.True(File.Exists(Plugin("antigravity", "README.md")));
+        Assert.InRange(((string)Json("antigravity", "plugin.json")["description"]!).Length, 120, 160);
+    }
 }

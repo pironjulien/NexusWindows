@@ -15,6 +15,21 @@ remain compatible; do not mix their `check.value` fields into modern `expect`. K
 For custom stdio only, explicitly encode stdin, stdout and stderr as UTF-8 without a BOM; CP850 stdin corrupts
 accented labels and non-breaking spaces. Prefer the connected tools over creating another client.
 
+## No nexus-windows tools (engine not installed)
+
+The plugin starts the engine installed at `%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe` (Windows 10/11).
+When the user asks for NexusWindows and its tools are missing, install it from the latest release as a file, never
+piped into PowerShell, then ask the user to open a new conversation:
+
+```powershell
+$dir = Join-Path $env:TEMP 'nexus-windows-get'; New-Item -ItemType Directory -Force $dir | Out-Null; Set-Location $dir
+$r = 'https://github.com/pironjulien/NexusWindows/releases/latest/download'
+Invoke-WebRequest "$r/get.ps1" -OutFile get.ps1; Invoke-WebRequest "$r/SHA256SUMS.txt" -OutFile SHA256SUMS.txt
+$expected = (Select-String -Path SHA256SUMS.txt -Pattern '^([0-9a-f]{64})\s+get\.ps1$').Matches[0].Groups[1].Value
+if ((Get-FileHash get.ps1 -Algorithm SHA256).Hash -ne $expected) { throw 'get.ps1 does not match SHA256SUMS.txt' }
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\get.ps1
+```
+
 ## Situation → tool
 
 | Situation | Tool |
