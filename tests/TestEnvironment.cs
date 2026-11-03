@@ -16,6 +16,10 @@ static class TestEnvironment
         Environment.SetEnvironmentVariable("NEXUS_GARDE_FOUS", Policy);
         Directory.CreateDirectory(SharedHome);
         Environment.SetEnvironmentVariable("NEXUS_SHARED_HOME", SharedHome);
+        // The common engine's profile state and journal have their own roots: NEXUS_SHARED_HOME only
+        // isolates locks/receipts. Child MCP servers inherit these roots instead of polluting the user's history.
+        Environment.SetEnvironmentVariable("NEXUS_WINDOWS_HOME", Path.Combine(SharedHome, "native-state"));
+        Environment.SetEnvironmentVariable("NEXUS_JOURNAL_HOME", Path.Combine(SharedHome, "journal"));
         AppDomain.CurrentDomain.ProcessExit += (_, _) => { try { Directory.Delete(SharedHome, true); } catch (IOException) { } catch (UnauthorizedAccessException) { } };
     }
 

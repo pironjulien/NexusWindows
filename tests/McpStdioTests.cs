@@ -60,6 +60,23 @@ public class McpStdioTests
     [InlineData("codex")]
     [InlineData("claude")]
     [InlineData("antigravity")]
+    public void Default_test_servers_write_diagnostics_under_the_test_home(string agent)
+    {
+        var nativeHome = Environment.GetEnvironmentVariable("NEXUS_WINDOWS_HOME");
+        var journalHome = Environment.GetEnvironmentVariable("NEXUS_JOURNAL_HOME");
+        Assert.Equal(Path.Combine(TestEnvironment.SharedHome, "native-state"), nativeHome);
+        Assert.Equal(Path.Combine(TestEnvironment.SharedHome, "journal"), journalHome);
+        using var server = new Server(["--mcp", "--agent", agent]);
+        var windows = server.Rpc("tools/call", new { name = "windows", arguments = new { } });
+        Assert.False(windows["result"]?["isError"]?.GetValue<bool>() ?? false);
+        var files = Directory.GetFiles(Path.Combine(nativeHome!, "logs"), "*.jsonl");
+        Assert.Contains(files, file => File.ReadLines(file).Any(line => JsonNode.Parse(line)?["tool"]?.GetValue<string>() == "windows"));
+    }
+
+    [Theory]
+    [InlineData("codex")]
+    [InlineData("claude")]
+    [InlineData("antigravity")]
     public void Native_mcp_stdio_server_serves_each_facade_2026_07_28_and_legacy(string agent)
     {
         using var server = new Server(["--mcp", "--agent", agent]);

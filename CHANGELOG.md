@@ -10,6 +10,11 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+### Fixed
+- The .NET test harness isolates native profile state and the shared journal in its temporary test home. Child MCP
+  servers previously inherited only the locks/receipt override, so diagnostic and deliberate-refusal tests appended
+  synthetic failures to the real user's logs. Existing history is left intact.
+
 ## [3.16.8] - 2026-11-03
 
 ### Fixed
