@@ -10,7 +10,12 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.9] - 2026-11-03
+
 ### Fixed
+- Diagnostic logs also keep the engine's own fixed reasons for unverified, refused and stale gestures (no postcondition
+  supplied, postcondition not observed, changed control or window identity, off-screen or disabled target, read-only
+  field, password control...), so a failure says why. Only the fixed prefix is kept, never the text after it.
 - The .NET test harness isolates native profile state and the shared journal in its temporary test home. Child MCP
   servers previously inherited only the locks/receipt override, so diagnostic and deliberate-refusal tests appended
   synthetic failures to the real user's logs. Existing history is left intact.

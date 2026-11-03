@@ -16,7 +16,12 @@ static partial class McpServer
         // Errors can echo a caller's key, target or typed text without quotes or punctuation.
         // Keep only known fixed diagnostic categories, never an arbitrary free-text suffix.
         foreach (var category in new[] { "Target not found", "Target missing", "Application identity changed", "Window identity changed", "Emergency stop", "Unknown modifier", "Unknown key", "Incomplete key combination", "User resumed", "Interaction budget expired",
-            "Observation expired", "Observation already consumed or replaced", "Look at a named window first", "Look at the named window before acting", "Interface structure changed", "Semantic target count", "Ambiguous postcondition target", "Vague postcondition is already true", "An explicit postcondition is required", "Unknown postcondition field", "Unsupported postcondition field", "Empty postcondition", "Needs the foreground", "Window is disabled", "Window busy" })
+            "Observation expired", "Observation already consumed or replaced", "Look at a named window first", "Look at the named window before acting", "Interface structure changed", "Semantic target count", "Ambiguous postcondition target", "Vague postcondition is already true", "An explicit postcondition is required", "Unknown postcondition field", "Unsupported postcondition field", "Empty postcondition", "Needs the foreground", "Window is disabled", "Window busy",
+            "Input sent; no exact postcondition was supplied", "Postcondition not observed", "Current key delivery is uncertain", "Window command may have been sent", "Window application identity changed",
+            "Target or its window is disabled", "Control identity changed", "Control ancestry changed", "Target is no longer present", "Target is no longer inside the window", "Target is off-screen",
+            "Target still out of view", "Target exposes no checked state", "The named window differs from the last look", "Window moved or resized since the native capture",
+            "A previous simulated press in this application is not finished", "Password controls require the dedicated supported workflow", "Password controls are refused", "Text input requires an editable field",
+            "The field is read-only", "The field became disabled", "The command is not in the required open menu", "The Explorer view changed", "Routine target/context changed" })
             if (message.StartsWith(category, StringComparison.OrdinalIgnoreCase)) return category;
         foreach (var kind in new[] { "ActionRefusedException", "AfterInputException", "BackgroundNotApplicableException", "EmergencyStopException", "InvalidOperationException", "ArgumentException", "IOException", "JsonException", "TimeoutException", "Win32Exception" })
             if (message == kind || message.StartsWith(kind + ":", StringComparison.Ordinal)) return kind;
@@ -202,7 +207,7 @@ static partial class McpServer
             Assert(!final.ToJsonString().Contains("typed-secret"), "unquoted exception content excluded by the real writer");
             Assert(DebugFields(new JsonObject { ["technique"] = "UIA Invoke", ["method"] = "messages without activation" }, DebugStepFields).ToJsonString() == """{"method":"messages without activation","technique":"UIA Invoke"}""", "historical technique names with spaces are kept");
             Assert(DebugDiagnostic("Unknown modifier typed-secret") == "Unknown modifier" && !DebugFields(new JsonObject { ["message"] = "unquoted-step-secret", ["attempts"] = new JsonArray("unquoted-attempt-secret") }, DebugStepFields).ToJsonString().Contains("secret"), "step and attempt diagnostic content excluded");
-            foreach (var category in new[] { "Observation expired", "Observation already consumed or replaced", "Interface structure changed", "Needs the foreground", "Unknown postcondition field" })
+            foreach (var category in new[] { "Observation expired", "Observation already consumed or replaced", "Interface structure changed", "Needs the foreground", "Unknown postcondition field", "Postcondition not observed", "Control identity changed", "Window application identity changed" })
             {
                 Assert(DebugDiagnostic(category + ": typed-secret") == category, "safe actionable category retained");
                 Assert(DebugException(new ActionRefusedException(category + ": typed-secret")) == category, "exception writer preserves only the safe category");
