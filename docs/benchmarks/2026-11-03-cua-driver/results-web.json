@@ -1,0 +1,3846 @@
+{
+  "meta": {
+    "date": "2026-11-03T13:12:10",
+    "mode": "fond",
+    "tours": 2,
+    "outils": {
+      "claude": {
+        "outil": "NexusWindows claude (moteur natif commun)",
+        "moteur": "~\\.nexus\\nexus-windows\\NexusWindows.exe",
+        "version": "3.16.5"
+      },
+      "cua": {
+        "outil": "Cua Driver (tutoriel Gemini)",
+        "moteur": "~\\.cua-driver\\bin\\cua-driver.exe",
+        "version": "0.38.0"
+      }
+    },
+    "moteur": "~\\.nexus\\nexus-windows\\NexusWindows.exe"
+  },
+  "familles": [
+    {
+      "famille": "electron",
+      "essais": [
+        {
+          "outil": "cua",
+          "tâche": "bouton",
+          "valeur": "",
+          "préfixe": "clic ",
+          "famille": "electron",
+          "évènements": [
+            "clic 1"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [
+            "premier plan Chrome_WidgetWin_1 (pid 3800) 0 ms"
+          ],
+          "souris physique": false,
+          "ms": 282,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click on Chromium element [17] at screen (4413,970) (background, no foreground swap).",
+          "vu": [
+            "clic 1"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "bouton",
+          "valeur": "",
+          "préfixe": "clic ",
+          "famille": "electron",
+          "évènements": [
+            "clic 2"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1915,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "clic 2"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "case",
+          "valeur": "on",
+          "préfixe": "coche ",
+          "famille": "electron",
+          "évènements": [
+            "coche on"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1132,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "coche on"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "case",
+          "valeur": "off",
+          "préfixe": "coche ",
+          "famille": "electron",
+          "évènements": [
+            "coche off"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 777,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click on Chromium element [18] at screen (4465,967) (background, no foreground swap).",
+          "vu": [
+            "coche off"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "champ",
+          "valeur": "Banc cua 5 é",
+          "préfixe": "nom ",
+          "famille": "electron",
+          "évènements": [
+            "nom Banc cua 5 é"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 813,
+          "technique": "set_value",
+          "réponse": "set_value: ✅ Set AXValue on [6] (UIA ValuePattern).",
+          "vu": [
+            "nom Banc cua 5 é"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "champ",
+          "valeur": "Banc claude 6 é",
+          "préfixe": "nom ",
+          "famille": "electron",
+          "évènements": [
+            "nom Banc claude 6 é"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1168,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"setValue\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "nom Banc claude 6 é"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "éditeur riche",
+          "valeur": "Mot7claude",
+          "préfixe": "editeur ",
+          "famille": "electron",
+          "évènements": [
+            "editeur Mot7claude"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 2152,
+          "technique": "background:simulated-activation",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:simulated-activation\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"typeText\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "editeur Mot7claude"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "éditeur riche",
+          "valeur": "Mot8cua",
+          "préfixe": "editeur ",
+          "famille": "electron",
+          "évènements": [],
+          "avant": "Mot7claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 739,
+          "technique": "type_text",
+          "réponse": "type_text: Background delivery is not available for target window class 'Chrome_WidgetWin_1' on this event kind (text_input). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "liste déroulante",
+          "valeur": "Bleu",
+          "préfixe": "couleur ",
+          "famille": "electron",
+          "évènements": [],
+          "avant": "Mot7claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": true,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 749,
+          "technique": "set_value",
+          "réponse": "set_value: Set the UIA value of combo box [23] to 'Bleu'. This combo box is not a native Win32 one, and a UIA value write may change the shown text without the app treating it as a selection. Check with get_window_state; if the app did not react, click the combo box and then the option.",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "liste déroulante",
+          "valeur": "Vert",
+          "préfixe": "couleur ",
+          "famille": "electron",
+          "évènements": [
+            "couleur Vert"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1060,
+          "technique": "background:simulated-activation",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:simulated-activation\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"select\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "couleur Vert"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "élément de liste",
+          "valeur": "Charlie",
+          "préfixe": "liste ",
+          "famille": "electron",
+          "évènements": [
+            "liste Charlie"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 974,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "liste Charlie"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "élément de liste",
+          "valeur": "Alpha",
+          "préfixe": "liste ",
+          "famille": "electron",
+          "évènements": [
+            "liste Alpha"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 731,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click on Chromium element [26] at screen (4608,1105) (background, no foreground swap).",
+          "vu": [
+            "liste Alpha"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "clic brut",
+          "valeur": "",
+          "préfixe": "zone ",
+          "famille": "electron",
+          "évènements": [
+            "zone gauche 215,55"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 764,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click to Chromium pid 3800 at (4648,1043) (background, no foreground swap).",
+          "vu": [
+            "zone gauche 215,55"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "clic brut",
+          "valeur": "",
+          "préfixe": "zone ",
+          "famille": "electron",
+          "évènements": [
+            "zone gauche 215,55"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 820,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":15927520,\"className\":\"Chrome_WidgetWin_1\",\"thread\":13552,\"client\":[285,442],\"screen\":[4648,1044],\"posted\":[\"WM_MOUSEMOVE\",\"0x0201\",",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":15927520,\"className\":\"Chrome_WidgetWin_1\",\"thread\":13552,\"client\":[285,442],\"screen\":[4648,1044],\"posted\":[\"WM_MOUSEMOVE\",\"0x0201\",\"0x0202\"],\"state\":\"posted\",\"hitWindow\":1050072,\"hitClass\":\"Chrome_RenderWidgetHostHWND\",\"hitIsTarget\":false,\"threadAfter\":{\"capture\":0,\"focus\":15927520,\"active\":15927520}},\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "zone gauche 215,55"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "molette",
+          "valeur": "",
+          "préfixe": [
+            "roue ",
+            "defil "
+          ],
+          "famille": "electron",
+          "évènements": [
+            "roue A 120 0",
+            "defil A bas 120 120"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 912,
+          "technique": "background:devtools",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"scroll\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatical",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"scroll\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "roue A 120 0",
+            "defil A bas 120 120"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "molette",
+          "valeur": "",
+          "préfixe": [
+            "roue ",
+            "defil "
+          ],
+          "famille": "electron",
+          "évènements": [],
+          "avant": "Mot7claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 139,
+          "technique": "scroll",
+          "réponse": "scroll: Background delivery is not available for target window class 'Chrome_WidgetWin_1' on this event kind (mouse_scroll). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "raccourci ctrl+k",
+          "valeur": "",
+          "préfixe": "raccourci ",
+          "famille": "electron",
+          "évènements": [],
+          "avant": "Mot7claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 573,
+          "technique": "hotkey",
+          "réponse": "hotkey: Background delivery is not available for target window class 'Chrome_WidgetWin_1' on this event kind (key_combo). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "raccourci ctrl+k",
+          "valeur": "",
+          "préfixe": "raccourci ",
+          "famille": "electron",
+          "évènements": [
+            "raccourci ctrl+k"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1497,
+          "technique": "background:simulated-activation",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:simulated-activation\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"keySequence\":{\"delivered\":1,\"total\":1,\"nextIndex\":1,\"deliveries\":[{\"index\":0,\"delivery\":\"confirmed\",\"technique\":\"background",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:simulated-activation\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"keySequence\":{\"delivered\":1,\"total\":1,\"nextIndex\":1,\"deliveries\":[{\"index\":0,\"delivery\":\"confirmed\",\"technique\":\"background:simulated-activation\",\"attempts\":null}],\"automaticReplay\":false,\"note\":\"Delivery is a transport acknowledgement, not proof of the UI effect. Never replay the delivered prefix.\",\"remainingCount\":0},\"index\":0,\"action\":\"key\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "raccourci ctrl+k"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "glisser-déposer",
+          "valeur": "",
+          "préfixe": "depose ",
+          "famille": "electron",
+          "évènements": [
+            "depose jeton"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1296,
+          "technique": "background:devtools",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"preparation\":{\"inputAttempted\":true,\"kind\":\"materialize-target\"},\"index\":0,\"action\":\"drag\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextS",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"preparation\":{\"inputAttempted\":true,\"kind\":\"materialize-target\"},\"index\":0,\"action\":\"drag\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "depose jeton"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "glisser-déposer",
+          "valeur": "",
+          "préfixe": "depose ",
+          "famille": "electron",
+          "évènements": [],
+          "avant": "Mot7claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 140,
+          "technique": "",
+          "réponse": "« Dépôt » absent de l'arbre Cua ; vus : Button File | Button Edit | Button View | Button Window | Document Labo Web — depose jeton | Text Nom | Edit Nom | Text Notes | Edit Notes | Text Gel | Edit Gel | Text Gel2 | Edit Gel2 | Text Lent | Edit Lent | Text Lourd | Edit Lourd | Button Valider | CheckBox Option | Text  Option | Text Glisser | Text Déposer ici | Text Couleur | ComboBox Couleur | Text Liste | List Liste | ListItem Alpha | ListItem Bravo | ListItem Charlie | Text Lecture | Edit Lectur",
+          "diagnostic": "« Dépôt » absent de l'arbre Cua ; vus : Button File | Button Edit | Button View | Button Window | Document Labo Web — depose jeton | Text Nom | Edit Nom | Text Notes | Edit Notes | Text Gel | Edit Gel | Text Gel2 | Edit Gel2 | Text Lent | Edit Lent | Text Lourd | Edit Lourd | Button Valider | CheckBox Option | Text  Option | Text Glisser | Text Déposer ici | Text Couleur | ComboBox Couleur | Text Liste | List Liste | ListItem Alpha | ListItem Bravo | ListItem Charlie | Text Lecture | Edit Lecture | Text Éditeur | Edit Éditeur | Text Mot7claude | Text Paragraphes | Edit Paragraphes | Text  | Text Statut | Text depose jeton | Image Zone",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "bouton",
+          "valeur": "",
+          "préfixe": "clic ",
+          "famille": "electron",
+          "évènements": [
+            "clic 3"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 821,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click on Chromium element [17] at screen (4413,951) (background, no foreground swap).",
+          "vu": [
+            "clic 3"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "bouton",
+          "valeur": "",
+          "préfixe": "clic ",
+          "famille": "electron",
+          "évènements": [
+            "clic 4"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 704,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "clic 4"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "case",
+          "valeur": "on",
+          "préfixe": "coche ",
+          "famille": "electron",
+          "évènements": [
+            "coche on"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 897,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "coche on"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "case",
+          "valeur": "off",
+          "préfixe": "coche ",
+          "famille": "electron",
+          "évènements": [
+            "coche off"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 708,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click on Chromium element [18] at screen (4465,948) (background, no foreground swap).",
+          "vu": [
+            "coche off"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "champ",
+          "valeur": "Banc cua 25 é",
+          "préfixe": "nom ",
+          "famille": "electron",
+          "évènements": [
+            "nom Banc cua 25 é"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 758,
+          "technique": "set_value",
+          "réponse": "set_value: ✅ Set AXValue on [6] (UIA ValuePattern).",
+          "vu": [
+            "nom Banc cua 25 é"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "champ",
+          "valeur": "Banc claude 26 é",
+          "préfixe": "nom ",
+          "famille": "electron",
+          "évènements": [
+            "nom Banc claude 26 é"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 888,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"setValue\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "nom Banc claude 26 é"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "éditeur riche",
+          "valeur": "Mot27claude",
+          "préfixe": "editeur ",
+          "famille": "electron",
+          "évènements": [
+            "editeur Mot7claudeMot27claude"
+          ],
+          "avant": "Mot7claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1728,
+          "technique": "background:simulated-activation",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:simulated-activation\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"typeText\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "editeur Mot7claudeMot27claude"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "éditeur riche",
+          "valeur": "Mot28cua",
+          "préfixe": "editeur ",
+          "famille": "electron",
+          "évènements": [],
+          "avant": "Mot7claudeMot27claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 724,
+          "technique": "type_text",
+          "réponse": "type_text: Background delivery is not available for target window class 'Chrome_WidgetWin_1' on this event kind (text_input). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "liste déroulante",
+          "valeur": "Bleu",
+          "préfixe": "couleur ",
+          "famille": "electron",
+          "évènements": [],
+          "avant": "Mot7claudeMot27claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": true,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 731,
+          "technique": "set_value",
+          "réponse": "set_value: Set the UIA value of combo box [23] to 'Bleu'. This combo box is not a native Win32 one, and a UIA value write may change the shown text without the app treating it as a selection. Check with get_window_state; if the app did not react, click the combo box and then the option.",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "liste déroulante",
+          "valeur": "Rouge",
+          "préfixe": "couleur ",
+          "famille": "electron",
+          "évènements": [
+            "couleur Rouge"
+          ],
+          "avant": "Mot7claudeMot27claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1040,
+          "technique": "background:simulated-activation",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:simulated-activation\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"select\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "couleur Rouge"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "élément de liste",
+          "valeur": "Charlie",
+          "préfixe": "liste ",
+          "famille": "electron",
+          "évènements": [
+            "liste Charlie"
+          ],
+          "avant": "Mot7claudeMot27claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 925,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "liste Charlie"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "élément de liste",
+          "valeur": "Alpha",
+          "préfixe": "liste ",
+          "famille": "electron",
+          "évènements": [
+            "liste Alpha"
+          ],
+          "avant": "Mot7claudeMot27claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 712,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click on Chromium element [26] at screen (4608,1086) (background, no foreground swap).",
+          "vu": [
+            "liste Alpha"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "clic brut",
+          "valeur": "",
+          "préfixe": "zone ",
+          "famille": "electron",
+          "évènements": [
+            "zone gauche 215,55"
+          ],
+          "avant": "Mot7claudeMot27claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 746,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click to Chromium pid 3800 at (4648,1043) (background, no foreground swap).",
+          "vu": [
+            "zone gauche 215,55"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "clic brut",
+          "valeur": "",
+          "préfixe": "zone ",
+          "famille": "electron",
+          "évènements": [
+            "zone gauche 215,55"
+          ],
+          "avant": "Mot7claudeMot27claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 886,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":15927520,\"className\":\"Chrome_WidgetWin_1\",\"thread\":13552,\"client\":[285,442],\"screen\":[4648,1044],\"posted\":[\"WM_MOUSEMOVE\",\"0x0201\",",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":15927520,\"className\":\"Chrome_WidgetWin_1\",\"thread\":13552,\"client\":[285,442],\"screen\":[4648,1044],\"posted\":[\"WM_MOUSEMOVE\",\"0x0201\",\"0x0202\"],\"state\":\"posted\",\"hitWindow\":1050072,\"hitClass\":\"Chrome_RenderWidgetHostHWND\",\"hitIsTarget\":false,\"threadAfter\":{\"capture\":0,\"focus\":15927520,\"active\":15927520}},\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "zone gauche 215,55"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "molette",
+          "valeur": "",
+          "préfixe": [
+            "roue ",
+            "defil "
+          ],
+          "famille": "electron",
+          "évènements": [
+            "roue A 120 0",
+            "defil A bas 120 240"
+          ],
+          "avant": "Mot7claudeMot27claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 787,
+          "technique": "background:devtools",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"scroll\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatical",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"scroll\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "roue A 120 0",
+            "defil A bas 120 240"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "molette",
+          "valeur": "",
+          "préfixe": [
+            "roue ",
+            "defil "
+          ],
+          "famille": "electron",
+          "évènements": [],
+          "avant": "Mot7claudeMot27claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 147,
+          "technique": "scroll",
+          "réponse": "scroll: Background delivery is not available for target window class 'Chrome_WidgetWin_1' on this event kind (mouse_scroll). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "raccourci ctrl+k",
+          "valeur": "",
+          "préfixe": "raccourci ",
+          "famille": "electron",
+          "évènements": [],
+          "avant": "Mot7claudeMot27claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 566,
+          "technique": "hotkey",
+          "réponse": "hotkey: Background delivery is not available for target window class 'Chrome_WidgetWin_1' on this event kind (key_combo). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "raccourci ctrl+k",
+          "valeur": "",
+          "préfixe": "raccourci ",
+          "famille": "electron",
+          "évènements": [
+            "raccourci ctrl+k"
+          ],
+          "avant": "Mot7claudeMot27claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1406,
+          "technique": "background:simulated-activation",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:simulated-activation\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"keySequence\":{\"delivered\":1,\"total\":1,\"nextIndex\":1,\"deliveries\":[{\"index\":0,\"delivery\":\"confirmed\",\"technique\":\"background",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:simulated-activation\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"keySequence\":{\"delivered\":1,\"total\":1,\"nextIndex\":1,\"deliveries\":[{\"index\":0,\"delivery\":\"confirmed\",\"technique\":\"background:simulated-activation\",\"attempts\":null}],\"automaticReplay\":false,\"note\":\"Delivery is a transport acknowledgement, not proof of the UI effect. Never replay the delivered prefix.\",\"remainingCount\":0},\"index\":0,\"action\":\"key\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "raccourci ctrl+k"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "glisser-déposer",
+          "valeur": "",
+          "préfixe": "depose ",
+          "famille": "electron",
+          "évènements": [
+            "depose jeton"
+          ],
+          "avant": "Mot7claudeMot27claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1320,
+          "technique": "background:devtools",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"preparation\":{\"inputAttempted\":true,\"kind\":\"materialize-target\"},\"index\":0,\"action\":\"drag\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextS",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"preparation\":{\"inputAttempted\":true,\"kind\":\"materialize-target\"},\"index\":0,\"action\":\"drag\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "depose jeton"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "glisser-déposer",
+          "valeur": "",
+          "préfixe": "depose ",
+          "famille": "electron",
+          "évènements": [],
+          "avant": "Mot7claudeMot27claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 132,
+          "technique": "",
+          "réponse": "« Dépôt » absent de l'arbre Cua ; vus : Button File | Button Edit | Button View | Button Window | Document Labo Web — depose jeton | Text Nom | Edit Nom | Text Notes | Edit Notes | Text Gel | Edit Gel | Text Gel2 | Edit Gel2 | Text Lent | Edit Lent | Text Lourd | Edit Lourd | Button Valider | CheckBox Option | Text  Option | Text Glisser | Text Déposer ici | Text Couleur | ComboBox Couleur | Text Liste | List Liste | ListItem Alpha | ListItem Bravo | ListItem Charlie | Text Lecture | Edit Lectur",
+          "diagnostic": "« Dépôt » absent de l'arbre Cua ; vus : Button File | Button Edit | Button View | Button Window | Document Labo Web — depose jeton | Text Nom | Edit Nom | Text Notes | Edit Notes | Text Gel | Edit Gel | Text Gel2 | Edit Gel2 | Text Lent | Edit Lent | Text Lourd | Edit Lourd | Button Valider | CheckBox Option | Text  Option | Text Glisser | Text Déposer ici | Text Couleur | ComboBox Couleur | Text Liste | List Liste | ListItem Alpha | ListItem Bravo | ListItem Charlie | Text Lecture | Edit Lecture | Text Éditeur | Edit Éditeur | Text Mot7claudeMot27claude | Text Paragraphes | Edit Paragraphes | Text  | Text Statut | Text depose jeton | Image Zone",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true
+        }
+      ],
+      "capture": {
+        "claude": {
+          "ok": true,
+          "ms": 1163,
+          "taille": [
+            742,
+            800
+          ],
+          "intrusions": []
+        },
+        "cua": {
+          "ok": true,
+          "ms": 82,
+          "taille": [
+            740,
+            798
+          ],
+          "intrusions": []
+        }
+      },
+      "port_cdp": 57140
+    },
+    {
+      "famille": "edge",
+      "essais": [
+        {
+          "outil": "claude",
+          "tâche": "bouton",
+          "valeur": "",
+          "préfixe": "clic ",
+          "famille": "edge",
+          "évènements": [
+            "clic 1"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 889,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "clic 1"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "bouton",
+          "valeur": "",
+          "préfixe": "clic ",
+          "famille": "edge",
+          "évènements": [
+            "clic 2"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 859,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click on Chromium element [18] at screen (4421,945) (background, no foreground swap).",
+          "vu": [
+            "clic 2"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "case",
+          "valeur": "on",
+          "préfixe": "coche ",
+          "famille": "edge",
+          "évènements": [
+            "coche on"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 745,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click on Chromium element [19] at screen (4473,942) (background, no foreground swap).",
+          "vu": [
+            "coche on"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "case",
+          "valeur": "off",
+          "préfixe": "coche ",
+          "famille": "edge",
+          "évènements": [
+            "coche off"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1005,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "coche off"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "champ",
+          "valeur": "Banc claude 5 é",
+          "préfixe": "nom ",
+          "famille": "edge",
+          "évènements": [
+            "nom Banc claude 5 é"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1071,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"setValue\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "nom Banc claude 5 é"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "champ",
+          "valeur": "Banc cua 6 é",
+          "préfixe": "nom ",
+          "famille": "edge",
+          "évènements": [
+            "nom Banc cua 6 é"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 833,
+          "technique": "set_value",
+          "réponse": "set_value: ✅ Set AXValue on [7] (UIA ValuePattern).",
+          "vu": [
+            "nom Banc cua 6 é"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "éditeur riche",
+          "valeur": "Mot7cua",
+          "préfixe": "editeur ",
+          "famille": "edge",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 755,
+          "technique": "type_text",
+          "réponse": "type_text: Background delivery is not available for target window class 'Chrome_WidgetWin_1' on this event kind (text_input). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "éditeur riche",
+          "valeur": "Mot8claude",
+          "préfixe": "editeur ",
+          "famille": "edge",
+          "évènements": [
+            "editeur Mot8claude"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1736,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:messages\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"typeText\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "editeur Mot8claude"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "liste déroulante",
+          "valeur": "Bleu",
+          "préfixe": "couleur ",
+          "famille": "edge",
+          "évènements": [
+            "couleur Bleu"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1070,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"select\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "couleur Bleu"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "liste déroulante",
+          "valeur": "Rouge",
+          "préfixe": "couleur ",
+          "famille": "edge",
+          "évènements": [],
+          "avant": "Mot8claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": true,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 753,
+          "technique": "set_value",
+          "réponse": "set_value: Set the UIA value of combo box [24] to 'Rouge'. This combo box is not a native Win32 one, and a UIA value write may change the shown text without the app treating it as a selection. Check with get_window_state; if the app did not react, click the combo box and then the option.",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "élément de liste",
+          "valeur": "Charlie",
+          "préfixe": "liste ",
+          "famille": "edge",
+          "évènements": [
+            "liste Charlie"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 761,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click on Chromium element [29] at screen (4616,1136) (background, no foreground swap).",
+          "vu": [
+            "liste Charlie"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "élément de liste",
+          "valeur": "Alpha",
+          "préfixe": "liste ",
+          "famille": "edge",
+          "évènements": [
+            "liste Alpha"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 923,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "liste Alpha"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "clic brut",
+          "valeur": "",
+          "préfixe": "zone ",
+          "famille": "edge",
+          "évènements": [
+            "zone gauche 215,55"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 840,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":16124128,\"className\":\"Chrome_WidgetWin_1\",\"thread\":40964,\"client\":[285,472],\"screen\":[4656,1044],\"posted\":[\"WM_MOUSEMOVE\",\"0x0201\",",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":16124128,\"className\":\"Chrome_WidgetWin_1\",\"thread\":40964,\"client\":[285,472],\"screen\":[4656,1044],\"posted\":[\"WM_MOUSEMOVE\",\"0x0201\",\"0x0202\"],\"state\":\"posted\",\"hitWindow\":1050072,\"hitClass\":\"Chrome_RenderWidgetHostHWND\",\"hitIsTarget\":false,\"threadAfter\":{\"capture\":0,\"focus\":16124128,\"active\":16124128}},\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "zone gauche 215,55"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "clic brut",
+          "valeur": "",
+          "préfixe": "zone ",
+          "famille": "edge",
+          "évènements": [
+            "zone gauche 215,55"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 795,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click to Chromium pid 320 at (4656,1043) (background, no foreground swap).",
+          "vu": [
+            "zone gauche 215,55"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "molette",
+          "valeur": "",
+          "préfixe": [
+            "roue ",
+            "defil "
+          ],
+          "famille": "edge",
+          "évènements": [],
+          "avant": "Mot8claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 177,
+          "technique": "scroll",
+          "réponse": "scroll: Background delivery is not available for target window class 'Chrome_WidgetWin_1' on this event kind (mouse_scroll). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "molette",
+          "valeur": "",
+          "préfixe": [
+            "roue ",
+            "defil "
+          ],
+          "famille": "edge",
+          "évènements": [
+            "roue A 120 0",
+            "defil A bas 120 120"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1274,
+          "technique": "background:devtools",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"scroll\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatical",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"scroll\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "roue A 120 0",
+            "defil A bas 120 120"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "raccourci ctrl+k",
+          "valeur": "",
+          "préfixe": "raccourci ",
+          "famille": "edge",
+          "évènements": [],
+          "avant": "Mot8claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 693,
+          "technique": "",
+          "réponse": "{\"status\":\"failed\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"refused\",\"mark\":\"✗\",\"verified\":null,\"success\":false,\"message\":\"0 earlier combination(s) delivered. Current combination not sent: Needs the foreground: This interface ignores posted keys (measured): no background technique. Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent\",\"technique\":null,\"effect\":null,\"foregroundTaken\":false,\"foregrou",
+          "diagnostic": "{\"status\":\"failed\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"refused\",\"mark\":\"✗\",\"verified\":null,\"success\":false,\"message\":\"0 earlier combination(s) delivered. Current combination not sent: Needs the foreground: This interface ignores posted keys (measured): no background technique. Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent\",\"technique\":null,\"effect\":null,\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"needsForeground\":true,\"keySequence\":{\"delivered\":0,\"total\":1,\"nextIndex\":0,\"deliveries\":[{\"index\":0,\"delivery\":\"not-sent\",\"attempts\":null}],\"automaticReplay\":false,\"note\":\"Delivery is a transport acknowledgement, not proof of the UI effect. Never replay the delivered prefix.\",\"remainingCount\":1},\"index\":0,\"action\":\"key\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "raccourci ctrl+k",
+          "valeur": "",
+          "préfixe": "raccourci ",
+          "famille": "edge",
+          "évènements": [],
+          "avant": "Mot8claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 559,
+          "technique": "hotkey",
+          "réponse": "hotkey: Background delivery is not available for target window class 'Chrome_WidgetWin_1' on this event kind (key_combo). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "glisser-déposer",
+          "valeur": "",
+          "préfixe": "depose ",
+          "famille": "edge",
+          "évènements": [],
+          "avant": "Mot8claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 142,
+          "technique": "",
+          "réponse": "« Jeton » absent de l'arbre Cua ; vus : Text Labo Web — defil A bas 120 120 | Button Réduire | Button Agrandir | Button Fermer | Edit Barre d’adresse et de recherche | Document Labo Web — defil A bas 120 120 | Text Nom | Edit Nom | Text Notes | Edit Notes | Text Gel | Edit Gel | Text Gel2 | Edit Gel2 | Text Lent | Edit Lent | Text Lourd | Edit Lourd | Button Valider | CheckBox Option | Text  Option | Text Glisser | Text Déposer ici | Text Couleur | ComboBox Couleur | Text Liste | List Liste | Li",
+          "diagnostic": "« Jeton » absent de l'arbre Cua ; vus : Text Labo Web — defil A bas 120 120 | Button Réduire | Button Agrandir | Button Fermer | Edit Barre d’adresse et de recherche | Document Labo Web — defil A bas 120 120 | Text Nom | Edit Nom | Text Notes | Edit Notes | Text Gel | Edit Gel | Text Gel2 | Edit Gel2 | Text Lent | Edit Lent | Text Lourd | Edit Lourd | Button Valider | CheckBox Option | Text  Option | Text Glisser | Text Déposer ici | Text Couleur | ComboBox Couleur | Text Liste | List Liste | ListItem Alpha | ListItem Bravo | ListItem Charlie | Text Lecture | Edit Lecture | Text Éditeur | Edit Éditeur | Text Mot8claude | Text Paragraphes | Edit Paragraphes | Text  | Text Statut | Text defil A bas 120 120",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "glisser-déposer",
+          "valeur": "",
+          "préfixe": "depose ",
+          "famille": "edge",
+          "évènements": [
+            "depose jeton"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1839,
+          "technique": "background:devtools",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"preparation\":{\"inputAttempted\":true,\"kind\":\"materialize-target\"},\"index\":0,\"action\":\"drag\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextS",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"preparation\":{\"inputAttempted\":true,\"kind\":\"materialize-target\"},\"index\":0,\"action\":\"drag\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "depose jeton"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "bouton",
+          "valeur": "",
+          "préfixe": "clic ",
+          "famille": "edge",
+          "évènements": [
+            "clic 3"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 902,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "clic 3"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "bouton",
+          "valeur": "",
+          "préfixe": "clic ",
+          "famille": "edge",
+          "évènements": [
+            "clic 4"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 877,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click on Chromium element [18] at screen (4421,939) (background, no foreground swap).",
+          "vu": [
+            "clic 4"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "case",
+          "valeur": "on",
+          "préfixe": "coche ",
+          "famille": "edge",
+          "évènements": [
+            "coche on"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 762,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click on Chromium element [19] at screen (4473,936) (background, no foreground swap).",
+          "vu": [
+            "coche on"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "case",
+          "valeur": "off",
+          "préfixe": "coche ",
+          "famille": "edge",
+          "évènements": [
+            "coche off"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1002,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "coche off"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "champ",
+          "valeur": "Banc claude 25 é",
+          "préfixe": "nom ",
+          "famille": "edge",
+          "évènements": [
+            "nom Banc claude 25 é"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 952,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"setValue\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "nom Banc claude 25 é"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "champ",
+          "valeur": "Banc cua 26 é",
+          "préfixe": "nom ",
+          "famille": "edge",
+          "évènements": [
+            "nom Banc cua 26 é"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 802,
+          "technique": "set_value",
+          "réponse": "set_value: ✅ Set AXValue on [7] (UIA ValuePattern).",
+          "vu": [
+            "nom Banc cua 26 é"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "éditeur riche",
+          "valeur": "Mot27cua",
+          "préfixe": "editeur ",
+          "famille": "edge",
+          "évènements": [],
+          "avant": "Mot8claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 750,
+          "technique": "type_text",
+          "réponse": "type_text: Background delivery is not available for target window class 'Chrome_WidgetWin_1' on this event kind (text_input). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "éditeur riche",
+          "valeur": "Mot28claude",
+          "préfixe": "editeur ",
+          "famille": "edge",
+          "évènements": [
+            "editeur Mot8claudeMot28claude"
+          ],
+          "avant": "Mot8claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1679,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:messages\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"typeText\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "editeur Mot8claudeMot28claude"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "liste déroulante",
+          "valeur": "Vert",
+          "préfixe": "couleur ",
+          "famille": "edge",
+          "évènements": [
+            "couleur Vert"
+          ],
+          "avant": "Mot8claudeMot28claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1288,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"select\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "couleur Vert"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "liste déroulante",
+          "valeur": "Rouge",
+          "préfixe": "couleur ",
+          "famille": "edge",
+          "évènements": [],
+          "avant": "Mot8claudeMot28claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": true,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 735,
+          "technique": "set_value",
+          "réponse": "set_value: Set the UIA value of combo box [24] to 'Rouge'. This combo box is not a native Win32 one, and a UIA value write may change the shown text without the app treating it as a selection. Check with get_window_state; if the app did not react, click the combo box and then the option.",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "élément de liste",
+          "valeur": "Charlie",
+          "préfixe": "liste ",
+          "famille": "edge",
+          "évènements": [
+            "liste Charlie"
+          ],
+          "avant": "Mot8claudeMot28claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 764,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click on Chromium element [29] at screen (4616,1130) (background, no foreground swap).",
+          "vu": [
+            "liste Charlie"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "élément de liste",
+          "valeur": "Alpha",
+          "préfixe": "liste ",
+          "famille": "edge",
+          "évènements": [
+            "liste Alpha"
+          ],
+          "avant": "Mot8claudeMot28claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 987,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "liste Alpha"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "clic brut",
+          "valeur": "",
+          "préfixe": "zone ",
+          "famille": "edge",
+          "évènements": [
+            "zone gauche 215,55"
+          ],
+          "avant": "Mot8claudeMot28claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 856,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":16124128,\"className\":\"Chrome_WidgetWin_1\",\"thread\":40964,\"client\":[285,472],\"screen\":[4656,1044],\"posted\":[\"WM_MOUSEMOVE\",\"0x0201\",",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":16124128,\"className\":\"Chrome_WidgetWin_1\",\"thread\":40964,\"client\":[285,472],\"screen\":[4656,1044],\"posted\":[\"WM_MOUSEMOVE\",\"0x0201\",\"0x0202\"],\"state\":\"posted\",\"hitWindow\":1050072,\"hitClass\":\"Chrome_RenderWidgetHostHWND\",\"hitIsTarget\":false,\"threadAfter\":{\"capture\":0,\"focus\":16124128,\"active\":16124128}},\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "zone gauche 215,55"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "clic brut",
+          "valeur": "",
+          "préfixe": "zone ",
+          "famille": "edge",
+          "évènements": [
+            "zone gauche 215,55"
+          ],
+          "avant": "Mot8claudeMot28claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 770,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click to Chromium pid 320 at (4656,1043) (background, no foreground swap).",
+          "vu": [
+            "zone gauche 215,55"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "molette",
+          "valeur": "",
+          "préfixe": [
+            "roue ",
+            "defil "
+          ],
+          "famille": "edge",
+          "évènements": [],
+          "avant": "Mot8claudeMot28claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 171,
+          "technique": "scroll",
+          "réponse": "scroll: Background delivery is not available for target window class 'Chrome_WidgetWin_1' on this event kind (mouse_scroll). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "molette",
+          "valeur": "",
+          "préfixe": [
+            "roue ",
+            "defil "
+          ],
+          "famille": "edge",
+          "évènements": [
+            "roue A 120 0",
+            "defil A bas 120 240"
+          ],
+          "avant": "Mot8claudeMot28claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1306,
+          "technique": "background:devtools",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"scroll\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatical",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"scroll\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "roue A 120 0",
+            "defil A bas 120 240"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "raccourci ctrl+k",
+          "valeur": "",
+          "préfixe": "raccourci ",
+          "famille": "edge",
+          "évènements": [],
+          "avant": "Mot8claudeMot28claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 818,
+          "technique": "",
+          "réponse": "{\"status\":\"failed\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"refused\",\"mark\":\"✗\",\"verified\":null,\"success\":false,\"message\":\"0 earlier combination(s) delivered. Current combination not sent: Needs the foreground: This interface ignores posted keys (measured): no background technique. Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent\",\"technique\":null,\"effect\":null,\"foregroundTaken\":false,\"foregrou",
+          "diagnostic": "{\"status\":\"failed\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"refused\",\"mark\":\"✗\",\"verified\":null,\"success\":false,\"message\":\"0 earlier combination(s) delivered. Current combination not sent: Needs the foreground: This interface ignores posted keys (measured): no background technique. Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent\",\"technique\":null,\"effect\":null,\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"needsForeground\":true,\"keySequence\":{\"delivered\":0,\"total\":1,\"nextIndex\":0,\"deliveries\":[{\"index\":0,\"delivery\":\"not-sent\",\"attempts\":null}],\"automaticReplay\":false,\"note\":\"Delivery is a transport acknowledgement, not proof of the UI effect. Never replay the delivered prefix.\",\"remainingCount\":1},\"index\":0,\"action\":\"key\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "raccourci ctrl+k",
+          "valeur": "",
+          "préfixe": "raccourci ",
+          "famille": "edge",
+          "évènements": [],
+          "avant": "Mot8claudeMot28claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 558,
+          "technique": "hotkey",
+          "réponse": "hotkey: Background delivery is not available for target window class 'Chrome_WidgetWin_1' on this event kind (key_combo). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "cua",
+          "tâche": "glisser-déposer",
+          "valeur": "",
+          "préfixe": "depose ",
+          "famille": "edge",
+          "évènements": [],
+          "avant": "Mot8claudeMot28claude",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 159,
+          "technique": "",
+          "réponse": "« Jeton » absent de l'arbre Cua ; vus : Text Labo Web — defil A bas 120 240 | Button Réduire | Button Agrandir | Button Fermer | Edit Barre d’adresse et de recherche | Document Labo Web — defil A bas 120 240 | Text Nom | Edit Nom | Text Notes | Edit Notes | Text Gel | Edit Gel | Text Gel2 | Edit Gel2 | Text Lent | Edit Lent | Text Lourd | Edit Lourd | Button Valider | CheckBox Option | Text  Option | Text Glisser | Text Déposer ici | Text Couleur | ComboBox Couleur | Text Liste | List Liste | Li",
+          "diagnostic": "« Jeton » absent de l'arbre Cua ; vus : Text Labo Web — defil A bas 120 240 | Button Réduire | Button Agrandir | Button Fermer | Edit Barre d’adresse et de recherche | Document Labo Web — defil A bas 120 240 | Text Nom | Edit Nom | Text Notes | Edit Notes | Text Gel | Edit Gel | Text Gel2 | Edit Gel2 | Text Lent | Edit Lent | Text Lourd | Edit Lourd | Button Valider | CheckBox Option | Text  Option | Text Glisser | Text Déposer ici | Text Couleur | ComboBox Couleur | Text Liste | List Liste | ListItem Alpha | ListItem Bravo | ListItem Charlie | Text Lecture | Edit Lecture | Text Éditeur | Edit Éditeur | Text Mot8claudeMot28claude | Text Paragraphes | Edit Paragraphes | Text  | Text Statut | Text defil A bas 120 240",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        },
+        {
+          "outil": "claude",
+          "tâche": "glisser-déposer",
+          "valeur": "",
+          "préfixe": "depose ",
+          "famille": "edge",
+          "évènements": [
+            "depose jeton"
+          ],
+          "avant": "Mot8claudeMot28claude",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1905,
+          "technique": "background:devtools",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"preparation\":{\"inputAttempted\":true,\"kind\":\"materialize-target\"},\"index\":0,\"action\":\"drag\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextS",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:devtools\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"preparation\":{\"inputAttempted\":true,\"kind\":\"materialize-target\"},\"index\":0,\"action\":\"drag\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "depose jeton"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "labo au premier plan": "repris avant l'essai"
+        }
+      ],
+      "capture": {
+        "claude": {
+          "ok": true,
+          "ms": 332,
+          "taille": [
+            734,
+            792
+          ],
+          "intrusions": []
+        },
+        "cua": {
+          "ok": true,
+          "ms": 67,
+          "taille": [
+            732,
+            790
+          ],
+          "intrusions": []
+        }
+      },
+      "port_cdp": 57176
+    },
+    {
+      "famille": "lancement",
+      "essais": [
+        {
+          "outil": "cua",
+          "tâche": "lancement recouvert",
+          "famille": "lancement",
+          "tour": 1,
+          "fenêtre trouvée": true,
+          "recouverte": false,
+          "dessinée": true,
+          "évènements": [
+            "prêt"
+          ],
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [
+            "premier plan Chrome_WidgetWin_1 (pid 23704) 7452 ms",
+            "premier plan non rendu"
+          ],
+          "hors compte": "fenêtre non recouverte à la capture",
+          "ms": 2006,
+          "technique": "launch_app",
+          "réponse": "✅ Launched ~\\AppData\\Local\\NexusBench\\labo-lancement\\labo-lancement.exe (pid 23704) in background.\n\nWindows:\n- \"Labo Lancement\" [window_id: 4983792]\n→ Call get_window_state(pid: 23704, window_id) to inspect.\n---\n« Valider » absent de l'arbre Cua ; vus : Button File | Button Edit | Button View | Button Window"
+        },
+        {
+          "outil": "claude",
+          "tâche": "lancement recouvert",
+          "famille": "lancement",
+          "tour": 1,
+          "fenêtre trouvée": true,
+          "recouverte": true,
+          "dessinée": true,
+          "évènements": [
+            "prêt",
+            "clic 1"
+          ],
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [
+            "premier plan Chrome_WidgetWin_1 (pid 40124) 0 ms"
+          ],
+          "ms": 2281,
+          "technique": "launch",
+          "réponse": "{\"ok\":true,\"opened\":true,\"via\":\"executable\",\"windows\":[{\"id\":14159880,\"app\":\"process:~\\\\AppData\\\\Local\\\\NexusBench\\\\labo-lancement\\\\labo-lancement.exe\",\"title\":\"Labo Lancement\",\"pid\":40124,\"processStartedUtc\":\"2026-11-03T12:17:19.2516940Z\",\"shared\":false}],\"foregroundReturned\":\"not-taken\",\"notes\":[],\"status\":\"opened\"}\n---\n{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark"
+        },
+        {
+          "outil": "claude",
+          "tâche": "lancement recouvert",
+          "famille": "lancement",
+          "tour": 2,
+          "fenêtre trouvée": true,
+          "recouverte": true,
+          "dessinée": true,
+          "évènements": [
+            "prêt",
+            "clic 1"
+          ],
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [
+            "premier plan Chrome_WidgetWin_1 (pid 35448) 0 ms"
+          ],
+          "ms": 2182,
+          "technique": "launch",
+          "réponse": "{\"ok\":true,\"opened\":true,\"via\":\"executable\",\"windows\":[{\"id\":14225416,\"app\":\"process:~\\\\AppData\\\\Local\\\\NexusBench\\\\labo-lancement\\\\labo-lancement.exe\",\"title\":\"Labo Lancement\",\"pid\":35448,\"processStartedUtc\":\"2026-11-03T12:17:30.4748619Z\",\"shared\":false}],\"foregroundReturned\":\"not-taken\",\"notes\":[],\"status\":\"opened\"}\n---\n{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark"
+        },
+        {
+          "outil": "cua",
+          "tâche": "lancement recouvert",
+          "famille": "lancement",
+          "tour": 2,
+          "fenêtre trouvée": true,
+          "recouverte": false,
+          "dessinée": true,
+          "évènements": [
+            "prêt"
+          ],
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [
+            "premier plan Chrome_WidgetWin_1 (pid 5684) 7392 ms",
+            "premier plan non rendu"
+          ],
+          "hors compte": "fenêtre non recouverte à la capture",
+          "ms": 1064,
+          "technique": "launch_app",
+          "réponse": "✅ Launched ~\\AppData\\Local\\NexusBench\\labo-lancement\\labo-lancement.exe (pid 5684) in background.\n\nWindows:\n- \"Labo Lancement\" [window_id: 14290952]\n→ Call get_window_state(pid: 5684, window_id) to inspect.\n---\n« Valider » absent de l'arbre Cua ; vus : Button File | Button Edit | Button View | Button Window"
+        }
+      ],
+      "exécutable": "labo-lancement.exe"
+    },
+    {
+      "famille": "pagelongue",
+      "essais": [
+        {
+          "outil": "claude",
+          "tâche": "page longue",
+          "famille": "pagelongue",
+          "tour": 1,
+          "recouverte": true,
+          "évènements": [
+            "valeur https://exemple.org/claude-1-1418"
+          ],
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "look filtré (caractères)": 1140,
+          "intrusions": [],
+          "ms": 852,
+          "technique": "background:uia",
+          "réponse": "look=1140\n{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"preparation\":{\"inputAttempted\":true,\"kind\":\"materialize-target\"},\"index\":0,\"action\":\"setValue\"},{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was suppli"
+        },
+        {
+          "outil": "cua",
+          "tâche": "page longue",
+          "famille": "pagelongue",
+          "tour": 1,
+          "recouverte": true,
+          "évènements": [],
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": true,
+          "look filtré (caractères)": -1,
+          "intrusions": [],
+          "ms": 1829,
+          "technique": "set_value",
+          "réponse": "set_value: ✅ Set AXValue on [149] (UIA ValuePattern).\n---\nclick: ✅ Posted click on Chromium element [150] at screen (4436,10975) (background, no foreground swap)."
+        },
+        {
+          "outil": "cua",
+          "tâche": "page longue",
+          "famille": "pagelongue",
+          "tour": 2,
+          "recouverte": true,
+          "évènements": [],
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": true,
+          "look filtré (caractères)": -1,
+          "intrusions": [],
+          "ms": 1315,
+          "technique": "set_value",
+          "réponse": "set_value: ✅ Set AXValue on [149] (UIA ValuePattern).\n---\nclick: ✅ Posted click on Chromium element [150] at screen (4436,10975) (background, no foreground swap)."
+        },
+        {
+          "outil": "claude",
+          "tâche": "page longue",
+          "famille": "pagelongue",
+          "tour": 2,
+          "recouverte": true,
+          "évènements": [
+            "valeur https://exemple.org/claude-2-9945"
+          ],
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "look filtré (caractères)": 1142,
+          "intrusions": [],
+          "ms": 772,
+          "technique": "background:uia",
+          "réponse": "look=1142\n{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"preparation\":{\"inputAttempted\":true,\"kind\":\"materialize-target\"},\"index\":0,\"action\":\"setValue\"},{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was suppli"
+        }
+      ]
+    },
+    {
+      "famille": "winforms",
+      "essais": [
+        {
+          "outil": "cua",
+          "tâche": "bouton",
+          "valeur": "",
+          "préfixe": "clic ",
+          "famille": "winforms",
+          "évènements": [
+            "clic 1"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 800,
+          "technique": "click",
+          "réponse": "click: ✅ Performed UIA Invoke on [4] (screen (4603,843)).",
+          "vu": [
+            "clic 1"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "bouton",
+          "valeur": "",
+          "préfixe": "clic ",
+          "famille": "winforms",
+          "évènements": [
+            "clic 2"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 251,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automaticall",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "clic 2"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "case",
+          "valeur": "on",
+          "préfixe": "coche ",
+          "famille": "winforms",
+          "évènements": [
+            "coche on"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 345,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "coche on"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "case",
+          "valeur": "off",
+          "préfixe": "coche ",
+          "famille": "winforms",
+          "évènements": [
+            "coche off"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 692,
+          "technique": "click",
+          "réponse": "click: ✅ Performed UIA Invoke on [5] (screen (4742,845)).",
+          "vu": [
+            "coche off"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "champ",
+          "valeur": "Banc cua 5 é",
+          "préfixe": "nom ",
+          "famille": "winforms",
+          "évènements": [
+            "nom Banc cua 5 é"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 674,
+          "technique": "set_value",
+          "réponse": "set_value: ✅ Set AXValue on [2] (UIA ValuePattern).",
+          "vu": [
+            "nom Banc cua 5 é"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "champ",
+          "valeur": "Banc claude 6 é",
+          "préfixe": "nom ",
+          "famille": "winforms",
+          "évènements": [
+            "nom Banc claude 6 é"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 320,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:messages\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"setValue\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "nom Banc claude 6 é"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "liste déroulante",
+          "valeur": "Vert",
+          "préfixe": "couleur ",
+          "famille": "winforms",
+          "évènements": [
+            "couleur Vert"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 351,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:messages\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"select\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "couleur Vert"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "liste déroulante",
+          "valeur": "Rouge",
+          "préfixe": "couleur ",
+          "famille": "winforms",
+          "évènements": [
+            "couleur Rouge"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 705,
+          "technique": "set_value",
+          "réponse": "set_value: ✅ Set the drop-down combo box [6] to 'Rouge' (CB_SETCURSEL, then CBN_SELENDOK and CBN_SELCHANGE to the app); read back 'Rouge'.",
+          "vu": [
+            "couleur Rouge"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "élément de liste",
+          "valeur": "Alpha",
+          "préfixe": "liste ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": true,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 678,
+          "technique": "click",
+          "réponse": "click: ✅ Performed UIA Invoke on [9] (screen (4652,935)).",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "élément de liste",
+          "valeur": "Bravo",
+          "préfixe": "liste ",
+          "famille": "winforms",
+          "évènements": [
+            "liste Bravo"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 429,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:messages\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "liste Bravo"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "menu",
+          "valeur": "",
+          "préfixe": "menu ",
+          "famille": "winforms",
+          "évènements": [
+            "menu action"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 328,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"menu\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "menu action"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "menu",
+          "valeur": "",
+          "préfixe": "menu ",
+          "famille": "winforms",
+          "évènements": [
+            "menu action"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [
+            "premier plan WindowsForms10.Window.8.app.0.3241864_r8_ad1 (pid 37292) 452 ms"
+          ],
+          "souris physique": false,
+          "ms": 469,
+          "technique": "invoke_menu",
+          "réponse": "invoke_menu: Resolved the live native menu path and dispatched its final accessibility action; verify the command's semantic effect from fresh state.",
+          "vu": [
+            "menu action"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "clic brut",
+          "valeur": "",
+          "préfixe": "zone ",
+          "famille": "winforms",
+          "évènements": [
+            "zone gauche 214,53"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 965,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click to pid 37292.",
+          "vu": [
+            "zone gauche 214,53"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "clic brut",
+          "valeur": "",
+          "préfixe": "zone ",
+          "famille": "winforms",
+          "évènements": [
+            "zone gauche 214,54"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 674,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":10094692,\"className\":\"WindowsForms10.Window.8.app.0.3241864_r8_ad1\",\"thread\":31012,\"client\":[214,54],\"screen\":[4797,1160],\"posted\":",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":10094692,\"className\":\"WindowsForms10.Window.8.app.0.3241864_r8_ad1\",\"thread\":31012,\"client\":[214,54],\"screen\":[4797,1160],\"posted\":[\"WM_MOUSEMOVE\",\"0x0201\",\"0x0202\"],\"state\":\"posted\",\"hitWindow\":1050072,\"hitClass\":\"Chrome_RenderWidgetHostHWND\",\"hitIsTarget\":false,\"threadAfter\":{\"capture\":0,\"focus\":0,\"active\":0}},\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "zone gauche 214,54"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "molette",
+          "valeur": "",
+          "préfixe": "molette ",
+          "famille": "winforms",
+          "évènements": [
+            "molette -120"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 671,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"scroll\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatical",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"scroll\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "molette -120"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "molette",
+          "valeur": "",
+          "préfixe": "molette ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 159,
+          "technique": "scroll",
+          "réponse": "scroll: Background delivery is not available for target window class 'WindowsForms10.Window.8.app.0.3241864_r8_ad1' on this event kind (mouse_scroll). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "raccourci ctrl+k",
+          "valeur": "",
+          "préfixe": "raccourci ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": true,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 566,
+          "technique": "hotkey",
+          "réponse": "hotkey: ✅ Pressed ctrl+k on pid 37292 via PostMessage (Win32 target).",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "raccourci ctrl+k",
+          "valeur": "",
+          "préfixe": "raccourci ",
+          "famille": "winforms",
+          "évènements": [
+            "raccourci ctrl+k"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1201,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"keySequence\":{\"delivered\":1,\"total\":1,\"nextIndex\":1,\"deliveries\":[{\"index\":0,\"delivery\":\"confirmed\",\"technique\":\"background:messages\",\"",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"keySequence\":{\"delivered\":1,\"total\":1,\"nextIndex\":1,\"deliveries\":[{\"index\":0,\"delivery\":\"confirmed\",\"technique\":\"background:messages\",\"attempts\":null}],\"automaticReplay\":false,\"note\":\"Delivery is a transport acknowledgement, not proof of the UI effect. Never replay the delivered prefix.\",\"remainingCount\":0},\"index\":0,\"action\":\"key\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "raccourci ctrl+k"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "double clic",
+          "valeur": "Charlie",
+          "préfixe": "double ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 335,
+          "technique": "",
+          "réponse": "{\"status\":\"failed\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"refused\",\"mark\":\"✗\",\"verified\":null,\"success\":false,\"message\":\"Needs the foreground: Double click: no background technique for this control (only a list or tree item with UI Automation Invoke). Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent\",\"technique\":null,\"effect\":null,\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":n",
+          "diagnostic": "{\"status\":\"failed\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"refused\",\"mark\":\"✗\",\"verified\":null,\"success\":false,\"message\":\"Needs the foreground: Double click: no background technique for this control (only a list or tree item with UI Automation Invoke). Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent\",\"technique\":null,\"effect\":null,\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"needsForeground\":true,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "double clic",
+          "valeur": "Alpha",
+          "préfixe": "double ",
+          "famille": "winforms",
+          "évènements": [
+            "liste Alpha"
+          ],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": true,
+          "intrusions": [
+            "premier plan WindowsForms10.Window.8.app.0.3241864_r8_ad1 (pid 37292) 0 ms"
+          ],
+          "souris physique": false,
+          "ms": 974,
+          "technique": "double_click",
+          "réponse": "double_click: ✅ Posted double-click to [9] at screen-point (4652, 935).",
+          "vu": [
+            "liste Alpha"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "menu contextuel",
+          "valeur": "",
+          "préfixe": "contexte ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 137,
+          "technique": "",
+          "réponse": "« Liste » absente de l'arbre Cua",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "menu contextuel",
+          "valeur": "",
+          "préfixe": "contexte ",
+          "famille": "winforms",
+          "évènements": [
+            "contexte copier"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1153,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":33687462,\"className\":\"WindowsForms10.LISTBOX.app.0.3241864_r8_ad1\",\"thread\":31012,\"client\":[98,22],\"screen\":[4653,954],\"posted\":[\"W",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":33687462,\"className\":\"WindowsForms10.LISTBOX.app.0.3241864_r8_ad1\",\"thread\":31012,\"client\":[98,22],\"screen\":[4653,954],\"posted\":[\"WM_MOUSEMOVE\",\"0x0204\",\"0x0205\"],\"state\":\"posted\",\"hitWindow\":1050072,\"hitClass\":\"Chrome_RenderWidgetHostHWND\",\"hitIsTarget\":false,\"threadAfter\":{\"capture\":0,\"focus\":33687462,\"active\":18613610}},\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}\n---\n{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "contexte copier"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "modale",
+          "valeur": "",
+          "préfixe": "modale ",
+          "famille": "winforms",
+          "évènements": [
+            "modale ouverte",
+            "modale ok"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 2,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 500,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automaticall",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}\n---\n{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}\n---\ndialogue vérifié HWND=8457338, PID=37292, propriétaires=(18613610)",
+          "vu": [
+            "modale ouverte",
+            "modale ok"
+          ],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "modale",
+          "valeur": "",
+          "préfixe": "modale ",
+          "famille": "winforms",
+          "évènements": [
+            "modale ouverte"
+          ],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 120199,
+          "technique": "",
+          "réponse": "exception OperationCanceledException: The operation was canceled.",
+          "vu": [
+            "modale ouverte"
+          ],
+          "laissé ouvert": [
+            "Confirmation"
+          ],
+          "tour": 1,
+          "recouverte": true,
+          "tardifs": [
+            "modale ferm�e"
+          ]
+        },
+        {
+          "outil": "cua",
+          "tâche": "glisser-déposer",
+          "valeur": "",
+          "préfixe": "depose ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 152,
+          "technique": "",
+          "réponse": "« Jeton » absent de l'arbre Cua ; vus : MenuItem Fichier | MenuItem Action menu | Edit Nom | Edit Notes | Button Valider | CheckBox Option | ComboBox Couleur | Text Couleur | Button Ouvrir | ListItem Alpha | ListItem Bravo | ListItem Charlie | Button Dialogue | Edit Lecture | TitleBar Labo WinForms | MenuItem Système | Button Réduire | Button Agrandir | Button Fermer",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "glisser-déposer",
+          "valeur": "",
+          "préfixe": "depose ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 253,
+          "technique": "",
+          "réponse": "{\"status\":\"failed\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"refused\",\"mark\":\"✗\",\"verified\":null,\"success\":false,\"message\":\"Needs the foreground: drag and drop follows the real mouse in this interface (Windows drag loop). Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent\",\"technique\":null,\"effect\":null,\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"needsForeground",
+          "diagnostic": "{\"status\":\"failed\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"refused\",\"mark\":\"✗\",\"verified\":null,\"success\":false,\"message\":\"Needs the foreground: drag and drop follows the real mouse in this interface (Windows drag loop). Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent\",\"technique\":null,\"effect\":null,\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"needsForeground\":true,\"index\":0,\"action\":\"drag\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [],
+          "tour": 1,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "bouton",
+          "valeur": "",
+          "préfixe": "clic ",
+          "famille": "winforms",
+          "évènements": [
+            "clic 3"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 301,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automaticall",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "clic 3"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "bouton",
+          "valeur": "",
+          "préfixe": "clic ",
+          "famille": "winforms",
+          "évènements": [
+            "clic 4"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 721,
+          "technique": "click",
+          "réponse": "click: ✅ Performed UIA Invoke on [4] (screen (4603,843)).",
+          "vu": [
+            "clic 4"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "case",
+          "valeur": "on",
+          "préfixe": "coche ",
+          "famille": "winforms",
+          "évènements": [
+            "coche on"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 676,
+          "technique": "click",
+          "réponse": "click: ✅ Performed UIA Invoke on [5] (screen (4742,845)).",
+          "vu": [
+            "coche on"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "case",
+          "valeur": "off",
+          "préfixe": "coche ",
+          "famille": "winforms",
+          "évènements": [
+            "coche off"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 395,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:uia\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "coche off"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "champ",
+          "valeur": "Banc claude 31 é",
+          "préfixe": "nom ",
+          "famille": "winforms",
+          "évènements": [
+            "nom Banc claude 31 é"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 460,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:messages\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"setValue\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "nom Banc claude 31 é"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "champ",
+          "valeur": "Banc cua 32 é",
+          "préfixe": "nom ",
+          "famille": "winforms",
+          "évènements": [
+            "nom Banc cua 32 é"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "non mesurée (état final)",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 673,
+          "technique": "set_value",
+          "réponse": "set_value: ✅ Set AXValue on [2] (UIA ValuePattern).",
+          "vu": [
+            "nom Banc cua 32 é"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "liste déroulante",
+          "valeur": "Bleu",
+          "préfixe": "couleur ",
+          "famille": "winforms",
+          "évènements": [
+            "couleur Bleu"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 705,
+          "technique": "set_value",
+          "réponse": "set_value: ✅ Set the drop-down combo box [6] to 'Bleu' (CB_SETCURSEL, then CBN_SELENDOK and CBN_SELCHANGE to the app); read back 'Bleu'.",
+          "vu": [
+            "couleur Bleu"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "liste déroulante",
+          "valeur": "Rouge",
+          "préfixe": "couleur ",
+          "famille": "winforms",
+          "évènements": [
+            "couleur Rouge"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 630,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:messages\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"select\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "couleur Rouge"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "élément de liste",
+          "valeur": "Charlie",
+          "préfixe": "liste ",
+          "famille": "winforms",
+          "évènements": [
+            "liste Charlie"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 565,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"success\",\"success\":true,\"paused\":false,\"steps\":[{\"status\":\"verified\",\"mark\":\"✓\",\"verified\":true,\"success\":true,\"message\":null,\"technique\":\"background:messages\",\"effect\":\"applied\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":1,\"total\":1,\"nextStep\":1},\"next\":\"✓ done (move on)\"}",
+          "vu": [
+            "liste Charlie"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "élément de liste",
+          "valeur": "Alpha",
+          "préfixe": "liste ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": true,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 744,
+          "technique": "click",
+          "réponse": "click: ✅ Performed UIA Invoke on [9] (screen (4652,935)).",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "menu",
+          "valeur": "",
+          "préfixe": "menu ",
+          "famille": "winforms",
+          "évènements": [
+            "menu action"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [
+            "premier plan WindowsForms10.Window.8.app.0.3241864_r8_ad1 (pid 37292) 467 ms"
+          ],
+          "souris physique": false,
+          "ms": 483,
+          "technique": "invoke_menu",
+          "réponse": "invoke_menu: Resolved the live native menu path and dispatched its final accessibility action; verify the command's semantic effect from fresh state.",
+          "vu": [
+            "menu action"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "menu",
+          "valeur": "",
+          "préfixe": "menu ",
+          "famille": "winforms",
+          "évènements": [
+            "menu action"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 458,
+          "technique": "background:uia",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"menu\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "menu action"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "clic brut",
+          "valeur": "",
+          "préfixe": "zone ",
+          "famille": "winforms",
+          "évènements": [
+            "zone gauche 214,54"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 656,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":10094692,\"className\":\"WindowsForms10.Window.8.app.0.3241864_r8_ad1\",\"thread\":31012,\"client\":[214,54],\"screen\":[4797,1160],\"posted\":",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":10094692,\"className\":\"WindowsForms10.Window.8.app.0.3241864_r8_ad1\",\"thread\":31012,\"client\":[214,54],\"screen\":[4797,1160],\"posted\":[\"WM_MOUSEMOVE\",\"0x0201\",\"0x0202\"],\"state\":\"posted\",\"hitWindow\":1050072,\"hitClass\":\"Chrome_RenderWidgetHostHWND\",\"hitIsTarget\":false,\"threadAfter\":{\"capture\":0,\"focus\":0,\"active\":0}},\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "zone gauche 214,54"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "clic brut",
+          "valeur": "",
+          "préfixe": "zone ",
+          "famille": "winforms",
+          "évènements": [
+            "zone gauche 214,53"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 911,
+          "technique": "click",
+          "réponse": "click: ✅ Posted click to pid 37292.",
+          "vu": [
+            "zone gauche 214,53"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "molette",
+          "valeur": "",
+          "préfixe": "molette ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 151,
+          "technique": "scroll",
+          "réponse": "scroll: Background delivery is not available for target window class 'WindowsForms10.Window.8.app.0.3241864_r8_ad1' on this event kind (mouse_scroll). Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target for the action and restore the previous foreground afterward.",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "molette",
+          "valeur": "",
+          "préfixe": "molette ",
+          "famille": "winforms",
+          "évènements": [
+            "molette -120"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 634,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"scroll\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatical",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"scroll\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "molette -120"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "raccourci ctrl+k",
+          "valeur": "",
+          "préfixe": "raccourci ",
+          "famille": "winforms",
+          "évènements": [
+            "raccourci ctrl+k"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 1316,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"keySequence\":{\"delivered\":1,\"total\":1,\"nextIndex\":1,\"deliveries\":[{\"index\":0,\"delivery\":\"confirmed\",\"technique\":\"background:messages\",\"",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"keySequence\":{\"delivered\":1,\"total\":1,\"nextIndex\":1,\"deliveries\":[{\"index\":0,\"delivery\":\"confirmed\",\"technique\":\"background:messages\",\"attempts\":null}],\"automaticReplay\":false,\"note\":\"Delivery is a transport acknowledgement, not proof of the UI effect. Never replay the delivered prefix.\",\"remainingCount\":0},\"index\":0,\"action\":\"key\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "raccourci ctrl+k"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "raccourci ctrl+k",
+          "valeur": "",
+          "préfixe": "raccourci ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": true,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 564,
+          "technique": "hotkey",
+          "réponse": "hotkey: ✅ Pressed ctrl+k on pid 37292 via PostMessage (Win32 target).",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "double clic",
+          "valeur": "Bravo",
+          "préfixe": "double ",
+          "famille": "winforms",
+          "évènements": [
+            "liste Bravo"
+          ],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "ok",
+          "faux succès": true,
+          "intrusions": [
+            "premier plan WindowsForms10.Window.8.app.0.3241864_r8_ad1 (pid 37292) 0 ms"
+          ],
+          "souris physique": false,
+          "ms": 977,
+          "technique": "double_click",
+          "réponse": "double_click: ✅ Posted double-click to [10] at screen-point (4652, 954).",
+          "vu": [
+            "liste Bravo"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "double clic",
+          "valeur": "Alpha",
+          "préfixe": "double ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 266,
+          "technique": "",
+          "réponse": "{\"status\":\"failed\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"refused\",\"mark\":\"✗\",\"verified\":null,\"success\":false,\"message\":\"Needs the foreground: Double click: no background technique for this control (only a list or tree item with UI Automation Invoke). Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent\",\"technique\":null,\"effect\":null,\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":n",
+          "diagnostic": "{\"status\":\"failed\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"refused\",\"mark\":\"✗\",\"verified\":null,\"success\":false,\"message\":\"Needs the foreground: Double click: no background technique for this control (only a list or tree item with UI Automation Invoke). Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent\",\"technique\":null,\"effect\":null,\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"needsForeground\":true,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "menu contextuel",
+          "valeur": "",
+          "préfixe": "contexte ",
+          "famille": "winforms",
+          "évènements": [
+            "contexte copier"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 845,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":33687462,\"className\":\"WindowsForms10.LISTBOX.app.0.3241864_r8_ad1\",\"thread\":31012,\"client\":[98,22],\"screen\":[4653,954],\"posted\":[\"W",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":{\"target\":33687462,\"className\":\"WindowsForms10.LISTBOX.app.0.3241864_r8_ad1\",\"thread\":31012,\"client\":[98,22],\"screen\":[4653,954],\"posted\":[\"WM_MOUSEMOVE\",\"0x0204\",\"0x0205\"],\"state\":\"posted\",\"hitWindow\":1050072,\"hitClass\":\"Chrome_RenderWidgetHostHWND\",\"hitIsTarget\":false,\"threadAfter\":{\"capture\":0,\"focus\":33687462,\"active\":18613610}},\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}\n---\n{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:uia\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [
+            "contexte copier"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "menu contextuel",
+          "valeur": "",
+          "préfixe": "contexte ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 146,
+          "technique": "",
+          "réponse": "« Liste » absente de l'arbre Cua",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "modale",
+          "valeur": "",
+          "préfixe": "modale ",
+          "famille": "winforms",
+          "évènements": [
+            "modale ouverte"
+          ],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 1,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 120141,
+          "technique": "",
+          "réponse": "exception OperationCanceledException: The operation was canceled.",
+          "vu": [
+            "modale ouverte"
+          ],
+          "laissé ouvert": [
+            "Confirmation"
+          ],
+          "tour": 2,
+          "recouverte": true,
+          "tardifs": [
+            "modale ferm�e"
+          ]
+        },
+        {
+          "outil": "claude",
+          "tâche": "modale",
+          "valeur": "",
+          "préfixe": "modale ",
+          "famille": "winforms",
+          "évènements": [
+            "modale ouverte",
+            "modale ok"
+          ],
+          "avant": "",
+          "effet": true,
+          "événements de la famille": 2,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "incertain",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 486,
+          "technique": "background:messages",
+          "réponse": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automaticall",
+          "diagnostic": "{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}\n---\n{\"status\":\"unverified\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"sent-unconfirmed\",\"mark\":\"~\",\"verified\":null,\"success\":false,\"message\":\"Input sent; no exact postcondition was supplied. Look before deciding the next gesture.\",\"technique\":\"background:messages\",\"effect\":\"sent\",\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"index\":0,\"action\":\"click\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}\n---\ndialogue vérifié HWND=6620808, PID=37292, propriétaires=(18613610)",
+          "vu": [
+            "modale ouverte",
+            "modale ok"
+          ],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "claude",
+          "tâche": "glisser-déposer",
+          "valeur": "",
+          "préfixe": "depose ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 266,
+          "technique": "",
+          "réponse": "{\"status\":\"failed\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"refused\",\"mark\":\"✗\",\"verified\":null,\"success\":false,\"message\":\"Needs the foreground: drag and drop follows the real mouse in this interface (Windows drag loop). Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent\",\"technique\":null,\"effect\":null,\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"needsForeground",
+          "diagnostic": "{\"status\":\"failed\",\"success\":false,\"paused\":false,\"steps\":[{\"status\":\"refused\",\"mark\":\"✗\",\"verified\":null,\"success\":false,\"message\":\"Needs the foreground: drag and drop follows the real mouse in this interface (Windows drag loop). Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent\",\"technique\":null,\"effect\":null,\"foregroundTaken\":false,\"foregroundReturned\":null,\"attempts\":null,\"trace\":null,\"needsForeground\":true,\"index\":0,\"action\":\"drag\"}],\"progress\":{\"completed\":0,\"total\":1,\"nextStep\":0},\"next\":\"Look again; no step will be replayed automatically\"}",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true
+        },
+        {
+          "outil": "cua",
+          "tâche": "glisser-déposer",
+          "valeur": "",
+          "préfixe": "depose ",
+          "famille": "winforms",
+          "évènements": [],
+          "avant": "",
+          "effet": false,
+          "événements de la famille": 0,
+          "doublon": false,
+          "cardinalité": "exacte",
+          "déclaré": "échec",
+          "faux succès": false,
+          "intrusions": [],
+          "souris physique": false,
+          "ms": 210,
+          "technique": "",
+          "réponse": "« Jeton » absent de l'arbre Cua ; vus : MenuItem Fichier | MenuItem Action menu | Edit Nom | Edit Notes | Button Valider | CheckBox Option | ComboBox Couleur | Text Couleur | Button Ouvrir | ListItem Alpha | ListItem Bravo | ListItem Charlie | Button Dialogue | Edit Lecture | TitleBar Labo WinForms | MenuItem Système | Button Réduire | Button Agrandir | Button Fermer",
+          "vu": [],
+          "tour": 2,
+          "recouverte": true
+        }
+      ],
+      "capture": {
+        "claude": {
+          "ok": true,
+          "ms": 178,
+          "taille": [
+            702,
+            740
+          ],
+          "intrusions": []
+        },
+        "cua": {
+          "ok": true,
+          "ms": 110,
+          "taille": [
+            700,
+            738
+          ],
+          "intrusions": []
+        }
+      }
+    }
+  ]
+}

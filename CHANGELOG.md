@@ -10,6 +10,10 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+### Added
+- Benchmark results: NexusWindows 3.16.5 and Cua Driver 0.38.0 on the same Windows background tasks, with method,
+  per-task table and raw data (`docs/benchmarks/2026-11-03-cua-driver`).
+
 ### Fixed
 - Garde-fous : retrait du blocage dur de la fenêtre de Codex pour les trois profils (`fenetre_autorisation_codex` supprimé des listes actives). Claude, Antigravity et Codex peuvent interagir librement avec la fenêtre de Codex / ChatGPT.
 
