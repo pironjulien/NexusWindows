@@ -10,6 +10,18 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.8] - 2026-11-03
+
+### Fixed
+- The shared plugin and Antigravity guides now teach the current observation/selector/expect contract first,
+  reuse the fresh state returned by an action, and batch verified steps. Removed obsolete claims that Chromium
+  file pickers always require physical input and that password fields can be filled.
+- Diagnostic logs retain closed, non-sensitive categories for stale observations, changed interfaces, invalid
+  postconditions and unavailable background input, plus fixed result statuses, instead of hiding every cause behind
+  an exception type. Unrecognized error text, typed content and authorization values remain excluded.
+- The launcher ownership test waits for its own child process to appear instead of assuming startup within 500 ms,
+  and always closes its launcher on failure. The startup race could otherwise fail the suite on a busy workstation.
+
 ## [3.16.7] - 2026-11-03
 
 ### Fixed

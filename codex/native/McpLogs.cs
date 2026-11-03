@@ -12,9 +12,11 @@ static partial class McpServer
     static string? DebugDiagnostic(string? message)
     {
         if (string.IsNullOrWhiteSpace(message)) return null;
+        if (DebugCategorical("status", message) is { } status) return status;
         // Errors can echo a caller's key, target or typed text without quotes or punctuation.
         // Keep only known fixed diagnostic categories, never an arbitrary free-text suffix.
-        foreach (var category in new[] { "Target not found", "Target missing", "Application identity changed", "Window identity changed", "Emergency stop", "Unknown modifier", "Unknown key", "Incomplete key combination", "User resumed", "Interaction budget expired" })
+        foreach (var category in new[] { "Target not found", "Target missing", "Application identity changed", "Window identity changed", "Emergency stop", "Unknown modifier", "Unknown key", "Incomplete key combination", "User resumed", "Interaction budget expired",
+            "Observation expired", "Observation already consumed or replaced", "Look at a named window first", "Look at the named window before acting", "Interface structure changed", "Semantic target count", "Ambiguous postcondition target", "Vague postcondition is already true", "An explicit postcondition is required", "Unknown postcondition field", "Unsupported postcondition field", "Empty postcondition", "Needs the foreground", "Window is disabled", "Window busy" })
             if (message.StartsWith(category, StringComparison.OrdinalIgnoreCase)) return category;
         foreach (var kind in new[] { "ActionRefusedException", "AfterInputException", "BackgroundNotApplicableException", "EmergencyStopException", "InvalidOperationException", "ArgumentException", "IOException", "JsonException", "TimeoutException", "Win32Exception" })
             if (message == kind || message.StartsWith(kind + ":", StringComparison.Ordinal)) return kind;
@@ -140,12 +142,17 @@ static partial class McpServer
             var tool = CanonicalNormalizeToolName(name);
             if (!new[] { "windows", "look", "act", "launch", "window", "notifications", "clipboard", "logs" }.Contains(tool)) tool = "invalid";
             var raw = new JsonObject { ["ts"] = DateTimeOffset.UtcNow.ToString("O"), ["tool"] = tool, ["ms"] = milliseconds, ["ok"] = ok,
-                ["error"] = error != null ? error.GetType().Name : ok ? null : DebugDiagnostic(Str(data, "status", "Unverified result")), ["args"] = args.DeepClone(), ["steps"] = data?["steps"]?.DeepClone() ?? new JsonArray() };
+                ["error"] = error != null ? DebugException(error) : ok ? null : DebugDiagnostic(Str(data, "status", "Unverified result")), ["args"] = args.DeepClone(), ["steps"] = data?["steps"]?.DeepClone() ?? new JsonArray() };
             var record = DebugRecord(raw);
             var directory = Path.Combine(NativeStateRoot(state.Agent), "logs"); Directory.CreateDirectory(directory);
             File.AppendAllText(Path.Combine(directory, $"{DateTime.Now:yyyy-MM-dd}.jsonl"), record.ToJsonString(JsonOut) + "\n", new UTF8Encoding(false));
         }
         catch { /* Diagnostic persistence never changes or repeats the operation. */ }
+    }
+    static string DebugException(Exception error)
+    {
+        var category = DebugDiagnostic(error.Message);
+        return category == "Diagnostic detail omitted; inspect status and technique" ? error.GetType().Name : category ?? error.GetType().Name;
     }
     static JsonObject CallToolLogged(SessionState state, string name, JsonObject args, bool modern)
     {
@@ -195,6 +202,12 @@ static partial class McpServer
             Assert(!final.ToJsonString().Contains("typed-secret"), "unquoted exception content excluded by the real writer");
             Assert(DebugFields(new JsonObject { ["technique"] = "UIA Invoke", ["method"] = "messages without activation" }, DebugStepFields).ToJsonString() == """{"method":"messages without activation","technique":"UIA Invoke"}""", "historical technique names with spaces are kept");
             Assert(DebugDiagnostic("Unknown modifier typed-secret") == "Unknown modifier" && !DebugFields(new JsonObject { ["message"] = "unquoted-step-secret", ["attempts"] = new JsonArray("unquoted-attempt-secret") }, DebugStepFields).ToJsonString().Contains("secret"), "step and attempt diagnostic content excluded");
+            foreach (var category in new[] { "Observation expired", "Observation already consumed or replaced", "Interface structure changed", "Needs the foreground", "Unknown postcondition field" })
+            {
+                Assert(DebugDiagnostic(category + ": typed-secret") == category, "safe actionable category retained");
+                Assert(DebugException(new ActionRefusedException(category + ": typed-secret")) == category, "exception writer preserves only the safe category");
+            }
+            Assert(DebugDiagnostic("unmet") == "unmet" && DebugException(new InvalidOperationException("private-unrecognized-secret")) == "InvalidOperationException", "fixed statuses retained and unknown exception content excluded");
             var historicalVerdicts = DebugFields(new JsonObject { ["ok"] = true, ["already"] = true, ["preuve"] = "unquoted-proof-secret", ["error_type"] = "TimeoutException" }, DebugStepFields);
             Assert(Bool(historicalVerdicts, "ok") && Bool(historicalVerdicts, "already") && Str(historicalVerdicts, "error_type") == "TimeoutException" && !historicalVerdicts.ToJsonString().Contains("secret"), "legacy verdicts retained and proof text redacted");
             Assert(DebugAttempt("UIA Invoke ✗ unquoted-attempt-secret") == "UIA Invoke ✗" && DebugAttempt("DevTools insertText ✓") == "DevTools insertText ✓" && !DebugAttempt("unknown-attempt-secret ✗ private")!.Contains("secret"), "real legacy attempt strings retain known technique/verdict only");

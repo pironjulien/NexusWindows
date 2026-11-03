@@ -124,10 +124,31 @@ public sealed class LauncherTests : IDisposable
         var start = new ProcessStartInfo(launcher) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true };
         foreach (var arg in new[] { "/d", "/c", "more" }) start.ArgumentList.Add(arg);
         using var session = Process.Start(start)!;
-        Thread.Sleep(500);
-        var engine = Process.GetProcessesByName("NexusWindows").Where(p => { try { return p.MainModule!.FileName.StartsWith(home, StringComparison.OrdinalIgnoreCase) && p.Id != session.Id; } catch { return false; } }).ToList();
-        Assert.Single(engine);
-        session.Kill();
-        Assert.True(engine[0].WaitForExit(10_000));
+        Process? engine = null;
+        try
+        {
+            Assert.True(SpinWait.SpinUntil(() =>
+            {
+                foreach (var candidate in Process.GetProcessesByName("NexusWindows"))
+                {
+                    try
+                    {
+                        if (candidate.Id != session.Id && candidate.MainModule!.FileName.StartsWith(home, StringComparison.OrdinalIgnoreCase))
+                        { engine = candidate; return true; }
+                    }
+                    catch (InvalidOperationException) { }
+                    catch (System.ComponentModel.Win32Exception) { }
+                    candidate.Dispose();
+                }
+                return false;
+            }, 10_000), "The launcher did not start its recorded engine within 10 seconds");
+            session.Kill();
+            Assert.True(engine!.WaitForExit(10_000));
+        }
+        finally
+        {
+            if (!session.HasExited) { session.Kill(); session.WaitForExit(10_000); }
+            engine?.Dispose();
+        }
     }
 }
