@@ -10,6 +10,13 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.7] - 2026-11-03
+
+### Fixed
+- The skills' links to the operation-approval section of the MCP cookbook point to GitHub instead of a relative path:
+  an installed skill (Antigravity plugin folder, Codex skill folder) is copied outside the repository, where the
+  relative link led nowhere (the Antigravity one went one level above the repository even there).
+
 ## [3.16.6] - 2026-11-03
 
 ### Added
