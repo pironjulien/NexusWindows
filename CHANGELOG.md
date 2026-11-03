@@ -10,6 +10,14 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.10] - 2026-11-03
+
+### Fixed
+- `logs(errors_only=true)` no longer fills up with gestures that were simply sent without an `expect`: an `act` batch
+  that ran every gesture, all succeeded but the last, and ended with that plain send is logged `ok`. A batch stopped
+  before its later gestures, an earlier failure, a paused routine or a send whose outcome is truly unknown stays a
+  failure, and the answer itself still says `unverified`. Records written before this version are left as they are.
+
 ## [3.16.9] - 2026-11-03
 
 ### Fixed

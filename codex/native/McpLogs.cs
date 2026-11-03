@@ -143,8 +143,8 @@ static partial class McpServer
                 data?["verified"] is JsonValue verified && verified.TryGetValue<bool>(out var proved) && !proved ||
                 data?["opened"] is JsonValue opened && opened.TryGetValue<bool>(out var wasOpened) && !wasOpened;
             var unresolved = status is "unknown" or "unverified" or "unmet" or "refused" or "interrupted" or "stopped" or "deferred" or "confirmation-required" or "sent-unconfirmed";
-            var ok = error == null && !Bool(response, "isError") && (paused || !explicitFailure && !unresolved);
             var tool = CanonicalNormalizeToolName(name);
+            var ok = error == null && !Bool(response, "isError") && (paused || !explicitFailure && !unresolved || tool == "act" && SentWithoutExpectOnly(data));
             if (!new[] { "windows", "look", "act", "launch", "window", "notifications", "clipboard", "logs" }.Contains(tool)) tool = "invalid";
             var raw = new JsonObject { ["ts"] = DateTimeOffset.UtcNow.ToString("O"), ["tool"] = tool, ["ms"] = milliseconds, ["ok"] = ok,
                 ["error"] = error != null ? DebugException(error) : ok ? null : DebugDiagnostic(Str(data, "status", "Unverified result")), ["args"] = args.DeepClone(), ["steps"] = data?["steps"]?.DeepClone() ?? new JsonArray() };
@@ -158,6 +158,22 @@ static partial class McpServer
     {
         var category = DebugDiagnostic(error.Message);
         return category == "Diagnostic detail omitted; inspect status and technique" ? error.GetType().Name : category ?? error.GetType().Name;
+    }
+    // A batch that ran every gesture and whose last one was sent without an expect is the normal outcome of that
+    // request, not a failure: kept out of errors_only. Anything else stays a failure: a batch stopped early (its later
+    // gestures never ran), an earlier step that failed, a paused routine, or a send whose outcome is truly unknown
+    // (error_type, "Window command may have been sent"). The response itself still says unverified: look again.
+    static bool SentWithoutExpectOnly(JsonObject? data)
+    {
+        if (data == null || Str(data, "status") != "unverified" || data["steps"] is not JsonArray steps || steps.Count == 0) return false;
+        var total = Number(data["progress"] as JsonObject, "total", -1);
+        if (total != steps.Count || Number(data["progress"] as JsonObject, "nextStep", -1) != steps.Count - 1) return false;
+        var results = steps.OfType<JsonObject>().ToList();
+        if (results.Count != steps.Count) return false;
+        var last = results[^1];
+        return Str(last, "status") == "sent-unconfirmed" && last["error_type"] == null &&
+            Str(last, "message").StartsWith("Input sent; no exact postcondition was supplied", StringComparison.Ordinal) &&
+            results.Take(results.Count - 1).All(step => Bool(step, "success"));
     }
     static JsonObject CallToolLogged(SessionState state, string name, JsonObject args, bool modern)
     {
@@ -220,6 +236,19 @@ static partial class McpServer
             WriteDebugRecord(state, "window", new JsonObject { ["action"] = "unquoted-private-value", ["show"] = "private-show", ["direction"] = "private-direction" }, null, 1, new ActionRefusedException("invalid private input"));
             Assert(!ReadDebugRecords(roots, Path.Combine(root, "journal"), 30, false).ToJsonString().Contains("private-value"), "unknown action values never persisted");
             Assert(!DebugFields(new JsonObject { ["foreground"] = "private-foreground", ["count"] = "private-count", ["ms"] = "private-duration" }, ["foreground", "count", "ms"]).ToJsonString().Contains("private-"), "invalid scalar strings never persisted");
+            JsonObject Gesture(string status, bool success, string message) => new() { ["status"] = status, ["success"] = success, ["message"] = message };
+            JsonObject Batch(int total, params JsonObject[] steps) => new() { ["status"] = "unverified", ["success"] = false, ["steps"] = new JsonArray(steps.Select(s => (JsonNode)s).ToArray()), ["progress"] = new JsonObject { ["completed"] = steps.Count(s => Bool(s, "success")), ["total"] = total, ["nextStep"] = steps.Length - 1 } };
+            var sent = "Input sent; no exact postcondition was supplied. Look before deciding the next gesture.";
+            Assert(SentWithoutExpectOnly(Batch(2, Gesture("verified", true, ""), Gesture("sent-unconfirmed", false, sent))), "complete batch ending in a send without expect is not a failure");
+            Assert(!SentWithoutExpectOnly(Batch(2, Gesture("sent-unconfirmed", false, sent))), "batch stopped before its later gestures stays a failure");
+            Assert(!SentWithoutExpectOnly(Batch(2, Gesture("unmet", false, "Postcondition not observed; no automatic replay"), Gesture("sent-unconfirmed", false, sent))), "earlier failed gesture stays a failure");
+            Assert(!SentWithoutExpectOnly(Batch(1, Gesture("sent-unconfirmed", false, "Window command may have been sent; inspect its current state before deciding anything else."))), "uncertain send stays a failure");
+            var withError = Gesture("sent-unconfirmed", false, sent); withError["error_type"] = "TimeoutException";
+            Assert(!SentWithoutExpectOnly(Batch(1, withError)) && !SentWithoutExpectOnly(Batch(0)) && !SentWithoutExpectOnly(new JsonObject { ["status"] = "failed", ["steps"] = new JsonArray(Gesture("verified", true, "")) }), "captured errors, empty and paused/failed batches stay failures");
+            WriteDebugRecord(state, "act", new JsonObject(), new JsonObject { ["structuredContent"] = Batch(1, Gesture("sent-unconfirmed", false, sent)) }, 4);
+            WriteDebugRecord(state, "act", new JsonObject(), new JsonObject { ["structuredContent"] = Batch(3, Gesture("verified", true, ""), Gesture("sent-unconfirmed", false, sent)) }, 4);
+            var lastTwo = ReadDebugRecords(roots, Path.Combine(root, "journal"), 2, false);
+            Assert(lastTwo.Count == 2 && Bool(lastTwo[0], "ok") && !Bool(lastTwo[1], "ok"), "real writer: send without expect ok, interrupted batch kept in errors_only");
             foreach (var value in new[] { "refused-before-input", "returned", "input-uncertain" }) Assert(DebugCategorical("status", value) == value, "fixed fallback status retained");
             foreach (var value in new[] { "not-taken", "refused", "held-for-interaction", "kept-requested" }) Assert(DebugCategorical("foregroundReturned", value) == value, "fixed foreground result retained");
             var journalHome = Environment.GetEnvironmentVariable("NEXUS_JOURNAL_HOME");
