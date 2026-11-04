@@ -10,6 +10,11 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.15] - 2026-11-04
+
+### Changed
+- Display name written NexusWindows, without a space, like the repository and the NexusSystem catalog.
+
 ## [3.16.14] - 2026-11-04
 
 ### Fixed
