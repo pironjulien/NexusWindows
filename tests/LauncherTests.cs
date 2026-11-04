@@ -133,7 +133,8 @@ public sealed class LauncherTests : IDisposable
                 {
                     try
                     {
-                        if (candidate.Id != session.Id && candidate.MainModule!.FileName.StartsWith(home, StringComparison.OrdinalIgnoreCase))
+                        // A process still starting has no main module yet (null): look again at the next spin.
+                        if (candidate.Id != session.Id && candidate.MainModule?.FileName is { } file && file.StartsWith(home, StringComparison.OrdinalIgnoreCase))
                         { engine = candidate; return true; }
                     }
                     catch (InvalidOperationException) { }
