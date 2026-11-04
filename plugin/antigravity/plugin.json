@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "nexus-windows",
   "displayName": "NexusWindows",
-  "version": "3.16.11",
+  "version": "3.16.12",
   "description": "Windows computer use in the background: see and operate desktop apps by UI Automation without taking your mouse or keyboard; every action is read back.",
   "logo": "logo.png",
   "suggestedPrompts": [
