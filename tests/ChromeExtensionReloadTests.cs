@@ -79,12 +79,60 @@ public class ChromeExtensionReloadTests
         Assert.True(longer["ok"].B(), longer.ToJsonString());
         Assert.Contains("suggestion", longer["result"]!.ToJsonString());
 
-        // Appending keeps the exact read back: an unexpected end is still a stop, not a success.
-        var appended = Simulated(new { before = "", text = "chrome://ext", replace = false, suggest = url });
+        // Appending to a field that held text keeps the exact read back: an unexpected end is still a stop, not a success.
+        var appended = Simulated(new { before = "abc", text = "chrome://ext", replace = false, suggest = "abc" + url });
         Assert.False(appended["ok"].B(), appended.ToJsonString());
 
         Assert.Null(ChromiumInput.ConfirmedTextPrefix(url, "chrome:/"));
         Assert.Equal(8, ChromiumInput.ConfirmedTextPrefix(url, "chrome:/", completion: true));
+    }
+
+    [Fact]
+    public void Type_without_replace_in_the_empty_address_bar_is_not_stopped_by_its_suggestion()
+    {
+        const string url = "chrome://extensions/";
+        // 3.16.17, real Chrome: type (no replace) into a new window's empty address bar stopped at 8/20, "Interaction
+        // budget expired": "chrome:/" read back as the suggested address and the append path never accepted it.
+        var typed = Simulated(new { before = "", text = url, replace = false, suggest = url });
+        Assert.True(typed["ok"].B(), typed.ToJsonString());
+        Assert.Contains("\"applied\"", typed["result"]!.ToJsonString());
+        Assert.Equal(3, typed["events"].Strings().Count(e => e.StartsWith("chars:", StringComparison.Ordinal)));
+        // A shorter text completed by the suggestion is accepted and the suggestion reported.
+        var shorter = Simulated(new { before = "", text = "chrome://ext", replace = false, suggest = url });
+        Assert.True(shorter["ok"].B(), shorter.ToJsonString());
+        Assert.Contains("suggestion", shorter["result"]!.ToJsonString());
+    }
+
+    [Fact]
+    public void Type_is_judged_on_the_field_value_read_back_not_on_the_acknowledged_count()
+    {
+        // The wait runs out just as the last characters land: 16 of 20 acknowledged, the field shows the whole text.
+        // Before 3.16.18: "Simulated text stopped after input (20/20); outcome unknown" and the batch's Enter never went.
+        var late = Simulated(new { before = "", text = "chrome://extensions/", replace = false, lateAck = true });
+        Assert.True(late["ok"].B(), late.ToJsonString());
+        Assert.Contains("\"applied\"", late["result"]!.ToJsonString());
+        Assert.Contains("whole text read back", late["result"]!.ToJsonString());
+
+        // A field that never shows the whole text stays unknown, never a success, and says what was read back.
+        var lost = Simulated(new { before = "", text = "chrome://extensions/", replace = false, noAck = true });
+        Assert.False(lost["ok"].B(), lost.ToJsonString());
+        Assert.Contains("does not show the whole text", lost["message"].S());
+    }
+
+    [Fact]
+    public void The_foreground_lease_covers_the_typing_time_of_the_batch_text()
+    {
+        static JsonArray Steps(string json) => JsonNode.Parse(json)!.AsArray();
+        // Without text: the historical 30 s.
+        Assert.Equal(McpServer.NativeInteraction.DefaultBudgetMs, McpServer.NativeInteraction.BudgetFor(Steps("""[{"do":"key","keys":"enter"}]""")));
+        Assert.Equal(McpServer.NativeInteraction.DefaultBudgetMs, McpServer.NativeInteraction.BudgetFor(null));
+        // type of 20 characters then Enter (the 04/11 batch): 30 s plus the typing time of the 20 characters.
+        var batch = McpServer.NativeInteraction.BudgetFor(Steps("""[{"do":"type","target":"Barre d'adresse et de recherche","text":"chrome://extensions/"},{"do":"key","keys":"enter"}]"""));
+        Assert.Equal(McpServer.NativeInteraction.DefaultBudgetMs + 20 * McpServer.NativeInteraction.TextMsPerCharacter, batch);
+        // set counts its value too; a long text never exceeds the historical text budget.
+        Assert.True(McpServer.NativeInteraction.BudgetFor(Steps("""[{"do":"set","target":"Dossier :","value":"C:\\Users"}]""")) > McpServer.NativeInteraction.DefaultBudgetMs);
+        var huge = new JsonArray(new JsonObject { ["do"] = "type", ["text"] = new string('a', 100_000) });
+        Assert.Equal(ChromiumInput.McpTextBudget, McpServer.NativeInteraction.BudgetFor(huge));
     }
 
     [Fact]

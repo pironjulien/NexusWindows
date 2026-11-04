@@ -87,7 +87,10 @@ static partial class ChromiumInput
     static Outcome RunObservedText(string before, string rawText, bool replace, SimulatedTextIo io)
     {
         var text = rawText.Replace("\r\n", "\n").Replace('\r', '\n'); var sent = 0; var changed = false;
-        var completion = replace && text.IndexOf('\n') < 0;
+        // completion: also when appending to an EMPTY field (Chrome's address bar of a new window, 04/11 at 3.16.17: type
+        // without replace stopped at 8/20 because "chrome:/" read back with its suggested end and never matched). A
+        // non-empty field being appended to keeps the exact read back.
+        var completion = text.IndexOf('\n') < 0 && (replace || ComparableText(before).Trim().Length == 0);
         string Read()
         {
             io.Check(); var value = io.Read() ?? throw new InvalidOperationException("Target value became unreadable; no further text sent");
@@ -127,7 +130,21 @@ static partial class ChromiumInput
         catch (EmergencyStopException) when (changed)
         { throw new EmergencyStopException($"Emergency stop after simulated text input ({sent}/{text.Length}); outcome unknown, do not replay"); }
         catch (Exception error) when (changed && error is not (EmergencyStopException or AfterInputException))
-        { throw new AfterInputException($"Simulated text stopped after input ({sent}/{text.Length}); outcome unknown, do not replay: {error.Message}", error); }
+        {
+            // Success is judged on the field's value read back, never on the count of acknowledged packets: one last read
+            // (no input sent, no lease check) showing the whole text, an inline suggestion after it tolerated as above,
+            // means the text is there and the next step of the batch may go.
+            string? final = null;
+            try { final = io.Read() is { } read ? ComparableText(read) : null; }
+            catch (Exception) { /* Unreadable: the outcome stays unknown. */ }
+            if (final != null && ConfirmedTextPrefix(final, text, before, !replace, completion) == text.Length)
+            {
+                var suggested = completion && final.Length > text.Length ? "; the field also shows a suggestion after the text" : "";
+                return new("background:simulated-activation", $"WM_CHAR + Enter keys; whole text read back in the field ({(replace ? "replaced" : "appended")}{suggested}) after the wait stopped: {error.Message}", "applied");
+            }
+            var shown = final == null ? "field unreadable" : "field does not show the whole text";
+            throw new AfterInputException($"Simulated text stopped after input ({sent}/{text.Length} sent, {shown}); outcome unknown, do not replay: {error.Message}", error);
+        }
     }
 
     // Called only after Program.Execute resolved and guarded the target. The callback repeats that same target and
@@ -295,6 +312,9 @@ static partial class ChromiumInput
         var revealSend = test.TryGetProperty("revealSendAfter", out var reveal) ? reveal.GetString() : null;
         // suggest: an inline autocompletion shown after the typed characters (Chrome address bar).
         var suggestion = test.TryGetProperty("suggest", out var suggest) ? suggest.GetString() : null; var typedSoFar = "";
+        // lateAck: the field shows the LAST characters only once the wait has run out (a budget expiring just as the
+        // text lands): the outcome must then come from the field's value, not from the acknowledged count.
+        var lateAck = test.TryGetProperty("lateAck", out var late) && late.GetBoolean(); string? pending = null;
         void Check() { checks++; if (inputPackets >= loseAfter) throw new ActionRefusedException("Fixture focus changed"); }
         var io = new SimulatedTextIo(Check, () => value, () => events.Add(replace ? "select-all" : "caret-end"),
             () => { events.Add("delete"); inputPackets++; if (!noAck) value = ""; },
@@ -302,8 +322,8 @@ static partial class ChromiumInput
             {
                 events.Add("chars:" + unit); inputPackets++;
                 if (noAck) return;
-                if (suggestion == null) { value += unit; return; }
-                typedSoFar += unit; value = suggestion.StartsWith(typedSoFar, StringComparison.Ordinal) ? suggestion : typedSoFar;
+                var shown = suggestion == null ? value + unit : suggestion.StartsWith(typedSoFar += unit, StringComparison.Ordinal) ? suggestion : typedSoFar;
+                if (lateAck && shown.EndsWith(text, StringComparison.Ordinal)) pending = shown; else value = shown;
             },
             () =>
             {
@@ -314,7 +334,7 @@ static partial class ChromiumInput
                 }
                 events.Add("enter"); inputPackets++; if (!noAck && !changeAfterEnter) value += "\n";
             },
-            () => waits < 3, () => waits++);
+            () => { if (waits < 3) return true; if (pending != null) value = pending; return false; }, () => waits++);
         try { var result = RunObservedText(value, text, replace, io); return new { ok = true, result, value, events, checks, waits, inputPackets }; }
         catch (Exception error) { return new { ok = false, error = error.GetType().Name, message = error.Message, value, events, checks, waits, inputPackets }; }
     }

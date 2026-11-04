@@ -1,6 +1,6 @@
 {
   "name": "nexus-windows-codex",
-  "version": "3.16.17",
+  "version": "3.16.18",
   "description": "NexusWindows for Codex: Windows computer use in the background for OpenAI Codex (MCP server and Codex skill).",
   "type": "module",
   "license": "MIT",

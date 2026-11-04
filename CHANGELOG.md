@@ -10,6 +10,19 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.18] - 2026-11-04
+
+### Fixed
+- `type` without `replace` into an empty single-line field that completes what is typed (Chrome's address bar in a
+  new window) no longer stops at "8/20" with "Interaction budget expired": the inline suggestion shown after the typed
+  characters is tolerated, as it already was with `replace:true`. Appending to a field that holds text keeps the exact
+  read back.
+- Typed text is judged on the field's value read back, not on the count of acknowledged characters: when the wait
+  stops but the field shows the whole text (a suggestion after it tolerated), the step succeeds and the batch's next
+  step (Enter) is sent; otherwise the step stays unknown and says what the field showed.
+- The foreground lease (`act(foreground=true)`) and the batch's pause boundary last 30 s plus 0.75 s for each
+  character of the batch's `type` and `set` text, at most the 170 s text budget, instead of a fixed 30 s.
+
 ## [3.16.17] - 2026-11-04
 
 ### Changed

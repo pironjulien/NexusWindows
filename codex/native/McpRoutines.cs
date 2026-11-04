@@ -183,7 +183,10 @@ static partial class McpServer
         var paste = GardeFous.CheckBlindPaste(steps.OfType<JsonObject>().SelectMany(s => (Str(s, "kind") == "key" ? Str(s, "key").Split(' ', StringSplitOptions.RemoveEmptyEntries) : new[] { Str(s, "key") }).Select(key => (Str(s, "kind"), key, Bool(s, "confirm")))));
         if (paste.Length > 0) throw new ActionRefusedException(paste);
         var timer = Stopwatch.StartNew();
-        var budget = Math.Clamp(args["time_budget"] != null ? Number(args, "time_budget") * 1000 : Number(args, "timeBudgetMs", 30000), 0, 30000);
+        // A batch that types text keeps going for as long as its foreground lease does (30 s + the text's typing time),
+        // so a type that took longer than 30 s is not followed by a pause before its Enter.
+        var ceiling = (double)NativeInteraction.BudgetFor(steps);
+        var budget = Math.Clamp(args["time_budget"] != null ? Number(args, "time_budget") * 1000 : Number(args, "timeBudgetMs", ceiling), 0, ceiling);
         var physicalAllowed = RoutinePhysicalAllowed(state.Agent, args);
         if (RoutineBoolean(args, "interaction", false) && !physicalAllowed) throw new ActionRefusedException("interaction:true requires permission for foreground input; nothing sent");
         using var interaction = RoutineBoolean(args, "interaction", false) && state.Interaction == null ? NativeInteraction.Begin(state, steps) : null;

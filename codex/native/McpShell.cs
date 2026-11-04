@@ -47,7 +47,7 @@ static partial class McpServer
         // The look was taken in the background: compare it before the lease, since bringing a Chromium window forward
         // publishes its page content (a new tree, not a changed interface). The lease then starts from a fresh inspection.
         if (operation == "run") CheckStructureSinceLook(state, args);
-        using var scope = NativeInteraction.BeginLegacy(state);
+        using var scope = NativeInteraction.BeginLegacy(state, args["steps"] as JsonArray);
         var result = FinishLegacyAct(state, args, ActNative(state, args, modern, structureCheckedBeforeLease: operation == "run"));
         result["structuredContent"]!["foregroundReturned"] = scope.ReturnForeground();
         return result;

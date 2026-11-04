@@ -15,6 +15,20 @@ static partial class McpServer
         readonly bool legacy;
         readonly Dictionary<nint, WindowIdentity> shellWindows = new();
         readonly Stopwatch clock = Stopwatch.StartNew();
+        long budgetMs = DefaultBudgetMs;
+        // The foreground lease lasts 30 s, plus the time to type the batch's text: each character is read back in the
+        // field (Chrome's address bar, 04/11: a 20-character type ran out of the fixed 30 s at 8/20 and its Enter never
+        // went). Never beyond the historical text budget.
+        internal const long DefaultBudgetMs = 30000, TextMsPerCharacter = 750;
+        internal static long BudgetFor(JsonArray? steps)
+        {
+            long characters = 0;
+            foreach (var step in steps?.OfType<JsonObject>() ?? [])
+                foreach (var field in new[] { "text", "value" })
+                    if (step[field] is JsonValue value && value.TryGetValue<string>(out var text)) characters += text.Length;
+            return Math.Min(DefaultBudgetMs + characters * TextMsPerCharacter, Math.Max(DefaultBudgetMs, ChromiumInput.McpTextBudget));
+        }
+        internal long BudgetMs => budgetMs;
         bool disposed;
         internal readonly record struct WindowIdentity(nint Window, uint Pid, string Started, string Class, nint Owner);
         NativeInteraction(SessionState state, ForegroundToken token, IDisposable presence, bool legacy)
@@ -35,11 +49,11 @@ static partial class McpServer
         public static NativeInteraction Begin(SessionState state, JsonArray steps)
         {
             ValidateSteps(state.Agent, steps, false);
-            return Open(state, legacy: false, activate: true, shellOpening: false);
+            return Open(state, legacy: false, activate: true, shellOpening: false, BudgetFor(steps));
         }
-        public static NativeInteraction BeginLegacy(SessionState state) => Open(state, legacy: true, activate: true, shellOpening: false);
+        public static NativeInteraction BeginLegacy(SessionState state, JsonArray? steps = null) => Open(state, legacy: true, activate: true, shellOpening: false, BudgetFor(steps));
         internal static NativeInteraction BeginLegacyShell(SessionState state) => Open(state, legacy: true, activate: false, shellOpening: true);
-        static NativeInteraction Open(SessionState state, bool legacy, bool activate, bool shellOpening)
+        static NativeInteraction Open(SessionState state, bool legacy, bool activate, bool shellOpening, long budget = DefaultBudgetMs)
         {
             if (legacy) ValidateSteps(state.Agent, new(), true);
             if (state.Interaction != null) throw new ActionRefusedException("An interaction scope is already active");
@@ -57,7 +71,7 @@ static partial class McpServer
             {
                 NativeMcpGuard.RequirePause(); EmergencyStop.ThrowIfStopped();
                 presence = NativeMcpGuard.PhysicalScope();
-                lease = new NativeInteraction(state, token, presence, legacy) { targetIdentity = identity };
+                lease = new NativeInteraction(state, token, presence, legacy) { targetIdentity = identity, budgetMs = budget };
                 state.Interaction = lease;
                 current = lease;
                 lease.Check();
@@ -69,7 +83,7 @@ static partial class McpServer
         public void Check()
         {
             EmergencyStop.ThrowIfStopped(); NativeMcpGuard.CheckInterruption();
-            if (clock.ElapsedMilliseconds >= 30000) throw new ActionRefusedException("Interaction budget expired; look again before any input");
+            if (clock.ElapsedMilliseconds >= budgetMs) throw new ActionRefusedException("Interaction budget expired; look again before any input");
             if (disposed || !ReferenceEquals(state.Interaction, this)) throw new ActionRefusedException("Interaction lease is no longer active");
             if (targetIdentity is { } target)
             {
