@@ -196,17 +196,26 @@ static partial class McpServer
             if (requireReady && !Bool(focused, "focused") && (!nativeReady || Number(focused, "nativeWindow") == 0 || Number(focused, "nativeWindow") != (long)info.Focus))
                 throw new ActionRefusedException("The named keyboard target is not focused; no key sent");
         }
-        else
-        {
-            var candidates = Elements(snapshot).OfType<JsonObject>().Where(e => !Bool(e, "ocr") && Bool(e, "focused")).ToList();
-            var leaves = candidates.Where(e => !candidates.Any(other => !ReferenceEquals(e, other) && (other["ancestors"] as JsonArray)?.Any(i => Number(e, "index", -1) == i?.GetValue<int>()) == true)).ToList();
-            if (leaves.Count > 1) throw new ActionRefusedException("Keyboard focus is ambiguous; no key sent");
-            focused = leaves.SingleOrDefault();
-        }
+        else focused = FocusedKeyLeaf(snapshot, state.RetainedFocus);
         if (requireReady && !nativeReady && !Bool(focused, "focused"))
             throw new ActionRefusedException("The keyboard focus cannot be verified in the named window; no key sent");
         if (Bool(focused, "password")) throw new ActionRefusedException("Password controls are refused; no key sent");
         return new JsonObject { ["nativeWindow"] = nativeReady ? JsonValue.Create((long)info.Focus) : null, ["element"] = focused != null ? ElementIdentity(snapshot, focused) : null };
+    }
+    // The focused element a key without target goes to. Several focused leaves (Chrome: the address bar and the page
+    // both report keyboard focus) are resolved by the field the batch just aimed at (click, set or type), when it is one
+    // of them (04/11: Enter after a set of the address bar was refused, "Keyboard focus is ambiguous"); otherwise refused.
+    internal static JsonObject? FocusedKeyLeaf(JsonObject snapshot, JsonObject? retained)
+    {
+        var candidates = Elements(snapshot).OfType<JsonObject>().Where(e => !Bool(e, "ocr") && Bool(e, "focused")).ToList();
+        var leaves = candidates.Where(e => !candidates.Any(other => !ReferenceEquals(e, other) && (other["ancestors"] as JsonArray)?.Any(i => Number(e, "index", -1) == i?.GetValue<int>()) == true)).ToList();
+        if (leaves.Count <= 1) return leaves.SingleOrDefault();
+        if (retained != null)
+        {
+            var aimed = FindNative(snapshot, retained);
+            if (aimed.Count == 1 && leaves.Any(leaf => ReferenceEquals(leaf, aimed[0]))) return aimed[0];
+        }
+        throw new ActionRefusedException("Keyboard focus is ambiguous; no key sent");
     }
     static string KeyPermissionStamp(JsonObject snapshot, JsonObject focus, string title)
     {

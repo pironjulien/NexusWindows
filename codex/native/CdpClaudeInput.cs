@@ -256,7 +256,8 @@ static partial class Cdp
                     return new("background:devtools", "Input.dispatchKeyEvent (DOM focus/backend proven)", "sent");
                 }
                 var text = Text(op == "setValue" ? "value" : "text");
-                if (op == "setValue")
+                var replaceText = op == "typeText" && request.TryGetProperty("replace", out var replaceFlag) && replaceFlag.ValueKind == JsonValueKind.True;
+                if (op == "setValue" || replaceText)
                 {
                     guard(); Validate(); prepared = true; Program.InputStarted = true;
                     var selected = Function(session, pinned.ObjectId, SelectAllBody);
@@ -264,12 +265,12 @@ static partial class Cdp
                 }
                 else
                 {
-                    // Historical Claude 'type' appends; use the DOM caret, never UIA Value (which skips editor events).
+                    // 'type' into a document or a retained field appends; use the DOM caret, never UIA Value (which skips editor events).
                     guard(); Validate(); prepared = true; Program.InputStarted = true;
                     if (!True(Function(session, pinned.ObjectId, AppendBody))) throw new ActionRefusedException("DOM append caret could not be proved; no text sent");
                 }
                 if (text.Length > 0) Send("Input.insertText", new { text }, Validate);
-                else if (op == "setValue")
+                else if (op == "setValue" || replaceText)
                 {
                     Send("Input.dispatchKeyEvent", new { type = "rawKeyDown", key = "Delete", code = "Delete", windowsVirtualKeyCode = 46 }, Validate);
                     Send("Input.dispatchKeyEvent", new { type = "keyUp", key = "Delete", code = "Delete", windowsVirtualKeyCode = 46 });

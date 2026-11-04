@@ -168,8 +168,10 @@ static partial class McpServer
             (int)Math.Ceiling((x2 - x1) * Number(f, "width") / width), (int)Math.Ceiling((y2 - y1) * Number(f, "height") / height));
     }
 
-    static JsonObject NormalizeStep(SessionState state, JsonObject snapshot, JsonObject original, bool allowFutureTarget = false)
+    internal static JsonObject NormalizeStep(SessionState state, JsonObject snapshot, JsonObject original, bool allowFutureTarget = false)
     {
+        // type keeps its insertion at the end (rich editors, documents, the shared bench); replace:true asks for the whole field.
+        var replaceField = original["replace"] is JsonValue replaceValue && replaceValue.TryGetValue<bool>(out var replaceWanted) && replaceWanted;
         var step = LegacyStep(original); step.Remove("observedIdentity"); step.Remove("ocrTarget"); step.Remove("observedDestination"); step.Remove("placeOnly");
         var action = Str(step, "kind", Str(step, "do", Str(step, "action", "")));
         if (action.Length == 0) throw new InvalidOperationException("Every step needs action or kind");
@@ -215,7 +217,7 @@ static partial class McpServer
         if (selector != null)
         {
             step[kind == "typeText" ? "focus" : "selector"] = selector.DeepClone();
-            if (kind == "click" && target != null && Str(target, "role") is "edit" or "document") state.RetainedFocus = selector.DeepClone().AsObject();
+            if (kind is "click" or "setValue" or "typeText" && target != null && Str(target, "role") is "edit" or "document") state.RetainedFocus = selector.DeepClone().AsObject();
         }
         step.Remove("target"); if (placeOnly) target = null;
         if (kind is "setValue" or "typeText")
@@ -225,6 +227,11 @@ static partial class McpServer
             var text = action == "clear" ? "" : Str(step, kind == "setValue" ? "value" : "text", Str(step, "text"));
             step[kind == "setValue" ? "value" : "text"] = text;
             if (kind == "setValue") step.Remove("text");
+            // type with replace:true replaces the field's content, like set but with real keystrokes (04/11: typing a URL
+            // into Chrome's address bar gave "chrome://extensionschrome//extensions/"). Without it, the text goes at the end
+            // and a verified step says so when the field already held text.
+            step.Remove("replace");
+            if (kind == "typeText" && replaceField) step["replace"] = true;
         }
         if (action == "double_click") step["count"] = 2;
         if (action == "right_click") step["button"] = "right";
@@ -250,7 +257,7 @@ static partial class McpServer
             {
                 JsonNode? wanted = kind switch
                 {
-                    "setValue" => step["value"]?.DeepClone(), "typeText" => JsonValue.Create(Str(target, "value") + Str(step, "text")), "select" => step["option"]?.DeepClone(),
+                    "setValue" => step["value"]?.DeepClone(), "typeText" => JsonValue.Create((Bool(step, "replace") ? "" : Str(target, "value")) + Str(step, "text")), "select" => step["option"]?.DeepClone(),
                     "secondary" => JsonValue.Create(Str(step, "action") == "Expand"),
                     "click" when action == "check" => JsonValue.Create(true), "click" when action == "uncheck" => JsonValue.Create(false),
                     "click" when field == "checked" => JsonValue.Create(!Bool(target, "checked")), _ => JsonValue.Create(true),
@@ -345,7 +352,7 @@ static partial class McpServer
             var timer = Stopwatch.StartNew(); var timeout = Math.Clamp(Number(step, "timeoutMs", 1618), 0, 30000);
             while (true)
             {
-                if (ExpectationHolds(state, after, expect, ocr: true)) return StepResult("verified", "✓", true, true, null, outcome);
+                if (ExpectationHolds(state, after, expect, ocr: true)) return StepResult("verified", "✓", true, true, AppendedNote(step, before), outcome);
                 if (timer.ElapsedMilliseconds >= timeout) return StepResult("unmet", "~", false, false, "Postcondition not observed; no automatic replay", outcome);
                 EmergencyStop.ThrowIfStopped(); Thread.Sleep(50); after = InspectNative(state);
             }
@@ -354,6 +361,14 @@ static partial class McpServer
         {
             return StepResult(e is EmergencyStopException or JulienActiveException ? "interrupted" : "unknown", "~", null, false, error ?? e.Message, outcome);
         }
+    }
+    // type without replace:true into a field that already held text: verified, and said plainly (04/11, Chrome's address bar).
+    internal static string? AppendedNote(JsonObject step, JsonObject before)
+    {
+        if (Str(step, "kind") != "typeText" || Bool(step, "replace") || step["focus"] is not JsonObject focus) return null;
+        var fields = FindNative(before, focus);
+        if (fields.Count != 1 || Bool(fields[0], "password") || Str(fields[0], "value").Trim().Length == 0) return null;
+        return "Text appended after the field's existing text; to replace it, type with replace:true or use set";
     }
     static JsonObject StepResult(string status, string mark, bool? verified, bool success, string? message, JsonObject? outcome = null) => new()
     {
@@ -520,7 +535,7 @@ static partial class McpServer
             return ProveNative(state, step, snapshot, null, inputEverSent: false);
         }
         var request = NativeRequest(state, kind);
-        foreach (var field in new[] { "value", "text", "key", "action", "option", "path", "button", "count" }) if (step[field] != null) request[field] = step[field]!.DeepClone();
+        foreach (var field in new[] { "value", "text", "key", "action", "option", "path", "button", "count", "replace" }) if (step[field] != null) request[field] = step[field]!.DeepClone();
         if (selector != null) { request["selector"] = SelectorOf(target!); AddIdentity(request, target!, snapshot); }
         if (kind == "focus")
         {
@@ -553,8 +568,9 @@ static partial class McpServer
         catch (BackgroundNotApplicableException e) when (!Program.InputStarted && physicalAllowed && !HasClaudeDevtools(state))
         {
             // Only a proven refusal before input permits this fallback. An unchanged result never does.
-            request["operation"] = "physical"; request["action"] = kind switch { "click" => "click", "focus" => "focus", "setValue" => "replaceText", "typeText" => "type", "key" => "key", "scroll" => "wheel", "hover" => "move", "drag" => "drag", _ => throw new ActionRefusedException("No physical fallback for " + kind + ": " + e.Message) };
+            request["operation"] = "physical"; request["action"] = kind switch { "click" => "click", "focus" => "focus", "setValue" => "replaceText", "typeText" when Bool(step, "replace") => "replaceText", "typeText" => "type", "key" => "key", "scroll" => "wheel", "hover" => "move", "drag" => "drag", _ => throw new ActionRefusedException("No physical fallback for " + kind + ": " + e.Message) };
             if (kind == "typeText") request["text"] = Str(step, "text");
+            if (kind == "typeText" && Bool(step, "replace")) { request["value"] = Str(step, "text"); request.Remove("replace"); }
             // Unlike a value replacement, physical multiline input sends real Enter keys. Bind its
             // original field and recheck new/changed outward controls before each such key, for every agent.
             using var fallbackSubmission = textSubmit == null && kind is ("setValue" or "typeText") && target != null && Str(step, "text", Str(step, "value")).IndexOfAny(['\r', '\n']) >= 0
@@ -569,7 +585,7 @@ static partial class McpServer
         {
             return ProveNative(state, step, snapshot, null, e.Message);
         }
-        if (kind == "click" && target != null && Str(target, "role") is "edit" or "document") state.RetainedFocus = SelectorOf(target);
+        if (kind is "click" or "setValue" or "typeText" && target != null && Str(target, "role") is "edit" or "document") state.RetainedFocus = SelectorOf(target);
         return ProveNative(state, step, snapshot, outcome);
     }
     static JsonObject PhysicalNative(SessionState state, JsonObject request)

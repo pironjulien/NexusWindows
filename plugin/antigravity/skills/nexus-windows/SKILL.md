@@ -39,6 +39,12 @@ for an ordinary task. The older `action` / `target` / `check` forms remain compa
    - Modern steps: `kind:"setValue"` + `selector,value`; `typeText` + `focus,text`; `click` + `selector` (also
      `button:"right"`, `count:2`); `select` + `selector,option`; `secondary` + `selector,action`; `key` + `key`;
      `menu` + `path`; `scroll`, `drag`, `hover`, `wait`. Use the current schema for their fields.
+   - `typeText` (`type`) puts the text at the end of the field (a verified step says so when the field already held
+     text); `replace:true` on that step replaces the whole field, like `setValue` but with real keystrokes (an address
+     bar's inline suggestion is tolerated). A `key` without target goes to the focused element; when several report
+     focus (Chrome: address bar and page), it goes to the field the batch just set, typed or clicked.
+   - A modal dialog listed under its owner window (Chrome's folder picker) is acted on in its own window: its
+     elements can be targeted from the owner's look.
    - Prove each action with `expect:{selector,field:"value"|"name"|"checked"|"selected"|"expanded"|"focused",equals:...}`.
      `expect:{selector,value:...}` is invalid. `setValue` / `select` infer their exact equality proof. A click must
      prove the effect it causes, never simply that its button still exists. Exact state already satisfied sends no input.

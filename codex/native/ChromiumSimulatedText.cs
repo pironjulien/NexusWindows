@@ -36,7 +36,10 @@ static partial class ChromiumInput
         var tail = want[i..];
         return i + Math.Min(rest.Length - core.Length, tail.Length - tail.TrimStart('\n').Length);
     }
-    internal static int? ConfirmedTextPrefix(string value, string text, string before = "", bool append = false)
+    // completion: a single-line field being replaced may show an inline autocompletion after the typed characters (Chrome
+    // address bar, 04/11: "chrome:/" read back with a suggested end, text stopped at 8/20 by the 30 s foreground budget).
+    // The typed prefix followed by such a suffix counts as typed; the next characters replace the suggestion.
+    internal static int? ConfirmedTextPrefix(string value, string text, string before = "", bool append = false, bool completion = false)
     {
         var got = ComparableText(value); var want = ComparableText(text); var bases = new List<string> { "" };
         if (append)
@@ -51,6 +54,7 @@ static partial class ChromiumInput
             var rest = got[basis.Length..];
             var prefix = PlainPrefix(rest, want) ?? RichPrefix(rest, want, basis.Length > 0 && !basis.EndsWith('\n'));
             if (prefix != null) return prefix;
+            if (completion && basis.Length == 0 && want.IndexOf('\n') < 0 && rest.IndexOf('\n') < 0 && rest.StartsWith(want, StringComparison.Ordinal)) return want.Length;
         }
         return null;
     }
@@ -83,6 +87,7 @@ static partial class ChromiumInput
     static Outcome RunObservedText(string before, string rawText, bool replace, SimulatedTextIo io)
     {
         var text = rawText.Replace("\r\n", "\n").Replace('\r', '\n'); var sent = 0; var changed = false;
+        var completion = replace && text.IndexOf('\n') < 0;
         string Read()
         {
             io.Check(); var value = io.Read() ?? throw new InvalidOperationException("Target value became unreadable; no further text sent");
@@ -108,15 +113,16 @@ static partial class ChromiumInput
             foreach (var unit in SimulatedWriteUnits(text))
             {
                 io.Check();
-                var previous = WaitFor(value => ConfirmedTextPrefix(value, text[..sent], before, !replace) == sent);
+                var previous = WaitFor(value => ConfirmedTextPrefix(value, text[..sent], before, !replace, completion) == sent);
                 // Exactly one dispatch for each unit. A missing acknowledgement is terminal, never a retry.
                 changed = true;
                 if (unit == "\n") io.Enter(); else io.Characters(unit);
                 sent += unit.Length;
-                WaitFor(value => ConfirmedTextPrefix(value, text[..sent], before, !replace) == sent && (unit != "\n" || value != previous));
+                WaitFor(value => ConfirmedTextPrefix(value, text[..sent], before, !replace, completion) == sent && (unit != "\n" || value != previous));
             }
-            WaitFor(value => ConfirmedTextPrefix(value, text, before, !replace) == text.Length);
-            return new("background:simulated-activation", $"WM_CHAR + Enter keys; {sent} UTF-16 units read back ({(replace ? "replaced" : "appended")}); no foreground activation", "applied");
+            var final = WaitFor(value => ConfirmedTextPrefix(value, text, before, !replace, completion) == text.Length);
+            var suggested = completion && final.Length > text.Length ? "; the field also shows a suggestion after the text" : "";
+            return new("background:simulated-activation", $"WM_CHAR + Enter keys; {sent} UTF-16 units read back ({(replace ? "replaced" : "appended")}{suggested}); no foreground activation", "applied");
         }
         catch (EmergencyStopException) when (changed)
         { throw new EmergencyStopException($"Emergency stop after simulated text input ({sent}/{text.Length}); outcome unknown, do not replay"); }
@@ -287,10 +293,18 @@ static partial class ChromiumInput
         var noAck = test.TryGetProperty("noAck", out var no) && no.GetBoolean();
         var changeAfterEnter = test.TryGetProperty("suppressEnter", out var suppress) && suppress.GetBoolean();
         var revealSend = test.TryGetProperty("revealSendAfter", out var reveal) ? reveal.GetString() : null;
+        // suggest: an inline autocompletion shown after the typed characters (Chrome address bar).
+        var suggestion = test.TryGetProperty("suggest", out var suggest) ? suggest.GetString() : null; var typedSoFar = "";
         void Check() { checks++; if (inputPackets >= loseAfter) throw new ActionRefusedException("Fixture focus changed"); }
         var io = new SimulatedTextIo(Check, () => value, () => events.Add(replace ? "select-all" : "caret-end"),
             () => { events.Add("delete"); inputPackets++; if (!noAck) value = ""; },
-            unit => { events.Add("chars:" + unit); inputPackets++; if (!noAck) value += unit; },
+            unit =>
+            {
+                events.Add("chars:" + unit); inputPackets++;
+                if (noAck) return;
+                if (suggestion == null) { value += unit; return; }
+                typedSoFar += unit; value = suggestion.StartsWith(typedSoFar, StringComparison.Ordinal) ? suggestion : typedSoFar;
+            },
             () =>
             {
                 if (revealSend != null && value.Contains(revealSend, StringComparison.Ordinal))

@@ -10,6 +10,25 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.13] - 2026-11-04
+
+### Fixed
+- A `key` step without target is no longer refused with "Keyboard focus is ambiguous" right after a `set` or `type` of
+  a field: when several elements report keyboard focus (Chrome's address bar and its page), the key goes to the field
+  the batch just set, typed or clicked, if it is one of them. Any other ambiguity is still refused.
+- `type` no longer appends silently: a verified step says "Text appended after the field's existing text" when the
+  field already held text, and `replace:true` on a `type` step replaces the whole field, like `set` but with real
+  keystrokes, on every route (Chromium simulated text and DevTools, Win32 edits, UI Automation, physical fallback);
+  its postcondition is then the typed text. Without it, `type` keeps its insertion at the end (rich editors,
+  documents). Typing `chrome://extensions/` into Chrome's address bar had given `chrome://extensionschrome//extensions/`
+  with nothing said.
+- `type` with `replace:true` into a single-line field no longer stalls on an inline suggestion shown after the typed
+  characters (Chrome's address bar): the typed prefix followed by the suggestion counts as typed, and a suggestion left
+  after the text is reported. A 20-character URL had stopped at 8/20 when the 30 s foreground budget ran out.
+- A target inside a modal dialog listed under its owner window is routed to the dialog's own window even when the owner
+  has other enabled popups first (Chrome's « Sélectionner le répertoire de l'extension » was refused, "Target or its
+  window is disabled"). The dialog must still be visible, enabled, owned by that window and in the same process.
+
 ## [3.16.12] - 2026-11-04
 
 ### Changed

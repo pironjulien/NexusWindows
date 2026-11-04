@@ -19,7 +19,7 @@ static class Routines
     {
         ["click"] = ["selector", "button", "count"],
         ["setValue"] = ["selector", "value"],
-        ["typeText"] = ["focus", "text"],
+        ["typeText"] = ["focus", "text", "replace"],
         ["key"] = ["key"],
         ["select"] = ["selector", "option"],
         ["menu"] = ["path"],

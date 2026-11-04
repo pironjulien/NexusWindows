@@ -103,6 +103,8 @@ static partial class Program
         if (McpServer.TryClaudeDevtoolsInput(window, op, target, request, () => InputStarted = true, out var dom)) return dom;
         InputStarted = true;
         var own = target.NativeWindow;
+        // type into a field named by the step replaces its content (McpServer.NormalizeStep): same routes, whole field.
+        var replaceText = op == "typeText" && request.TryGetProperty("replace", out var replaceFlag) && replaceFlag.ValueKind == JsonValueKind.True;
         // Chromium text bound to the DOM focus, read back packet by packet (banc of 01/11: the only route that writes a rich
         // editor; the other one reported a false success). Typing takes it for the three profiles, line breaks included
         // (each Enter is checked by NativeTextSubmitScope). setValue goes to UIA SetValue, which writes a field where this
@@ -111,7 +113,7 @@ static partial class Program
         {
             int? quiet = request.TryGetProperty("quietMs", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : null;
             InputStarted = false;
-            return ChromiumInput.WriteClaude(window, target, Text(request, op == "setValue" ? "value" : "text"), op == "setValue", quiet, () => InputStarted = true,
+            return ChromiumInput.WriteClaude(window, target, Text(request, op == "setValue" ? "value" : "text"), op == "setValue" || replaceText, quiet, () => InputStarted = true,
                 () => RevalidateClaudeTextTarget(window, target, request)).Outcome;
         }
         if (op == "click" && request.TryGetProperty("count", out var count) && count.ValueKind == JsonValueKind.Number && count.GetInt32() == 2) return Open(window, target);
@@ -126,7 +128,7 @@ static partial class Program
             // seulement au premier message d'activation (relecture de Codex du 24/10).
             void Started() => InputStarted = true;
             if (op == "click" && editable) { InputStarted = false; return ChromiumInput.Focus(window, target, quiet, Started).Outcome; }
-            if (op == "typeText" && editable) { InputStarted = false; return ChromiumInput.Type(window, target, Text(request, "text"), quiet, Started).Outcome; }
+            if (op == "typeText" && editable && !replaceText) { InputStarted = false; return ChromiumInput.Type(window, target, Text(request, "text"), quiet, Started).Outcome; }
             if (op == "select" && target.Role == "combobox") { InputStarted = false; return ChromiumInput.Select(window, target, Text(request, "option"), quiet, Started).Outcome; }
         }
         var framework = target.FrameworkId;
@@ -147,7 +149,7 @@ static partial class Program
             if (combo == 0) throw RefusedBeforeInput("Control identity changed; inspect again");
             if (op == "click" && target.RuntimeId[2] == ComUia.SyntheticItem) return ComboSelect(combo, target.Name, target.RuntimeId[3]);
             if (target.RuntimeId[2] == ComUia.SyntheticEdit && op is ("setValue" or "typeText") && cls == "edit")
-                return EditReplace(own, Text(request, op == "setValue" ? "value" : "text"), replaceAll: op == "setValue");
+                return EditReplace(own, Text(request, op == "setValue" ? "value" : "text"), replaceAll: op == "setValue" || replaceText);
             throw NothingSent("This part of the combo box has no action: choose an option or act on the combo box");
         }
         switch (op)
@@ -192,9 +194,9 @@ static partial class Program
                 return UiaSetValue(window, target, value);
             }
             case "typeText":
-                if (classic && EditClasses.Contains(cls)) return EditReplace(own, Text(request, "text"), replaceAll: false);
+                if (classic && EditClasses.Contains(cls)) return EditReplace(own, Text(request, "text"), replaceAll: replaceText);
                 if (!classic && framework != "Chrome" && target.Role is ("edit" or "document" or "combobox"))
-                    return UiaAppendValue(window, target, nodes, Text(request, "text"));
+                    return replaceText ? UiaSetValue(window, target, Text(request, "text")) : UiaAppendValue(window, target, nodes, Text(request, "text"));
                 throw NothingSent("Background typing needs a native Edit control");
             case "focus":
                 return FirstCall(() => ComBridge.Call(new { op = "takeFocus", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow }));

@@ -434,8 +434,8 @@ static partial class Program
                     // Fenetre desactivee par sa boite modale (banc du 28/10, Paint : « Enregistrer sous ») : UIA range la boite
                     // sous sa proprietaire. Une cible DANS cette boite (boite modale active de Windows, possedee, meme
                     // processus, visible) agit sur la boite, comme si elle avait ete visee ; toute autre cible est refusee.
-                    var box = ModalBox(hwnd, process.ProcessName);
                     var chain = target.Ancestors.Select(i => nodes[i]).Append(target).Select(n => ((long)n.NativeWindow, n.Disabled)).ToList();
+                    var box = ModalBox(hwnd, process.ProcessName, chain.Select(n => n.Item1).ToList());
                     var boxIndex = ModalBoxIndex(chain, (long)box);
                     if (boxIndex < 0) throw new ActionRefusedException("Target or its window is disabled (a modal dialog may be open)");
                     window = box;
@@ -634,13 +634,31 @@ static partial class Program
     }
     // Boite modale active d'une fenetre desactivee, selon Windows (GW_ENABLEDPOPUP : la fenetre que Windows active a la place
     // de sa proprietaire) : possedee par elle, du meme processus, visible, active et permise par la politique commune ; 0 sinon.
-    static nint ModalBox(nint hwnd, string processName)
+    static nint ModalBox(nint hwnd, string processName, IReadOnlyList<long> chain)
     {
         if (Win32.IsWindowEnabled(hwnd)) return 0;
-        var box = Win32.GetWindow(hwnd, Win32.GW_ENABLEDPOPUP);
-        if (box == 0 || box == hwnd || !IsWindow(box) || !Win32.IsWindowVisible(box) || !Win32.IsWindowEnabled(box)) return 0;
-        if (Win32.ProcessOf(box) != Win32.ProcessOf(hwnd) || !OwnedThrough(box, (long)hwnd)) return 0;
-        return Exclusion(processName, box) == null ? box : 0;
+        bool Valid(long candidate)
+        {
+            var box = (nint)candidate;
+            if (box == 0 || box == hwnd || !IsWindow(box) || !Win32.IsWindowVisible(box) || !Win32.IsWindowEnabled(box)) return false;
+            if (Win32.ProcessOf(box) != Win32.ProcessOf(hwnd) || !OwnedThrough(box, (long)hwnd)) return false;
+            return Exclusion(processName, box) == null;
+        }
+        return (nint)ModalBoxCandidate((long)Win32.GetWindow(hwnd, Win32.GW_ENABLEDPOPUP), chain, w => (long)Win32.GetAncestor((nint)w, Win32.GA_ROOT), Valid);
+    }
+    // The modal box holding the target: the owner's first enabled popup (Paint, 28/10), otherwise the top-level window of
+    // the target's own chain. Chrome owns other enabled popups (bubbles, hidden widgets) that come first, so its
+    // « Sélectionner le répertoire de l'extension » box was refused, "window is disabled" (04/11). Pure, tested offline.
+    internal static long ModalBoxCandidate(long firstPopup, IReadOnlyList<long> chain, Func<long, long> root, Func<long, bool> valid)
+    {
+        if (firstPopup != 0 && valid(firstPopup)) return firstPopup;
+        foreach (var window in chain.Skip(1))
+        {
+            if (window == 0) continue;
+            var top = root(window);
+            if (top != 0 && valid(top)) return top;
+        }
+        return 0;
     }
     // Chaine racine..cible (fenetre native, desactive) : indice du noeud de la boite modale `box` sur cette chaine, la racine
     // (proprietaire) etant desactivee et la boite non ; -1 sinon (cible hors de la boite, ou pas de boite). Fonction pure,
