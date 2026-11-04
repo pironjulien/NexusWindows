@@ -10,6 +10,16 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.16] - 2026-11-04
+
+### Fixed
+- A target inside a modal box aimed at from its owner window is acted on even when the box runs in another process of
+  the same application: Chrome shows its "select the extension folder" box from its file-dialog utility process, and
+  the step was refused with "Target or its window is disabled". The box must still be owned by the window, visible,
+  enabled and run by the same executable; another application's window is never used.
+- Target names match whether they are written with an ordinary space or a no-break space (U+00A0, U+202F), on both
+  sides, in `act` targets and `look` queries: Chrome's French "Dossier :" field was not found when typed as shown.
+
 ## [3.16.15] - 2026-11-04
 
 ### Changed

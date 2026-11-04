@@ -274,7 +274,7 @@ static partial class McpServer
         var query = Str(args, "query");
         // 150 lines by default for the three profiles (the rest is summarized with its regions), up to 2000 on request.
         var maximum = (int)Math.Clamp(Number(args, "max_elements", 150), 10, 2000);
-        bool Wanted(JsonObject e) => query.Length == 0 || Str(e, "name").Contains(query, StringComparison.OrdinalIgnoreCase) || Str(e, "value").Contains(query, StringComparison.OrdinalIgnoreCase);
+        bool Wanted(JsonObject e) => query.Length == 0 || TargetName.Contains(Str(e, "name"), query) || TargetName.Contains(Str(e, "value"), query);
         // Dense windows (Claude, Slack, Teams: hundreds of nested unnamed panes): every profile reads a skeleton first, then one
         // region with within=N, like agent-desktop's --skeleton/--root (31/10). Unnamed containers stay targetable by name
         // of their children and come back with detail="full".

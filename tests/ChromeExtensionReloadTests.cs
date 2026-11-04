@@ -103,4 +103,50 @@ public class ChromeExtensionReloadTests
         // A target outside any box (in Chrome itself) stays refused.
         Assert.Equal(0, Program.ModalBoxCandidate(bubble, [chrome, chrome], Root, Valid));
     }
+
+    [Fact]
+    public void Chromes_box_from_its_file_dialog_process_is_routed_but_a_foreign_box_is_not()
+    {
+        // 04/11 (3.16.14): the box ran in Chrome's file-dialog utility process (42636), the window in 30592.
+        const uint window = 30592, utility = 42636, foreign = 5000;
+        string? Image(uint pid) => pid switch
+        {
+            window or utility => @"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            foreign => @"C:\Windows\explorer.exe",
+            _ => null,
+        };
+        Assert.True(Program.ModalBoxEligible(true, true, true, utility, window, Image));
+        Assert.True(Program.ModalBoxEligible(true, true, true, window, window, Image)); // Paint: same process
+        // Same executable spelled with another case: still the same application.
+        Assert.True(Program.ModalBoxEligible(true, true, true, utility, window, p => p == utility ? @"c:\program files\google\chrome\application\CHROME.EXE" : Image(p)));
+        // Never another application's window, nor an unowned, hidden or disabled one, nor an unreadable executable.
+        Assert.False(Program.ModalBoxEligible(true, true, true, foreign, window, Image));
+        Assert.False(Program.ModalBoxEligible(true, true, false, utility, window, Image));
+        Assert.False(Program.ModalBoxEligible(false, true, true, utility, window, Image));
+        Assert.False(Program.ModalBoxEligible(true, false, true, utility, window, Image));
+        Assert.False(Program.ModalBoxEligible(true, true, true, 6000, window, Image));
+    }
+
+    [Fact]
+    public void A_name_with_a_no_break_space_matches_the_name_typed_with_a_plain_space()
+    {
+        // Chrome's box names its field "Dossier\u00a0:" (French typography); the look shows "Dossier :".
+        var snapshot = JsonNode.Parse("""
+        {"elements":[
+          {"index":0,"role":"window","name":"Extensions - Google Chrome","runtimeId":[1],"ancestors":[]},
+          {"index":1,"role":"window","name":"Sélectionner le répertoire de l'extension","runtimeId":[2],"ancestors":[0]},
+          {"index":2,"role":"edit","name":"Dossier\u00a0:","value":"","runtimeId":[3],"ancestors":[0,1]},
+          {"index":3,"role":"button","name":"Sélectionner\u202fun dossier","runtimeId":[4],"ancestors":[0,1]}
+        ]}
+        """)!.AsObject();
+        var state = Claude();
+        var set = McpServer.NormalizeStep(state, snapshot, JsonNode.Parse("""{"do":"set","target":"Dossier :","value":"C:\\ext"}""")!.AsObject());
+        Assert.Equal("Dossier\u00a0:", set["selector"]!["name"]!.GetValue<string>());
+        var click = McpServer.NormalizeStep(state, snapshot, JsonNode.Parse("""{"do":"click","target":"Sélectionner un dossier"}""")!.AsObject());
+        Assert.Equal("Sélectionner\u202fun dossier", click["selector"]!["name"]!.GetValue<string>());
+        // Both sides: a typed no-break space finds a plain-space name.
+        Assert.True(TargetName.Same("Dossier :", "Dossier\u202f:"));
+        Assert.True(TargetName.Contains("Dossier\u00a0:", "dossier :"));
+        Assert.False(TargetName.Same("Dossier:", "Dossier :"));
+    }
 }

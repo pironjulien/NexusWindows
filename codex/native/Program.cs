@@ -433,7 +433,7 @@ static partial class Program
                 {
                     // Fenetre desactivee par sa boite modale (banc du 28/10, Paint : « Enregistrer sous ») : UIA range la boite
                     // sous sa proprietaire. Une cible DANS cette boite (boite modale active de Windows, possedee, meme
-                    // processus, visible) agit sur la boite, comme si elle avait ete visee ; toute autre cible est refusee.
+                    // application, visible) agit sur la boite, comme si elle avait ete visee ; toute autre cible est refusee.
                     var chain = target.Ancestors.Select(i => nodes[i]).Append(target).Select(n => ((long)n.NativeWindow, n.Disabled)).ToList();
                     var box = ModalBox(hwnd, process.ProcessName, chain.Select(n => n.Item1).ToList());
                     var boxIndex = ModalBoxIndex(chain, (long)box);
@@ -633,18 +633,31 @@ static partial class Program
         return true;
     }
     // Boite modale active d'une fenetre desactivee, selon Windows (GW_ENABLEDPOPUP : la fenetre que Windows active a la place
-    // de sa proprietaire) : possedee par elle, du meme processus, visible, active et permise par la politique commune ; 0 sinon.
+    // de sa proprietaire) : possedee par elle, de la meme application, visible, active et permise par la politique commune ;
+    // 0 sinon.
     static nint ModalBox(nint hwnd, string processName, IReadOnlyList<long> chain)
     {
         if (Win32.IsWindowEnabled(hwnd)) return 0;
+        var ownerPid = Win32.ProcessOf(hwnd);
         bool Valid(long candidate)
         {
             var box = (nint)candidate;
-            if (box == 0 || box == hwnd || !IsWindow(box) || !Win32.IsWindowVisible(box) || !Win32.IsWindowEnabled(box)) return false;
-            if (Win32.ProcessOf(box) != Win32.ProcessOf(hwnd) || !OwnedThrough(box, (long)hwnd)) return false;
+            if (box == 0 || box == hwnd || !IsWindow(box)) return false;
+            if (!ModalBoxEligible(Win32.IsWindowVisible(box), Win32.IsWindowEnabled(box), OwnedThrough(box, (long)hwnd), Win32.ProcessOf(box), ownerPid, pid => ImagePath((int)pid))) return false;
             return Exclusion(processName, box) == null;
         }
         return (nint)ModalBoxCandidate((long)Win32.GetWindow(hwnd, Win32.GW_ENABLEDPOPUP), chain, w => (long)Win32.GetAncestor((nint)w, Win32.GA_ROOT), Valid);
+    }
+    // A box the target window owns, visible and enabled, from the same application: the same process, or another process of
+    // the same executable. Chrome shows its « Sélectionner le répertoire de l'extension » box from its file-dialog utility
+    // process, not from the window's process (04/11, pid 42636 vs 30592): "Target or its window is disabled". A box of
+    // another executable is never routed to, even when owned. Pure, tested offline.
+    internal static bool ModalBoxEligible(bool visible, bool enabled, bool owned, uint boxPid, uint ownerPid, Func<uint, string?> imagePath)
+    {
+        if (!visible || !enabled || !owned || boxPid == 0 || ownerPid == 0) return false;
+        if (boxPid == ownerPid) return true;
+        var (box, owner) = (imagePath(boxPid), imagePath(ownerPid));
+        return box is { Length: > 0 } && owner is { Length: > 0 } && string.Equals(Path.GetFullPath(box), Path.GetFullPath(owner), StringComparison.OrdinalIgnoreCase);
     }
     // The modal box holding the target: the owner's first enabled popup (Paint, 28/10), otherwise the top-level window of
     // the target's own chain. Chrome owns other enabled popups (bubbles, hidden widgets) that come first, so its
@@ -1253,7 +1266,7 @@ static partial class Program
             if (p.Name == "ancestor") continue;
             if (p.Name == "window") { hasField = true; if (p.Value.ValueKind != JsonValueKind.Number || (long)node.NativeWindow != p.Value.GetInt64()) return false; continue; }
             var actual = p.Name switch { "name" => node.Name, "role" => node.Role, "automationId" => node.AutomationId, _ => throw new InvalidOperationException("Unknown selector field") };
-            hasField = true; if (actual != p.Value.GetString()) return false;
+            hasField = true; if (p.Name == "name" ? !TargetName.Same(actual, p.Value.GetString()) : actual != p.Value.GetString()) return false;
         }
         if (!hasField) throw new InvalidOperationException("Empty native selector");
         return true;

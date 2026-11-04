@@ -94,7 +94,8 @@ static partial class McpServer
             }
             else if (kv.Key == "window") { if (Number(element, "nativeWindow") != kv.Value!.GetValue<long>()) return false; }
             else if (kv.Key == "role" && kv.Value?.GetValue<string>() is { } role && role.StartsWith("legacy/", StringComparison.Ordinal)) { if (!LegacyRoles(role[7..]).Contains(Str(element, "role"))) return false; }
-            else if (kv.Key is "role" or "name" or "automationId") { if (Str(element, kv.Key) != kv.Value?.GetValue<string>()) return false; }
+            else if (kv.Key == "name") { if (!TargetName.Same(Str(element, "name"), kv.Value?.GetValue<string>())) return false; }
+            else if (kv.Key is "role" or "automationId") { if (Str(element, kv.Key) != kv.Value?.GetValue<string>()) return false; }
             else throw new InvalidOperationException($"Unknown selector field {kv.Key}");
         }
         return selector.Count > 0;
@@ -150,7 +151,7 @@ static partial class McpServer
         if (exact.Count > 1) throw new ActionRefusedException($"Ambiguous target \"{name}\": {string.Join(", ", exact.Select(e => $"#{e["index"]} {e["role"]}"))}");
         // Partial field labels are usable, but never fuzzy button/link/menu matching.
         var partialSelector = LegacySelector(JsonValue.Create(name)!); var partialName = Str(partialSelector, "name");
-        var partial = Elements(snapshot).OfType<JsonObject>().Where(e => Str(e, "role") is "edit" or "combobox" && Str(e, "name").Contains(partialName, StringComparison.OrdinalIgnoreCase) && (partialSelector["role"] == null || MatchesNative(e, new JsonObject { ["role"] = partialSelector["role"]!.DeepClone() }, Elements(snapshot)))).ToList();
+        var partial = Elements(snapshot).OfType<JsonObject>().Where(e => Str(e, "role") is "edit" or "combobox" && TargetName.Contains(Str(e, "name"), partialName) && (partialSelector["role"] == null || MatchesNative(e, new JsonObject { ["role"] = partialSelector["role"]!.DeepClone() }, Elements(snapshot)))).ToList();
         if (partial.Count == 1) return partial[0];
         throw new ActionRefusedException(partial.Count > 1 ? $"Ambiguous field target \"{name}\"" : $"Target \"{name}\" absent from current observation; look again");
     }
