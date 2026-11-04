@@ -10,6 +10,13 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.14] - 2026-11-04
+
+### Fixed
+- The Steam startup self-check no longer races its helper child: the child writes its report aside, closes it, then
+  renames it, so the engine never reads a partial report or deletes it while the child still holds it (CI failure
+  "being used by another process").
+
 ## [3.16.13] - 2026-11-04
 
 ### Fixed

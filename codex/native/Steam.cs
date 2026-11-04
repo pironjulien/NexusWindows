@@ -50,7 +50,11 @@ static class Steam
     public static int WriteStartupInfo(string path)
     {
         GetStartupInfoW(out var startup);
-        File.WriteAllText(path, JsonSerializer.Serialize(new { flags = startup.Flags, showWindow = startup.ShowWindow })); return 0;
+        // Written aside, closed, then renamed: the waiting parent only sees a complete file no process still holds (CI of
+        // 04/11: it read and deleted the file while this child still had it open, "being used by another process").
+        var partial = path + ".partial";
+        File.WriteAllText(partial, JsonSerializer.Serialize(new { flags = startup.Flags, showWindow = startup.ShowWindow }));
+        File.Move(partial, path); return 0;
     }
 
     public static string? Canonical(string? path)
