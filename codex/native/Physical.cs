@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
 
-// Vraie souris et vrai clavier PROPRES au helper (SendInput), sans Sky (decision de Julien du 22/10 : un Nexus Windows
+// Vraie souris et vrai clavier PROPRES au helper (SendInput), sans Sky (decision de Julien du 22/10 : un NexusWindows
 // complet et autonome, Sky en secours seulement). Meme recette que nexus-windows for Claude (realinput.py), eprouvee au
 // banc commun : seulement quand l'arriere-plan est impossible et l'entree physique permise, l'APPELANT tenant le jeton
 // commun de premier plan (withForeground) qui rendra la fenetre de Julien a la fin.

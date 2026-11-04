@@ -1999,7 +1999,7 @@ export class WindowsSession {
   }
   #record(kind, status, durationMs, technique = null, foreground = null, error = null) {
     this.#metrics.push({ kind, status, technique, durationMs, at: new Date().toISOString() });
-    // Journal commun des trois Nexus Windows (NexusShared/journal/FORMAT.md) : sans texte d'écran, jamais bloquant ;
+    // Journal commun des trois NexusWindows (NexusShared/journal/FORMAT.md) : sans texte d'écran, jamais bloquant ;
     // erreur = début du message seulement (erreurPropre).
     try { writeJournal(journalLine({ session: this.#sessionId, app: this.#window?.app, kind, status, technique, durationMs, foreground, error })); }
     catch { /* journal : jamais bloquant */ }

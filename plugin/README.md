@@ -1,4 +1,4 @@
-# Nexus Windows plugin
+# NexusWindows plugin
 
 Gives Claude Code your Windows desktop applications through native UI Automation: it sees a window, clicks, types,
 uses menus and shortcuts and launches apps, reading back every action. It works in the background when the app

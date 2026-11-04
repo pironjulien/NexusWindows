@@ -1,4 +1,4 @@
-// Journal commun des trois Nexus Windows (NexusHarness/NexusShared/journal/FORMAT.md) : une ligne par action, sans texte
+// Journal commun des trois NexusWindows (NexusHarness/NexusShared/journal/FORMAT.md) : une ligne par action, sans texte
 // d'écran (ni texte tapé, ni libellé, ni titre). Écriture synchrone et silencieuse : un journal ne bloque jamais une
 // action, y compris dans un runtime REPL sans objet global `process` (relecture de Codex du 23/10).
 import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';

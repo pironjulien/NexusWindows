@@ -212,7 +212,7 @@ static unsafe class Ocr
     public static int SelfTest()
     {
         const int width = 900, height = 200;
-        const string expected = "Nexus Windows OCR 2026";
+        const string expected = "NexusWindows OCR 2026";
         var screen = Win32.GetDC(0);
         var dc = Win32.CreateCompatibleDC(screen);
         Win32.ReleaseDC(0, screen);

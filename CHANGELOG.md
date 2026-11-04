@@ -10,6 +10,12 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.17] - 2026-11-04
+
+### Changed
+- The product name is written NexusWindows, without a space, in the plugin README title, source comments and the
+  offline OCR self-test phrase ("NexusWindows OCR 2026"; the check still reads "OCR 2026" and its position).
+
 ## [3.16.16] - 2026-11-04
 
 ### Fixed
