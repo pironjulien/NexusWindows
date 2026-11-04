@@ -13,6 +13,13 @@ and npm (`nexus-windows-codex`).
 ### Changed
 - Same `.gitattributes` as every Nexus repository (2026-11-04): LF in Git and on disk, CRLF only for `.cmd`/`.bat`; files stored with CRLF were renormalized once.
 
+## [3.16.11] - 2026-11-04
+
+### Fixed
+- Annotated `look` images no longer fail with a Number/Null error for UI Automation controls without their own native
+  window, including Unreal Editor. Their annotation scope uses the existing numeric root-scope contract; controls
+  with their own window keep their exact scope and the foreign-window guard.
+
 ## [3.16.10] - 2026-11-03
 
 ### Fixed

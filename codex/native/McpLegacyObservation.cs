@@ -53,6 +53,11 @@ static partial class McpServer
             throw new ActionRefusedException("The current window has no attested capture frame; look again before requesting an image or OCR");
         return frame;
     }
+    // UIA controls without their own HWND belong to the observed root: the
+    // native Marks.Scoped contract represents that scope with numeric zero.
+    internal static JsonArray NativeCaptureMarks(JsonObject snapshot, string marks) =>
+        new(Elements(snapshot).OfType<JsonObject>().Where(e => e["bounds"] is JsonArray && (marks == "all" || Str(e, "name").Length == 0 || Bool(e, "ocr"))).Take(400)
+            .Select(e => (JsonNode)new JsonObject { ["index"] = e["index"]!.DeepClone(), ["bounds"] = e["bounds"]!.DeepClone(), ["scope"] = e["nativeWindow"]?.DeepClone() ?? JsonValue.Create(0L) }).ToArray());
     static JsonObject ReadNativeCapture(SessionState state, JsonObject snapshot, JsonArray? zoom = null, string marks = "none")
     {
         var frame = RequireNativeFrame(snapshot);
@@ -61,7 +66,7 @@ static partial class McpServer
         if (marks != "none")
         {
             request["treeFrame"] = frame.DeepClone();
-            request["marks"] = new JsonArray(Elements(snapshot).OfType<JsonObject>().Where(e => e["bounds"] is JsonArray && (marks == "all" || Str(e, "name").Length == 0 || Bool(e, "ocr"))).Take(400).Select(e => (JsonNode)new JsonObject { ["index"] = e["index"]!.DeepClone(), ["bounds"] = e["bounds"]!.DeepClone(), ["scope"] = e["nativeWindow"]?.DeepClone() }).ToArray());
+            request["marks"] = NativeCaptureMarks(snapshot, marks);
         }
         var shot = ObjectOf(ExecuteInternal(request));
         if (Bool(shot, "blank") || Str(shot, "path").Length == 0) throw new CaptureUnavailableException("The application returned a blank image; no usable screenshot was published");
