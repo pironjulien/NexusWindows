@@ -10,6 +10,9 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+### Changed
+- Same `.gitattributes` as every Nexus repository (2026-11-04): LF in Git and on disk, CRLF only for `.cmd`/`.bat`; files stored with CRLF were renormalized once.
+
 ## [3.16.10] - 2026-11-03
 
 ### Fixed
