@@ -212,7 +212,7 @@ static partial class McpServer
                 ClaudeCheckAppId(start.Id, start.Name, args, devtools);
                 if (start.Id.Contains('!')) return new("packaged", start.Id, args, null, start.Id, start.Name, false, false, []);
                 if (File.Exists(target)) ClaudeCheckExecutable(target, "", false);
-                return new("shortcut", @"shell:AppsFolder\" + start.Id, "", null, start.Id, start.Name, false, false,
+                return new("shortcut", @"shell:AppsFolder\" + start.Id, "", File.Exists(target) && target.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? Path.GetFullPath(target) : null, start.Id, start.Name, false, false,
                     args.Length > 0 ? ["Arguments ignored: an existing Start menu shortcut is launched with its own arguments."] : []);
             }
         }
@@ -225,7 +225,7 @@ static partial class McpServer
         {
             ClaudeCheckAppId(own.Id, own.Name, "", false);
             ClaudeCheckExecutable(exe, "", false);
-            return new("shortcut", @"shell:AppsFolder\" + own.Id, "", null, own.Id, own.Name, false, false, []);
+            return new("shortcut", @"shell:AppsFolder\" + own.Id, "", exe, own.Id, own.Name, false, false, []);
         }
         if (exe == null && raw.Contains('!') && !raw.Contains('\\') && !raw.Contains('/'))
         {
@@ -387,7 +387,8 @@ static partial class McpServer
         var profile = plan.Devtools && ClaudeBrowser(plan.Executable!) ? ClaudeNewProfile() : null;
         int? port = null; uint activatedPid = 0; ClaudeDevtoolsLease? lease = null;
         if (plan.Devtools) { var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start(); port = ((IPEndPoint)listener.LocalEndpoint).Port; listener.Stop(); }
-        var launchArgs = plan.Executable != null ? ClaudeChromiumArguments(plan.Executable, plan.Arguments, port, profile) : plan.Arguments;
+        // A shortcut keeps its own arguments: its executable only identifies its windows.
+        var launchArgs = plan.Executable != null && plan.Kind != "shortcut" ? ClaudeChromiumArguments(plan.Executable, plan.Arguments, port, profile) : plan.Arguments;
         string? associatedExecutable = plan.Kind switch
         {
             "uri" => ClaudeAssociation(plan.Name, 2, true),
@@ -421,7 +422,7 @@ static partial class McpServer
                     UserApplication.Start(new ProcessStartInfo(plan.Target), () => Program.InputStarted = true, 4);
                 }
             }
-            else UserApplication.Start(new ProcessStartInfo(plan.Target) { Arguments = launchArgs, UseShellExecute = false, WorkingDirectory = plan.Executable == null ? "" : Path.GetDirectoryName(plan.Executable)! }, () => Program.InputStarted = true, 4);
+            else UserApplication.Start(new ProcessStartInfo(plan.Target) { Arguments = launchArgs, UseShellExecute = false, WorkingDirectory = plan.Executable == null || plan.Kind == "shortcut" ? "" : Path.GetDirectoryName(plan.Executable)! }, () => Program.InputStarted = true, 4);
             var timeout = Math.Max(1, wait);
             var dispatchedAt = started.ToLocalTime();
             while (clock.Elapsed.TotalSeconds < timeout)
@@ -451,7 +452,9 @@ static partial class McpServer
                         || w.Title.Contains(Path.GetFileName(plan.Target), StringComparison.OrdinalIgnoreCase)) && ClaudeDocumentShown(w, plan.Target),
                     "packaged" => w.App.Equals(plan.AppId, StringComparison.OrdinalIgnoreCase) || activatedPid != 0 && ClaudeContentPids(w.Id).Contains(activatedPid),
                     "executable" => lease != null ? ClaudeContentPids(w.Id).Contains((uint)lease.Process.Id) : ClaudeSameExecutable(w.Pid, plan.Executable!),
-                    "shortcut" => w.App.Equals(plan.AppId, StringComparison.OrdinalIgnoreCase),
+                    // A shortcut to an executable shows that executable's windows (05/11: Antigravity by its own shortcut,
+                    // "no window could be attributed", and its window left maximized across both screens).
+                    "shortcut" => w.App.Equals(plan.AppId, StringComparison.OrdinalIgnoreCase) || plan.Executable != null && ClaudeSameExecutable(w.Pid, plan.Executable),
                     "uri" => !before.Contains(w.Id) && associatedExecutable != null && ClaudeSameExecutable(w.Pid, associatedExecutable),
                     _ => false,
                 }).ToList();
@@ -751,7 +754,7 @@ static partial class McpServer
                 }
                 var plan = PlanClaudeLaunch(Str(value, "app"), Str(value, "args"), Bool(value, "devtools"), Bool(value, "restart"), apps);
                 var data = new JsonObject { ["kind"] = plan.Kind, ["target"] = plan.Target, ["args"] = plan.Arguments, ["executable"] = plan.Executable, ["appId"] = plan.AppId, ["name"] = plan.Name,
-                    ["commandArguments"] = plan.Executable == null ? plan.Arguments : ClaudeChromiumArguments(plan.Executable, plan.Arguments, plan.Devtools ? 16183 : null, plan.Devtools && ClaudeBrowser(plan.Executable) ? @"C:\NexusFixture\fresh profile" : null) };
+                    ["commandArguments"] = plan.Executable == null || plan.Kind == "shortcut" ? plan.Arguments : ClaudeChromiumArguments(plan.Executable, plan.Arguments, plan.Devtools ? 16183 : null, plan.Devtools && ClaudeBrowser(plan.Executable) ? @"C:\NexusFixture\fresh profile" : null) };
                 data["parsedArguments"] = new JsonArray(Program.SplitArgs(Str(data, "commandArguments")).Select(s => (JsonNode)JsonValue.Create(s)!).ToArray());
                 if (value["profileFixture"] is JsonValue) data["accountMarker"] = ClaudeProfileAccount(Str(value, "profileFixture"));
                 if (value["activationHResult"] != null) data["fileContractFallbackAllowed"] = ClaudeFileContractRejected(checked((int)Number(value, "activationHResult")));

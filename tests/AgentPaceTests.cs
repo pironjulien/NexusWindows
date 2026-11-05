@@ -41,6 +41,21 @@ public class AgentPaceTests
         Assert.False(McpServer.NamesOwnTarget(null));
     }
 
+    static Node Element(string role, bool text) => new() { Role = role, Name = "Message input", AutomationId = "", Description = "",
+        HasText = text, RuntimeId = [1], Ancestors = [], Bounds = [0, 0, 10, 10] };
+
+    [Fact]
+    public void An_editable_combobox_takes_text_and_a_select_does_not()
+    {
+        // Antigravity's « Message input » is a contenteditable with role combobox: before 3.16.21, "needs a native Edit control".
+        Assert.True(ChromiumInput.TextTarget(Element("combobox", text: true)));
+        Assert.False(ChromiumInput.TextTarget(Element("combobox", text: false)));
+        Assert.True(ChromiumInput.TextTarget(Element("edit", text: false)));
+        // An empty field that shows its placeholder as its value is empty.
+        Assert.Equal("", ChromiumInput.WithoutPlaceholder("Travaillez avec Codex\n", "Travaillez avec Codex"));
+        Assert.Equal("Bonjour", ChromiumInput.WithoutPlaceholder("Bonjour", "Travaillez avec Codex"));
+    }
+
     [Fact]
     public void Message_text_goes_in_packets_of_64_characters()
     {

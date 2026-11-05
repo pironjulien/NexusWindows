@@ -109,7 +109,7 @@ static partial class Program
         // editor; the other one reported a false success). Typing takes it for the three profiles, line breaks included
         // (each Enter is checked by NativeTextSubmitScope). setValue goes to UIA SetValue, which writes a field where this
         // route failed (banc of 01/11).
-        if (ChromiumInput.IsChromium(window) && !ComUia.IsSynthetic(target.RuntimeId) && (target.Role is "edit" or "document") && op == "typeText")
+        if (ChromiumInput.IsChromium(window) && !ComUia.IsSynthetic(target.RuntimeId) && ChromiumInput.TextTarget(target) && op == "typeText")
         {
             int? quiet = request.TryGetProperty("quietMs", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : null;
             InputStarted = false;

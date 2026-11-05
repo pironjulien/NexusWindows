@@ -61,6 +61,9 @@ static partial class ChromiumInput
     // An empty Chromium editor may expose its placeholder as its value (05/11: Codex's empty field read "Travaillez avec
     // Codex\n", its name): the text then never read back as placeholder + text, and typing waited for its whole budget.
     // A value that is exactly the field's name is an empty field.
+    // An editable text surface: a field, a document, or a contenteditable with role combobox and a text pattern
+    // (05/11: Antigravity's « Message input », refused as "needs a native Edit control"). A <select> has no text pattern.
+    internal static bool TextTarget(Node target) => target.Role is "edit" or "document" || target.Role == "combobox" && target.HasText;
     internal static string WithoutPlaceholder(string value, string? name) =>
         name is { Length: > 0 } && ComparableText(value).Trim() == ComparableText(name).Trim() ? "" : value;
     internal static List<string> SimulatedWriteUnits(string text)
@@ -173,7 +176,7 @@ static partial class ChromiumInput
             try { return read(); }
             finally { RecordTiming(phase, stamp); }
         }
-        if (target.FrameworkId != "Chrome" || target.Role is not ("edit" or "document") || target.Password || target.Disabled || target.RuntimeId.Length == 0)
+        if (target.FrameworkId != "Chrome" || !TextTarget(target) || target.Password || target.Disabled || target.RuntimeId.Length == 0)
             throw new ActionRefusedException("Simulated text needs the exact non-secret editable Chromium target");
         using var process = Process.GetProcessById((int)Win32.ProcessOf(window));
         if (GardeFous.BlockReason(process.ProcessName, Win32.ClassName(window), GardeFous.CurrentAgent) is { } blocked) throw new ActionRefusedException(blocked);

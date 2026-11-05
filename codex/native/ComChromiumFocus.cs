@@ -47,7 +47,7 @@ static partial class ComWorker
             using var tree = ComUia.Shared.ReadIdentity(window, runtimeId, hint, readAncestorText: false);
             var target = tree.Nodes.LastOrDefault();
             if (target == null || !ComUia.Shared.SameElement(element, target.Element) || !ChromiumFocusIdentityMatches(target, expected)
-                || target.FrameworkId != "Chrome" || target.Role is not ("edit" or "document") || target.Password || target.Disabled || target.ValueTruncated
+                || target.FrameworkId != "Chrome" || !ChromiumInput.TextTarget(target) || target.Password || target.Disabled || target.ValueTruncated
                 || target.Ancestors.Length != ancestors.Length)
                 throw new ActionRefusedException("The exact Chromium focus target changed or became unreadable; no text sent");
             for (var i = 0; i < ancestors.Length; i++)

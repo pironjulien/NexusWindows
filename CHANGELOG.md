@@ -10,6 +10,14 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.21] - 2026-11-05
+
+### Fixed
+- Text reaches Antigravity's message field in the background: a contenteditable with role combobox and a text pattern
+  is a text target (it was refused, "needs a native Edit control"; a <select> still is not).
+- An app launched by its own shortcut (Antigravity) shows its windows: the launch found no window and a window
+  maximized across both screens was left so. The shortcut keeps its own arguments.
+
 ## [3.16.20] - 2026-11-05
 
 The user keeps working while an agent works: asking « OK » of Codex and Antigravity hidden in the notification area
