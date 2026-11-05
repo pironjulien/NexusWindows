@@ -195,9 +195,14 @@ unsafe sealed partial class ComUia
         var chromium = ChromiumInput.HasChromiumContent(hwnd);
         var identity = chromium ? ChromiumIdentity(hwnd) : null;
         var initial = GatedReadTreeOnce(hwnd, withPopups);
-        return chromiumWarmup.Read(initial, chromium, identity, () => ChromiumIdentity(hwnd),
+        var revealed = false;
+        var tree = chromiumWarmup.Read(initial, chromium, identity, () => ChromiumIdentity(hwnd),
             () => GatedReadTreeOnce(hwnd, withPopups, publish: false), () => EmergencyStop.RemainingSeconds() > 0,
-            () => chromiumWarmupClock.Elapsed.TotalMilliseconds, Thread.Sleep);
+            () => chromiumWarmupClock.Elapsed.TotalMilliseconds, Thread.Sleep, () => revealed = ChromiumReveal.TryReveal(hwnd));
+        // The publication describes the tree returned, not only the first read: a page published by the warmup or after a
+        // reveal of the covered window is no longer « no-document ».
+        if (chromium && LastPublication == "no-document" && ChromiumContentWarmup.HasWebContent(tree)) LastPublication = revealed ? "revealed" : "requested";
+        return tree;
     }
 
     // Full reads of the agents of this session in turn (UiaReadGate.cs): simultaneous ones are slower than in turn.
@@ -391,6 +396,13 @@ unsafe sealed partial class ComUia
             // The live Edit text is authoritative, including an intentionally cleared field.
             if (!combo.Password && field.Value != null) { combo.Value = field.Value; editValueRead = true; }
             field.Disabled = combo.Disabled || !Win32.IsWindowEnabled(edit);
+            // The field is on screen where its combo box is: its own Edit rectangle (05/11, the « Nom du fichier » of a
+            // Windows Open dialog: without bounds it read as hidden, and typing first tried to scroll it into view).
+            if (combo.Bounds.Length == 4 && Win32.IsWindowVisible(edit) && Win32.GetWindowRect(edit, out var box) && box.Right > box.Left && box.Bottom > box.Top)
+            {
+                field.Bounds = [box.Left, box.Top, box.Right - box.Left, box.Bottom - box.Top];
+                field.Offscreen = combo.Offscreen;
+            }
             tree.Add(field);
         }
         var count = Win32.Send(hwnd, Win32.CB_GETCOUNT);

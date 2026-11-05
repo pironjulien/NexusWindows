@@ -271,7 +271,10 @@ static partial class McpServer
             // A step delivered without a postcondition (sent-unconfirmed) no longer ends a one-off batch when the next step
             // names its own target: that step resolves and guards its target again on a fresh observation before any input,
             // so nothing goes blind (05/11: paste then key took one call per step). Routines keep stopping.
-            if (Str(stepResult, "status") == "sent-unconfirmed" && routine == null && remember == null && i + 1 < steps.Count && NamesOwnTarget(steps[i + 1]))
+            // Keys in a row (alt+n, ctrl+a, ctrl+v: 05/11, the batch stopped after alt+n) go on like one key sequence: each key
+            // delivered is acknowledged, the next one reads its focus again before input, a key not delivered stops the batch.
+            if (Str(stepResult, "status") == "sent-unconfirmed" && routine == null && remember == null && i + 1 < steps.Count &&
+                (NamesOwnTarget(steps[i + 1]) || KeyFollowsDeliveredKey(step, stepResult, steps[i + 1])))
             {
                 completedThisCall++;
                 continue;
@@ -315,6 +318,10 @@ static partial class McpServer
     internal static bool BriefForegroundKey(SessionState state, JsonObject step, JsonObject result, bool physicalAllowed, string? routine) =>
         !physicalAllowed && routine == null && state.Interaction == null && Str(step, "kind") == "key"
         && Bool(step, "fallback", true) && Bool(result, "needsForeground") && Str(result, "status") == "refused";
+    internal static bool KeyFollowsDeliveredKey(JsonObject step, JsonObject result, JsonNode? next) =>
+        Str(step, "kind") == "key" && next is JsonObject following && Str(following, "kind", Str(following, "do", Str(following, "action", ""))) == "key" &&
+        result["keySequence"] is JsonObject sequence && Number(sequence, "delivered") == Number(sequence, "total") && Number(sequence, "total") > 0 &&
+        (sequence["deliveries"] as JsonArray ?? new()).OfType<JsonObject>().All(d => Str(d, "delivery") == "confirmed");
     internal static bool NamesOwnTarget(JsonNode? step) => step is JsonObject s && (s["target"] != null || s["selector"] is JsonObject || s["focus"] is JsonObject);
 
     static JsonObject RoutinePauseFailure(SessionState state, JsonArray results, int total, int next, Exception error)

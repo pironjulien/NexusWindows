@@ -195,6 +195,9 @@ static partial class Program
             }
             case "typeText":
                 if (classic && EditClasses.Contains(cls)) return EditReplace(own, Text(request, "text"), replaceAll: replaceText);
+                // Editable combo box (the « Nom du fichier » of a Windows Open dialog, 05/11): its own Edit, by messages.
+                if (classic && cls == "combobox" && Win32.FindWindowExW(own, 0, "Edit", null) is var comboEdit && comboEdit != 0)
+                    return EditReplace(comboEdit, Text(request, "text"), replaceAll: replaceText);
                 if (!classic && framework != "Chrome" && target.Role is ("edit" or "document" or "combobox"))
                     return replaceText ? UiaSetValue(window, target, Text(request, "text")) : UiaAppendValue(window, target, nodes, Text(request, "text"));
                 throw NothingSent("Background typing needs a native Edit control");

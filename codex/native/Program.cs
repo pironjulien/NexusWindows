@@ -817,7 +817,7 @@ static partial class Program
         var core = Win32.FindWindowExW((nint)id, 0, "Windows.UI.Core.CoreWindow", null);
         return core != 0 && Win32.ProcessOf(core) is var content and not 0 ? content : pid;
     }
-    static string ProcessName(uint pid)
+    internal static string ProcessName(uint pid)
     {
         if (pid == 0) return "";
         try { using var p = Process.GetProcessById((int)pid); return p.ProcessName; } catch (ArgumentException) { return ""; }

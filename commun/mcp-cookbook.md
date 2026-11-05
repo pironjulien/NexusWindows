@@ -76,6 +76,12 @@ Every call still takes a fresh initial tree; newly present content is returned i
 The miss is process-local. `publication:"no-document"` is a diagnostic, not a 60-second read lock or proof of a
 failed browser action. See `ComChromiumWarmup.cs` and its offline `ChromiumWarmupSelfTest`.
 
+Since 3.16.24 a browser window (Chrome, Edge…) entirely covered by other windows, whose page published nothing, is
+revealed once per read (`ChromiumReveal.cs`): minimize then restore without activation, animation off, same place in
+the z-order and same size; `publication:"revealed"` says it happened. A page loaded behind other windows is not
+rendered by Chrome until that; no foreground pass is needed any more. Repeated controls of a flat list carry their
+row (`context`, shown in parentheses by look): target them as `Supprimer (NexusBrowser)` or by their index.
+
 ## Deliberate custom stdio probes
 
 Use the installed stable launcher and the intended `--agent` profile. Discover its schema before sending input.

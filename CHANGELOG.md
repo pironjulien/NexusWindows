@@ -10,6 +10,37 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.24] - 2026-11-05
+
+Six failures met while removing an extension in chrome://extensions and changing the image of a Chrome Web
+Store listing (pages that NexusBrowser cannot drive), reproduced on a Chrome of its own (shared bench, family
+« chrome ») and fixed at their cause.
+
+### Fixed
+- A page loaded in a Chrome or Edge window covered by the user's windows is readable in the background: the window,
+  when no pixel of it is visible, goes through a minimize and a restore without activation, its animation off, and
+  stays where it was, maximized or not (« publication: no-document » until a pass in front). Chrome may activate
+  itself on the restore while the user has been idle a long time: the foreground is given back at once. Browsers
+  only, never an app or a dialog.
+- Text reaches the « Nom du fichier » of a Windows Open dialog in the background, through its own Edit: typing on the
+  combo box was refused (« needs a native Edit »), and on its field (« this part of the combo box has no action »)
+  because the field, read without a place on screen, was first scrolled into view.
+- Keys in separate steps (alt+n, ctrl+a, ctrl+v) go on like one key sequence: the batch stopped after the first,
+  « sent-unconfirmed ». A key not delivered still stops it.
+- Enter typed in a browser's address bar is no longer taken for a click on the page's outward button (« Envoyer pour
+  examen »): a key reaches one surface, the browser's toolbar or one page.
+- A click on a web page's control with foreground allowed is a real click: it went through UI Automation Invoke,
+  which some pages ignore, even with foreground:true. In the background, a click after which nothing changes in the
+  page or the app within 1.2 s says so, with the way to click for real.
+- Indices stay usable from one act to the next (an act with then="none" made the next one refuse « This index was not
+  displayed in the previous look »), and a page that changes its title no longer gives new indices to the window and
+  its page, nor refuses the next act (« Interface structure changed »).
+- A control right under a window with a window handle of its own (the Open dialog's file name, its Ouvrir button) is
+  checked on itself, not on the whole window: its file list refreshing refused the typing.
+- Repeated controls of a flat list (chrome://extensions: every card's « Supprimer », « Détails », switch) carry the
+  label of their row, shown by look and part of their identity: an index meant for one extension can no longer reach
+  the neighbouring one when the page re-binds its cards. « Supprimer (NexusBrowser) » names that very control.
+
 ## [3.16.23] - 2026-11-05
 
 ### Added

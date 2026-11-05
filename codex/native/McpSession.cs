@@ -37,7 +37,41 @@ static partial class McpServer
         GuardClaudeDevtools(state);
         var snapshot = ObjectOf(ExecuteInternal(NativeRequest(state, "inspect")));
         if (!Bool(snapshot, "ok")) throw new InvalidOperationException(Str(snapshot, "message", "Native inspection failed"));
+        AnnotateRowContext(snapshot);
         return snapshot;
+    }
+    // Repeated controls of a flat list (chrome://extensions: every card's « Supprimer », « Détails » and switch are siblings
+    // of one group, the cards themselves unpublished) carry the label of their row: the first named text of the run of
+    // siblings that ends at them, one period long (the distance to the neighbouring control of the same role and name).
+    // Shown in the look and part of the element's identity, so a card the page re-binds to another extension is never
+    // acted on by its old index (05/11: an index meant for NexusBrowser's card reached the neighbouring extension).
+    internal static void AnnotateRowContext(JsonObject snapshot)
+    {
+        if (snapshot["elements"] is not JsonArray elements) return;
+        var all = elements.OfType<JsonObject>().Where(e => !Bool(e, "ocr")).ToList();
+        foreach (var family in all.GroupBy(e => (e["ancestors"] as JsonArray) is { Count: > 0 } a ? a[^1]!.GetValue<int>() : -1))
+        {
+            var siblings = family.ToList();
+            var repeated = siblings.Select((e, i) => (Element: e, Position: i))
+                .Where(t => Str(t.Element, "name").Length > 0 && Str(t.Element, "role") is not ("text" or "heading" or "group" or "pane" or "image" or "document" or "window"))
+                .GroupBy(t => Str(t.Element, "role") + "\n" + Str(t.Element, "name")).Where(g => g.Count() > 1);
+            foreach (var group in repeated)
+            {
+                var positions = group.Select(t => t.Position).ToList();
+                for (var k = 0; k < positions.Count; k++)
+                {
+                    var position = positions[k];
+                    var period = k > 0 ? position - positions[k - 1] : positions[k + 1] - position;
+                    for (var j = Math.Max(0, position - period + 1); j < position; j++)
+                    {
+                        var candidate = siblings[j];
+                        if (Str(candidate, "role") is not ("text" or "heading") || Str(candidate, "name").Trim().Length == 0) continue;
+                        siblings[position]["context"] = Str(candidate, "name").Trim();
+                        break;
+                    }
+                }
+            }
+        }
     }
     static JsonArray Elements(JsonObject snapshot) => snapshot["elements"] as JsonArray ?? throw new InvalidOperationException("Incomplete native observation");
     static JsonObject TranslateNativeAlias(string name, JsonObject arguments)
@@ -123,12 +157,30 @@ static partial class McpServer
         if (matches.Count != 1) throw new ActionRefusedException($"Semantic target count is {matches.Count}; expected one. Look again; no input sent.");
         return matches[0];
     }
+    // The identity of a container without the text a page rewrites while it lives (05/11, « Interface structure changed » and
+    // new indices after every click of a page that sets its title): a web page's document (its runtime identity changes
+    // with the page, its name is the page title), the browser window and panes whose name is that title, and the memory
+    // figure Chrome appends to a tab's name. Any other renamed element is another element.
+    internal static JsonObject StableIdentityPart(JsonObject snapshot, JsonObject element)
+    {
+        var part = IdentityPart(element);
+        var role = Str(element, "role"); var name = Str(element, "name");
+        if (role == "document" && Str(element, "automationId").Equals("RootWebArea", StringComparison.OrdinalIgnoreCase)) part["name"] = null;
+        else if (role is "window" or "pane" && element["runtimeId"] is JsonArray { Count: > 0 } && name.Length > 0 && Elements(snapshot).OfType<JsonObject>().Any(d =>
+            Str(d, "role") == "document" && Str(d, "automationId").Equals("RootWebArea", StringComparison.OrdinalIgnoreCase) && Str(d, "name").Length > 0 && name.StartsWith(Str(d, "name"), StringComparison.Ordinal)))
+            part["name"] = null;
+        else if (role == "tab" && name.Length > 0) part["name"] = TabName(name);
+        return part;
+    }
+    internal static string TabName(string name) => Regex.Replace(name, @"\s+-\s+(?:Utilisation (?:élevée )?de la mémoire|(?:High )?memory usage)\s+-\s+[0-9]+(?:[.,][0-9]+)?\s*(?:[KMGTPE](?:o|B))\z", "",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     static JsonObject ElementIdentity(JsonObject snapshot, JsonObject element) => new()
     {
         ["runtimeId"] = element["runtimeId"]?.DeepClone(), ["nativeWindow"] = element["nativeWindow"]?.DeepClone(),
         ["role"] = element["role"]?.DeepClone(), ["name"] = element["name"]?.DeepClone(), ["automationId"] = element["automationId"]?.DeepClone(),
+        ["context"] = element["context"]?.DeepClone(),
         ["ancestors"] = new JsonArray((element["ancestors"] as JsonArray ?? new JsonArray()).Select(i =>
-            IdentityPart(Elements(snapshot).OfType<JsonObject>().Single(e => Number(e, "index", -1) == i!.GetValue<int>()))).ToArray())
+            StableIdentityPart(snapshot, Elements(snapshot).OfType<JsonObject>().Single(e => Number(e, "index", -1) == i!.GetValue<int>()))).ToArray())
     };
     static JsonObject IdentityPart(JsonObject element) => new() { ["runtimeId"] = element["runtimeId"]?.DeepClone(), ["nativeWindow"] = element["nativeWindow"]?.DeepClone(), ["role"] = element["role"]?.DeepClone(), ["name"] = element["name"]?.DeepClone(), ["automationId"] = element["automationId"]?.DeepClone() };
     static JsonObject StepTarget(JsonObject snapshot, JsonObject step, JsonObject selector)
@@ -152,7 +204,14 @@ static partial class McpServer
         // hidden hover button): the visible one is the one the user sees and means.
         var shown = exact.Where(e => (e["flags"] as JsonArray)?.Any(f => f?.ToString() == "offscreen") != true).ToList();
         if (exact.Count > 1 && shown.Count == 1) return shown[0];
-        if (exact.Count > 1) throw new ActionRefusedException($"Ambiguous target \"{name}\": {string.Join(", ", exact.Select(e => $"#{e["index"]} {e["role"]}"))}");
+        if (exact.Count > 1) throw new ActionRefusedException($"Ambiguous target \"{name}\": {string.Join(", ", exact.Select(e => $"#{e["index"]} {e["role"]}" + (Str(e, "context").Length > 0 ? $" ({Str(e, "context")})" : "")))}");
+        // « Supprimer (Google Docs hors connexion) »: a repeated control named with its row, as the look shows it.
+        if (exact.Count == 0 && Regex.Match(name, @"^(.+?) \((.+)\)$") is { Success: true } row)
+        {
+            var inRow = FindNative(snapshot, LegacySelector(JsonValue.Create(row.Groups[1].Value)!)).Where(e => Str(e, "context") == row.Groups[2].Value.Trim()).ToList();
+            if (inRow.Count == 1) return inRow[0];
+            if (inRow.Count > 1) throw new ActionRefusedException($"Ambiguous target \"{name}\": {string.Join(", ", inRow.Select(e => $"#{e["index"]} {e["role"]}"))}");
+        }
         // Partial field labels are usable, but never fuzzy button/link/menu matching.
         var partialSelector = LegacySelector(JsonValue.Create(name)!); var partialName = Str(partialSelector, "name");
         var partial = Elements(snapshot).OfType<JsonObject>().Where(e => Str(e, "role") is "edit" or "combobox" && TargetName.Contains(Str(e, "name"), partialName) && (partialSelector["role"] == null || MatchesNative(e, new JsonObject { ["role"] = partialSelector["role"]!.DeepClone() }, Elements(snapshot)))).ToList();
@@ -214,6 +273,9 @@ static partial class McpServer
                     if (!LookMemory(state, state.BoundWindow!.Value.Id).Shown.Contains((int)Number(target, "index"))) throw new ActionRefusedException("This index was not displayed in the previous look");
                     if (!Bool(target, "ocr") && !placeOnly) { if (target["runtimeId"] is not JsonArray runtime || runtime.Count == 0) throw new ActionRefusedException("The shown index has no stable runtime identity; no input sent"); step["observedIdentity"] = ElementIdentity(snapshot, target); }
                 }
+                // A repeated control named with its row is bound to that very control, like an index.
+                else if (Str(target, "context").Length > 0 && !placeOnly && target["runtimeId"] is JsonArray { Count: > 0 } && step["target"]!.ToString().EndsWith(")", StringComparison.Ordinal))
+                    step["observedIdentity"] = ElementIdentity(snapshot, target);
             }
             catch (ActionRefusedException e) when (allowFutureTarget && e.Message.Contains(" absent from current observation", StringComparison.Ordinal) && !step["target"]!.ToString().StartsWith('#'))
             { selector = new JsonObject { ["name"] = step["target"]!.ToString() }; }
@@ -468,8 +530,13 @@ static partial class McpServer
         if (keyKinds.Length > 0)
         {
             var elements = Elements(observation).OfType<JsonObject>().ToList();
-            triggers.AddRange(elements.Where(e => Bool(e, "focused") || Bool(e, "isDefault") ||
-                (keyKinds.Contains("submit") || keyKinds.Contains("send")) && Str(e, "role") is "button" or "menuitem" && GardeFous.OutwardWord(Str(e, "name")).Length > 0));
+            // A key reaches one surface of a browser: its own toolbar (the address bar) or one page. Enter typed in the address
+            // bar never presses a page's button (05/11: « Envoyer pour examen » of the Chrome Web Store dashboard was taken for
+            // the action of Enter in the address bar). The key's field is the one named by the step, else the one the batch
+            // aimed at; unknown, every surface still counts.
+            var surface = kind == "key" ? KeySurface(observation, step, state.RetainedFocus) : null;
+            triggers.AddRange(elements.Where(e => (surface == null || WebRoot(observation, e) == surface) && (Bool(e, "focused") || Bool(e, "isDefault") ||
+                (keyKinds.Contains("submit") || keyKinds.Contains("send")) && Str(e, "role") is "button" or "menuitem" && GardeFous.OutwardWord(Str(e, "name")).Length > 0)));
             foreach (var alt in keyKinds.Where(k => k.StartsWith("alt+"))) triggers.AddRange(elements.Where(e => Str(e, "accessKey").Replace(" ", "").Equals(alt, StringComparison.OrdinalIgnoreCase)));
         }
         var fields = Elements(observation).OfType<JsonObject>().Where(e => !Bool(e, "password") && Str(e, "value").Length > 0).Select(e => Str(e, "name") + "=" + Str(e, "value")).ToArray();
@@ -488,6 +555,8 @@ static partial class McpServer
         }
     }
     sealed class NativeConfirmationException(string message) : InvalidOperationException(message);
+    // The outward-action guard of a gesture without a named target (keys), for the offline tests.
+    internal static void CheckGestureForTest(SessionState state, JsonObject step, JsonObject observation, string title) => CheckGesture(state, step, observation, null, null, title);
 
     static JsonObject PerformNative(SessionState state, JsonObject step, JsonObject snapshot, bool physicalAllowed)
     {
@@ -569,7 +638,20 @@ static partial class McpServer
                 request["toX"] = destination.X; request["toY"] = destination.Y;
             }
         }
+        // A click on a web page's control: an accessibility Invoke is a click to most pages, but some ignore it while the
+        // window is behind (05/11: chrome://extensions and Chrome Web Store dialogs, « sent » and nothing happened, even with
+        // foreground:true, which then still went through Invoke). With foreground allowed it is the real mouse at once, like
+        // the user; in the background the page is read again and a click that changed nothing is said so.
+        var webClick = kind == "click" && semanticTarget != null && Str(request, "operation") != "point" && Number(step, "count", 1) <= 1 && InWebPage(snapshot, semanticTarget);
         JsonObject outcome;
+        if (webClick && physicalAllowed && !HasClaudeDevtools(state))
+        {
+            request["operation"] = "physical"; request["action"] = "click";
+            try { outcome = PhysicalNative(state, request); outcome["realClick"] = "web page control with foreground allowed"; }
+            catch (Exception e) when (Program.InputStarted) { return ProveNative(state, step, snapshot, null, e.Message); }
+            if (kind is "click" && Str(target, "role") is "edit" or "document") state.RetainedFocus = SelectorOf(target!);
+            return ProveNative(state, step, snapshot, outcome);
+        }
         try { outcome = ObjectOf(ExecuteInternal(request)); }
         catch (BackgroundNotApplicableException e) when (!Program.InputStarted && physicalAllowed && !HasClaudeDevtools(state))
         {
@@ -592,7 +674,61 @@ static partial class McpServer
             return ProveNative(state, step, snapshot, null, e.Message);
         }
         if (kind is "click" or "setValue" or "typeText" && target != null && Str(target, "role") is "edit" or "document") state.RetainedFocus = SelectorOf(target);
+        if (webClick && step["expect"] == null && Str(outcome, "technique") == "background:uia" && WebClickChangedNothing(state, snapshot) is { } unchanged)
+            return StepResult("sent-unconfirmed", "~", null, false, unchanged, outcome);
         return ProveNative(state, step, snapshot, outcome);
+    }
+    // The page (index of its RootWebArea document) an element belongs to, or -1 for the browser's own interface.
+    internal static int WebRoot(JsonObject snapshot, JsonObject element)
+    {
+        if (Str(element, "role") == "document" && Str(element, "automationId").Equals("RootWebArea", StringComparison.OrdinalIgnoreCase)) return (int)Number(element, "index", -1);
+        foreach (var i in (element["ancestors"] as JsonArray ?? new()).Reverse())
+        {
+            var ancestor = Elements(snapshot).OfType<JsonObject>().FirstOrDefault(e => Number(e, "index", -1) == i!.GetValue<int>());
+            if (ancestor != null && Str(ancestor, "role") == "document" && Str(ancestor, "automationId").Equals("RootWebArea", StringComparison.OrdinalIgnoreCase)) return i!.GetValue<int>();
+        }
+        return -1;
+    }
+    // The surface (WebRoot) of a key's field, only in a window with web pages and only when the field is known: named by the
+    // step, or the focused element the key goes to (the field the batch aimed at when several report focus); otherwise null.
+    internal static int? KeySurface(JsonObject snapshot, JsonObject step, JsonObject? retained)
+    {
+        var elements = Elements(snapshot).OfType<JsonObject>().ToList();
+        if (!elements.Any(e => Str(e, "role") == "document" && Str(e, "automationId").Equals("RootWebArea", StringComparison.OrdinalIgnoreCase))) return null;
+        JsonObject? field = null;
+        try
+        {
+            if ((step["selector"] as JsonObject ?? step["focus"] as JsonObject) is { } selector) field = StepTarget(snapshot, step, selector);
+            else field = FocusedKeyLeaf(snapshot, retained); // the very element the key transport sends to
+        }
+        catch (ActionRefusedException) { return null; }
+        return field == null ? null : WebRoot(snapshot, field);
+    }
+    // A control inside a Chromium page (under its RootWebArea document), not the browser's own toolbar or dialogs.
+    internal static bool InWebPage(JsonObject snapshot, JsonObject element) =>
+        (element["ancestors"] as JsonArray ?? new()).Select(i => Elements(snapshot).OfType<JsonObject>().FirstOrDefault(e => Number(e, "index", -1) == i!.GetValue<int>()))
+            .Any(a => a != null && Str(a, "role") == "document" && Str(a, "automationId").Equals("RootWebArea", StringComparison.OrdinalIgnoreCase));
+    // Read the window again for up to 1.2 s: any change of its elements, values, states, focus or title, or a new window of
+    // the app, counts as an effect. Nothing at all: the message says so and how to click for real (never replayed here).
+    internal const int WebClickWatchMs = 1200;
+    static string? WebClickChangedNothing(SessionState state, JsonObject before)
+    {
+        try
+        {
+            var window = (nint)state.BoundWindow!.Value.Id;
+            string Stamp(JsonObject snapshot) => KeyPermissionStamp(snapshot, new JsonObject(), Win32.Title(window)) + "|" + StructureNative(snapshot);
+            var pid = Win32.ProcessOf(window);
+            int Windows() { var n = 0; Win32.EnumWindows((h, _) => { if (Win32.IsWindowVisible(h) && Win32.ProcessOf(h) == pid) n++; return true; }, 0); return n; }
+            var initial = Stamp(before); var windows = Windows();
+            var timer = Stopwatch.StartNew();
+            while (timer.ElapsedMilliseconds < WebClickWatchMs)
+            {
+                EmergencyStop.ThrowIfStopped(); Thread.Sleep(150);
+                if (Windows() != windows || Stamp(InspectNative(state)) != initial) return null;
+            }
+            return "Input sent (accessibility click), but nothing changed in the page or the app within 1.2 s: this control may ignore a background click. Look before anything else; never resend blindly. With the user's agreement, repeat with foreground:true for a real click";
+        }
+        catch (Exception error) when (error is not EmergencyStopException) { return null; }
     }
     static JsonObject PhysicalNative(SessionState state, JsonObject request)
     {

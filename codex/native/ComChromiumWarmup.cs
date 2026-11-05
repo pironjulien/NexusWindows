@@ -28,7 +28,8 @@ unsafe sealed partial class ComUia
 // No cached tree, UIA pattern, simulated activation, foreground call or input is used by the retries.
 sealed class ChromiumContentWarmup
 {
-    internal const int BudgetMs = 1500, PollMs = 250, MissingCooldownMs = 60000;
+    internal const int BudgetMs = 1500, PollMs = 250, MissingCooldownMs = 60000, RevealEveryMs = 2000;
+    readonly Dictionary<long, (double At, bool Done)> lastReveal = new();
     internal readonly record struct Identity(long Hwnd, uint Pid, string Birth, string WindowClass);
     readonly record struct Miss(Identity Identity, double At);
     readonly Dictionary<long, Miss> missing = new();
@@ -40,7 +41,7 @@ sealed class ChromiumContentWarmup
     }
 
     internal UiTree Read(UiTree initial, bool chromium, Identity? expected, Func<Identity?> currentIdentity,
-        Func<UiTree> readFresh, Func<bool> stopped, Func<double> nowMs, Action<int> wait)
+        Func<UiTree> readFresh, Func<bool> stopped, Func<double> nowMs, Action<int> wait, Func<bool>? reveal = null)
     {
         var tree = initial;
         try
@@ -60,10 +61,14 @@ sealed class ChromiumContentWarmup
             if (stopped()) return tree; // STOP keeps the native toolbar readable and ends only the optional warmup.
             if (missing.TryGetValue(identity.Hwnd, out var miss))
             {
-                if (miss.Identity == identity && now - miss.At < MissingCooldownMs) return tree;
+                // Within the cooldown a covered browser window may still be revealed, at most every RevealEveryMs: a page that loaded
+                // after the previous reveal was hidden again by Chrome (bench of 05/11: every look after a navigation missed).
+                if (miss.Identity == identity && now - miss.At < MissingCooldownMs &&
+                    (reveal == null || !lastReveal.TryGetValue(identity.Hwnd, out var last) || !last.Done || now - last.At < RevealEveryMs && now >= last.At)) return tree;
                 missing.Remove(identity.Hwnd); // HWND reuse, PID replacement or process rebirth resets the miss.
             }
             var deadline = now + BudgetMs;
+            var revealed = false;
             while (true)
             {
                 if (stopped()) return tree;
@@ -81,6 +86,14 @@ sealed class ChromiumContentWarmup
                 catch { next?.Dispose(); throw; }
                 tree.Dispose(); tree = next;
                 if (HasWebContent(tree)) { missing.Remove(identity.Hwnd); return tree; }
+                // Still no page after a fresh read: a covered window does not render a page loaded behind (ChromiumReveal.cs).
+                // One reveal per read, then the same budget again for the page to publish its document.
+                if (!revealed && reveal != null)
+                {
+                    revealed = true;
+                    var done = reveal(); lastReveal[identity.Hwnd] = (nowMs(), done);
+                    if (done) { Revalidate(); deadline = nowMs() + BudgetMs; }
+                }
             }
             missing[identity.Hwnd] = new(identity, nowMs());
             return tree; // Last independently read toolbar remains usable; no fabricated document or status.
@@ -171,6 +184,36 @@ sealed class ChromiumContentWarmup
         policy = new ChromiumContentWarmup(); initial = Tree("provider failure");
         try { Run(initial, fresh: () => throw new COMException("provider failed")); throw new Exception("provider failure accepted"); }
         catch (COMException) { Require(initial.Nodes.Count == 0, "Provider errors dispose the owned tree and remain real errors"); }
+        // A covered window that loaded its page behind (05/11): one reveal after the first fresh read without a page, then the
+        // same budget again; never a second reveal in the same read, never one for a ready page.
+        policy = new ChromiumContentWarmup(); reads = 0; waits.Clear(); now = 0; var reveals = 0;
+        using (var revealed = policy.Read(Tree("hidden page"), true, identity, () => actual, () => { reads++; return reads >= 3 ? Tree("ready", true, true) : Tree("toolbar"); },
+            () => false, () => now, advance, () => { reveals++; now += 600; return true; }))
+            Require(reveals == 1 && reads == 3 && HasWebContent(revealed), "A reveal after the first empty read lets the page publish");
+        policy = new ChromiumContentWarmup(); reads = 0; now = 0; reveals = 0;
+        using (var never = policy.Read(Tree("never"), true, identity, () => actual, () => { reads++; return Tree("toolbar"); },
+            () => false, () => now, advance, () => { reveals++; return true; }))
+            Require(reveals == 1 && reads == 7 && now == BudgetMs + PollMs, "One reveal per read, then the budget once more, bounded");
+        policy = new ChromiumContentWarmup(); reads = 0; now = 0; reveals = 0;
+        using (var refused = policy.Read(Tree("refused"), true, identity, () => actual, () => { reads++; return Tree("toolbar"); },
+            () => false, () => now, advance, () => { reveals++; return false; }))
+            Require(reveals == 1 && reads == 6 && now == BudgetMs, "A refused reveal (window partly visible, minimized, in front) keeps the ordinary budget");
+        reveals = 0;
+        using (var ready = policy.Read(Tree("ready page", true, true), true, identity, () => actual, read, () => false, () => now, advance, () => { reveals++; return true; }))
+            Require(reveals == 0, "A published page is never revealed");
+        // Within the miss cooldown: a browser window revealed more than RevealEveryMs ago is revealed again (a page loaded after
+        // it); a window whose reveal was refused (an app, a dialog) keeps the whole cooldown, without any wait.
+        policy = new ChromiumContentWarmup(); now = 0; reveals = 0; reads = 0;
+        using (policy.Read(Tree("first"), true, identity, () => actual, () => { reads++; return Tree("toolbar"); }, () => false, () => now, advance, () => { reveals++; return true; })) { }
+        now += RevealEveryMs + 1; var before = reads;
+        using (var again = policy.Read(Tree("loaded later"), true, identity, () => actual, () => { reads++; return reads - before >= 2 ? Tree("ready", true, true) : Tree("toolbar"); }, () => false, () => now, advance, () => { reveals++; return true; }))
+            Require(reveals == 2 && HasWebContent(again), "A page loaded after the previous reveal is revealed again within the miss cooldown");
+        policy = new ChromiumContentWarmup(); now = 0; reveals = 0; reads = 0;
+        using (policy.Read(Tree("app"), true, identity, () => actual, () => { reads++; return Tree("toolbar"); }, () => false, () => now, advance, () => { reveals++; return false; })) { }
+        now += RevealEveryMs + 1; before = reads;
+        using (policy.Read(Tree("app again"), true, identity, () => actual, () => { reads++; return Tree("toolbar"); }, () => false, () => now, advance, () => { reveals++; return false; }))
+            Require(reveals == 1 && reads == before, "A window that cannot be revealed keeps the cooldown: no wait, no new reveal");
+        checks += ChromiumReveal.SelfTest();
         return new { ok = true, checks, gui = false, waitBudgetMs = BudgetMs, pollMs = PollMs, failureCooldownMs = MissingCooldownMs };
     }
 }

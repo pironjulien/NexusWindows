@@ -30,13 +30,13 @@ static partial class McpServer
         }
         return memory;
     }
-    static string NodeKey(JsonObject element) => IdentityPart(element).ToJsonString(JsonOut);
+    static string NodeKey(JsonObject snapshot, JsonObject element) => StableIdentityPart(snapshot, element).ToJsonString(JsonOut);
     static void PublishNativeIndices(SessionState state, JsonObject snapshot, NativeLookMemory memory)
     {
         var translated = new Dictionary<int, int>();
         foreach (var element in Elements(snapshot).OfType<JsonObject>())
         {
-            var key = NodeKey(element);
+            var key = NodeKey(snapshot, element);
             if (!memory.Ids.TryGetValue(key, out var id)) memory.Ids[key] = id = ++memory.Next;
             translated[(int)Number(element, "index")] = id;
         }
@@ -90,7 +90,7 @@ static partial class McpServer
     }
     static string NativeLine(JsonObject element, JsonObject? reference)
     {
-        var line = $"[{element["index"]}] {element["role"]} \"{Str(element, "name")}\"";
+        var line = $"[{element["index"]}] {element["role"]} \"{Str(element, "name")}\"" + (Str(element, "context").Length > 0 ? $" ({Str(element, "context")})" : "");
         if (Bool(element, "ocr")) line += " (OCR)";
         if (element["value"] != null && !Bool(element, "password")) line += $" = \"{Str(element, "value")}\"";
         foreach (var field in new[] { "checked", "selected", "expanded", "disabled", "focused" }) if (element[field] != null) line += $" {field}={element[field]}";
@@ -199,7 +199,7 @@ static partial class McpServer
     static JsonObject CompactElement(JsonObject element)
     {
         var compact = new JsonObject { ["index"] = element["index"]?.DeepClone(), ["role"] = element["role"]?.DeepClone() };
-        foreach (var field in new[] { "name", "automationId", "description", "accessKey" }) if (Str(element, field).Length > 0) compact[field] = Str(element, field);
+        foreach (var field in new[] { "name", "context", "automationId", "description", "accessKey" }) if (Str(element, field).Length > 0) compact[field] = Str(element, field);
         if (element["value"] != null && !Bool(element, "password")) compact["value"] = element["value"]!.DeepClone();
         foreach (var field in new[] { "checked", "selected", "expanded" }) if (element[field] is JsonValue state) compact[field] = state.DeepClone();
         foreach (var field in new[] { "disabled", "focused", "password", "valueTruncated", "isDefault", "invoke", "ocr" }) if (Bool(element, field)) compact[field] = true;
@@ -451,9 +451,13 @@ static partial class McpServer
                 var snapshot = InspectNative(state); var memory = LookMemory(state, named.Id, snapshot);
                 // An image of this same window (look or act then="image") stays usable for points: NativePoint still refuses
                 // it when the window moved or was resized, and the element under the point is read again before input.
-                memory.Shown.Clear(); state.Pending = null; state.RetainedFocus = null;
+                state.Pending = null; state.RetainedFocus = null;
                 if (state.Image?.Window != named.Id) { memory.Image = null; state.Image = null; state.RegionImage = null; }
                 PublishNativeIndices(state, snapshot, memory);
+                // An index keeps naming the same element (same identity key) for the whole life of the window's process: the
+                // indices shown by the previous look stay usable when they are still present (05/11: after an act with
+                // then="none", the next act was refused, « This index was not displayed in the previous look »).
+                memory.Shown.IntersectWith(Elements(snapshot).OfType<JsonObject>().Select(e => (int)Number(e, "index")));
                 state.CurrentObservation = JsonSerializer.SerializeToElement(snapshot); state.CurrentObservationId = state.NextObservationId(); state.ObservedAt = DateTimeOffset.UtcNow;
             }
             // A run of steps or of a routine: the same batch resent blind is refused (McpRepeatGuard.cs).

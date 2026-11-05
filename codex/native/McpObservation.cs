@@ -77,7 +77,7 @@ static partial class McpServer
     {
         var windows = new JsonArray(Elements(snapshot).OfType<JsonObject>().Where(e => Str(e, "role") is "window" or "dialog").Select(e =>
         {
-            var node = IdentityPart(e); node["disabled"] = e["disabled"]?.DeepClone(); return (JsonNode)node;
+            var node = StableIdentityPart(snapshot, e); node["disabled"] = e["disabled"]?.DeepClone(); return (JsonNode)node;
         }).ToArray());
         return Routines.Digest(windows.ToJsonString(JsonOut));
     }
@@ -95,13 +95,36 @@ static partial class McpServer
             var freshContext = NativeTargetContext(current, freshTarget);
             var ancestors = (target["ancestors"] as JsonArray ?? new()).Select(i => Elements(observed).OfType<JsonObject>().Single(e => Number(e, "index", -1) == i!.GetValue<int>())).ToList();
             var freshAncestors = (freshTarget["ancestors"] as JsonArray ?? new()).Select(i => Elements(current).OfType<JsonObject>().Single(e => Number(e, "index", -1) == i!.GetValue<int>())).ToList();
-            if (freshContext != null && JsonNode.DeepEquals(IdentityPart(context), IdentityPart(freshContext)) &&
+            if (freshContext != null && JsonNode.DeepEquals(StableIdentityPart(observed, context), StableIdentityPart(current, freshContext)) &&
                 NativeContextDigest(observed, context) == NativeContextDigest(current, freshContext) &&
                 NativeWindowContext(observed) == NativeWindowContext(current) &&
                 ancestors.Zip(freshAncestors).All(pair => Bool(pair.First, "disabled") == Bool(pair.Second, "disabled") && Bool(pair.First, "password") == Bool(pair.Second, "password"))) return true;
             throw new ActionRefusedException("The observed target/context changed since look; no input sent");
         }
+        // A classic control right under the window (a Windows Open dialog: « Nom du fichier », « Ouvrir ») has no local
+        // context, but its own window handle: no other control can take its place. It is checked on its own subtree and the
+        // window's dialogs, not on every element of the window (05/11: the file list refreshed, « Interface structure
+        // changed », and the typing was refused). A control without its own handle keeps the whole-window guard.
+        if (target != null && NativeTargetContext(observed, target) is { } root && Str(root, "role") == "window" && root["ancestors"] is not JsonArray { Count: > 0 } &&
+            OwnWindowHandle(observed, target, root))
+        {
+            var step = steps[0]!.AsObject();
+            var freshTarget = StepTarget(current, step, step["selector"] as JsonObject ?? step["focus"]!.AsObject());
+            if (NativeContextDigest(observed, target) == NativeContextDigest(current, freshTarget) && NativeWindowContext(observed) == NativeWindowContext(current) &&
+                Bool(freshTarget, "disabled") == Bool(target, "disabled")) return true;
+            throw new ActionRefusedException("The observed target changed since look; no input sent");
+        }
         return false;
+    }
+
+    // The control (or, for a field synthesized under a classic combo box, that combo box) has a window handle of its own,
+    // which no other element of the observation shares.
+    static bool OwnWindowHandle(JsonObject snapshot, JsonObject target, JsonObject root)
+    {
+        var holder = target["runtimeId"] is JsonArray { Count: 4 } id && id[0]!.GetValue<int>() == -1 && (target["ancestors"] as JsonArray) is { Count: > 0 } chain
+            ? Elements(snapshot).OfType<JsonObject>().FirstOrDefault(e => Number(e, "index", -1) == chain[^1]!.GetValue<int>()) ?? target : target;
+        var handle = Number(holder, "nativeWindow");
+        return handle != 0 && handle != Number(root, "nativeWindow") && Elements(snapshot).OfType<JsonObject>().Count(e => Number(e, "nativeWindow") == handle) == 1;
     }
 
     internal static bool ValidateNativeObservation(JsonObject observed, JsonObject current, JsonObject args, JsonArray steps)

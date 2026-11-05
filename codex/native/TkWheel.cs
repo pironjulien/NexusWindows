@@ -22,7 +22,7 @@ static class TkWheel
     // (NOREDIRECTIONBITMAP : client possiblement entierement transparent).
     const int NotOpaque = 0x00000020 | 0x00080000 | 0x00200000;
 
-    static Win32.Rect Frame(nint hwnd)
+    internal static Win32.Rect Frame(nint hwnd)
     {
         if (Win32.DwmGetWindowAttribute(hwnd, 9 /* DWMWA_EXTENDED_FRAME_BOUNDS */, out var r, 16) == 0) return r;
         Win32.GetWindowRect(hwnd, out r);
@@ -31,7 +31,7 @@ static class TkWheel
 
     // Rayon majore des coins arrondis DWM : 8 px a 100 %, lineaire avec l'echelle du MONITEUR (GetDpiForWindow rend 96
     // pour une application non adaptee au DPI), + 2 px ; echelle illisible : 0 (la fenetre ne couvre rien).
-    static int Corner(nint hwnd)
+    internal static int Corner(nint hwnd)
     {
         if (Win32.GetDpiForMonitor(Win32.MonitorFromWindow(hwnd, 2), 0, out var dpi, out _) != 0 || dpi == 0) return 0;
         var scale = Math.Max(dpi, Win32.GetDpiForWindow(hwnd));
@@ -69,7 +69,7 @@ static class TkWheel
 
     // Aucun pixel de la fenetre n'est visible : seules comptent les fenetres au-dessus d'elle (ordre z reel) visibles, non
     // reduites, non masquees par DWM, sans style NotOpaque ni region SetWindowRgn, d'echelle lisible.
-    static bool FullyCovered(nint top)
+    internal static bool FullyCovered(nint top)
     {
         var covers = new List<(Win32.Rect, int)>();
         for (var above = Win32.GetWindow(top, GW_HWNDPREV); above != 0; above = Win32.GetWindow(above, GW_HWNDPREV))
