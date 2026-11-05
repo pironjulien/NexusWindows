@@ -314,6 +314,24 @@ public class LaunchTests
     }
 
     [Fact]
+    public void Claude_launch_of_an_executable_goes_through_the_users_own_shortcut_and_its_arguments()
+    {
+        // 05/11: Antigravity relaunched by its path lost the --remote-debugging-port=9227 of its Start menu shortcut.
+        using var b = new Bench();
+        var app = b.File(@"Agy\Antigravity.exe"); b.File(@"Agy\resources\app.asar");
+        var own = new { name = "Antigravity", id = "Fixture.Agy", target = app, args = "--remote-debugging-port=9227" };
+        var r = Compat(new object[] {
+            new { app, catalogue = new object[] { own } },
+            new { app, args = "--new-window", catalogue = new object[] { own } },
+            new { app, catalogue = new object[] { own, new { name = "Antigravity plain", id = "Fixture.Plain", target = app } } },
+            new { app, catalogue = new object[] { own, new { name = "Antigravity other", id = "Fixture.Other", target = app, args = "--other" } } } });
+        Assert.Equal("shortcut", r[0]!["kind"].S()); Assert.Equal(@"shell:AppsFolder\Fixture.Agy", r[0]!["target"].S());
+        Assert.Equal("executable", r[1]!["kind"].S());
+        Assert.Equal("executable", r[2]!["kind"].S());
+        Assert.Equal("executable", r[3]!["kind"].S());
+    }
+
+    [Fact]
     public void Claude_chromium_policy_preserves_ordinary_switches_and_rejects_control_or_profile_injection()
     {
         using var b = new Bench();

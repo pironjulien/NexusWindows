@@ -216,6 +216,17 @@ static partial class McpServer
                     args.Length > 0 ? ["Arguments ignored: an existing Start menu shortcut is launched with its own arguments."] : []);
             }
         }
+        // Executable named or given by its path, without arguments: when the user's own Start menu shortcut is the one
+        // way they launch it, with its own arguments (Antigravity with --remote-debugging-port=9227 for the keypad),
+        // that shortcut is launched, as a click on it would. A plain shortcut, or several different ones (browser
+        // profiles), keeps the bare executable (05/11: Antigravity relaunched without its port, the keypad went blind).
+        if (start == null && exe != null && args.Length == 0 && !devtools && !restart && Steam.Resolve(raw, exe) == null
+            && ClaudeOwnShortcut(exe, catalogue) is { } own)
+        {
+            ClaudeCheckAppId(own.Id, own.Name, "", false);
+            ClaudeCheckExecutable(exe, "", false);
+            return new("shortcut", @"shell:AppsFolder\" + own.Id, "", null, own.Id, own.Name, false, false, []);
+        }
         if (exe == null && raw.Contains('!') && !raw.Contains('\\') && !raw.Contains('/'))
         {
             if (restart) throw new ActionRefusedException("restart=true is supported only for the genuine Steam client");
@@ -230,6 +241,16 @@ static partial class McpServer
         if (restart) throw new ActionRefusedException("restart=true is supported only for the genuine Steam client");
         ClaudeCheckExecutable(exe, args, devtools);
         return new("executable", exe, args, exe, null, start?.Name ?? Path.GetFileName(exe), devtools, false, []);
+    }
+    static ClaudeStartApp? ClaudeOwnShortcut(string exe, IReadOnlyList<ClaudeStartApp>? catalogue)
+    {
+        IReadOnlyList<ClaudeStartApp> apps;
+        try { apps = catalogue ?? ClaudeStartApps(); }
+        catch (ActionRefusedException) { return null; } // Start menu unreadable: the executable alone, as before
+        var same = apps.Where(a => !a.Id.Contains('!') && a.Target is { Length: > 0 } t
+            && string.Equals(ClaudeExpandPath(t), exe, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (same.Count == 0 || same.Any(a => a.Arguments.Trim().Length == 0)) return null;
+        return same.Select(a => a.Arguments.Trim()).Distinct(StringComparer.Ordinal).Count() == 1 ? same[0] : null;
     }
     static string ClaudeQuote(string argument)
     {

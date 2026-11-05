@@ -10,6 +10,13 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.19] - 2026-11-05
+
+### Fixed
+- Launching an app by its name or path without arguments goes through the user's own Start menu shortcut when that is
+  the one way they start it with arguments, as a click on it would: Antigravity keeps its `--remote-debugging-port`
+  for NexusKeypad. A plain shortcut, or several different ones (browser profiles), keeps the bare executable.
+
 ## [3.16.18] - 2026-11-04
 
 ### Fixed
