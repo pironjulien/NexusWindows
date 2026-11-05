@@ -57,6 +57,19 @@ public class AgentPaceTests
     }
 
     [Fact]
+    public void Editing_keys_leave_the_background_and_command_keys_stay()
+    {
+        Assert.True(ChromiumInput.EditingKey([], 0x08));          // Backspace
+        Assert.True(ChromiumInput.EditingKey([], 0x2E));          // Delete
+        Assert.True(ChromiumInput.EditingKey([], 0x24));          // Home
+        Assert.True(ChromiumInput.EditingKey([0x11], 'A'));       // Ctrl+A
+        Assert.True(ChromiumInput.EditingKey([0x11, 0x10], 'Z')); // Ctrl+Shift+Z
+        Assert.False(ChromiumInput.EditingKey([], 0x0D));         // Enter: Codex sends in the background
+        Assert.False(ChromiumInput.EditingKey([0x11], 'K'));      // Ctrl+K
+        Assert.False(ChromiumInput.EditingKey([0x12], 0x25));     // Alt+Left: a command
+    }
+
+    [Fact]
     public void Message_text_goes_in_packets_of_64_characters()
     {
         var units = ChromiumInput.SimulatedWriteUnits("Test du NexusPad : réponds seulement OK, sans aucun outil.");

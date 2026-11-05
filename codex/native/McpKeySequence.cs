@@ -253,22 +253,6 @@ static partial class McpServer
             EmergencyStop.ThrowIfStopped(); state.Interaction?.Check(); GuardClaudeDevtools(state);
             var single = step.DeepClone().AsObject(); single["key"] = key; single.Remove("expect");
             var before = InspectNative(state); ValidateKeyContext(snapshot, before);
-            // A key aimed at a Chromium field that does not hold the focus gives it the focus first, in the background, like
-            // a focus step (05/11: Ctrl+V in Antigravity's message field refused, "not focused", and its click needed the
-            // foreground). Only editable fields; the focus is read back below like any key target.
-            if (!devtools && ChromiumInput.IsChromium(window) && (single["selector"] as JsonObject ?? single["focus"] as JsonObject) is { } aimed)
-            {
-                var field = StepTarget(before, single, aimed);
-                if (!Bool(field, "focused") && Str(field, "role") is "edit" or "document" or "combobox")
-                {
-                    var focusStep = new JsonObject { ["kind"] = "focus", ["selector"] = aimed.DeepClone(),
-                        ["expect"] = new JsonObject { ["selector"] = aimed.DeepClone(), ["field"] = "focused", ["equals"] = true } };
-                    if (single["observedIdentity"] is JsonNode identity) focusStep["observedIdentity"] = identity.DeepClone();
-                    var focused = PerformNative(state, focusStep, before, false);
-                    if (!Bool(focused, "success")) throw new ActionRefusedException("The named keyboard target could not take the focus in the background; no key sent");
-                    before = InspectNative(state); ValidateKeyContext(snapshot, before);
-                }
-            }
             var focus = ReadKeyFocus(state, before, single, requireReady: false, devtools);
             var grant = new NativeKeyGrant();
             using var entry = new NativeKeyEntryScope(() =>

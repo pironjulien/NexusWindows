@@ -249,6 +249,22 @@ static partial class McpServer
             }
             catch (Exception e) { stepResult = RoutineFailure(e, preparationInputAttempted || Program.InputStarted); }
             stepResult = RoutinePreparedResult(stepResult, preparationInputAttempted);
+            // A shortcut the app ignores when posted (Codex, measured) goes by the real keyboard in a brief foreground
+            // lease, without asking (Julien, 05/11: « un vol de focus ultra rapide puis remettre derrière »): only when he
+            // is not typing or moving the mouse (the lease waits for that pause), his window given back at once, and only
+            // for a key refused before any input.
+            if (BriefForegroundKey(state, step, stepResult, physicalAllowed, routine))
+            {
+                try
+                {
+                    using var brief = NativeInteraction.BeginLegacy(state, new JsonArray(step.DeepClone()));
+                    var briefBefore = InspectNative(state);
+                    stepResult = PerformNative(state, step, briefBefore, true);
+                    stepResult["foregroundReturned"] = brief.ReturnForeground();
+                    stepResult["briefForeground"] = true;
+                }
+                catch (Exception e) { stepResult = RoutineFailure(e, Program.InputStarted); }
+            }
             stepResult["index"] = i; stepResult["action"] = Str(step, "kind"); results.Add(stepResult);
             Journal.WriteEntry(state.Agent, Version, state.SessionId, named.App, Str(step, "kind"), Str(stepResult, "status"), Str(stepResult, "technique"), actionTimer.ElapsedMilliseconds, Bool(stepResult, "foregroundTaken"), Str(stepResult, "message"));
             if (Str(stepResult, "status") == "verified") transitions++;
@@ -296,6 +312,9 @@ static partial class McpServer
         return response;
     }
     static string ReviewKey(string app, string routine) => Routines.ApplicationKey(app) + "|" + routine;
+    internal static bool BriefForegroundKey(SessionState state, JsonObject step, JsonObject result, bool physicalAllowed, string? routine) =>
+        !physicalAllowed && routine == null && state.Interaction == null && Str(step, "kind") == "key"
+        && Bool(step, "fallback", true) && Bool(result, "needsForeground") && Str(result, "status") == "refused";
     internal static bool NamesOwnTarget(JsonNode? step) => step is JsonObject s && (s["target"] != null || s["selector"] is JsonObject || s["focus"] is JsonObject);
 
     static JsonObject RoutinePauseFailure(SessionState state, JsonArray results, int total, int next, Exception error)

@@ -91,6 +91,7 @@ static partial class ChromiumInput
     public static Result SendKeys(nint window, string spec, int? quietMs, Action? started = null)
     {
         var (mods, vk, layout) = Keys.ParseForWindow(window, spec);
+        if (EditingKey(mods, vk)) throw new BackgroundNotApplicableException("A Chromium editor does not apply editing keys while its window is inactive (measured 05/11: Backspace, Delete, Home and Ctrl+A had no effect in Codex): no background technique");
         return Run(window, null, quietMs, "keys", started, (top, _) =>
         {
             var posted = false;
@@ -104,6 +105,15 @@ static partial class ChromiumInput
                 throw new AfterInputException($"Keys interrupted after input; outcome unknown, do not replay: {error.Message}", error);
             }
         });
+    }
+
+    // Keys that edit the text or move its caret or selection: Backspace, Delete, Home, End, Page Up/Down, arrows, and
+    // Ctrl+A, C, V, X, Y, Z. Command keys an app handles itself (Enter, Escape, Ctrl+K, F keys) still go in the background.
+    internal static bool EditingKey(IReadOnlyCollection<int> mods, int vk)
+    {
+        if (mods.Contains(0x12) || mods.Contains(0x5B) || mods.Contains(0x5C)) return false; // Alt and Windows shortcuts are commands
+        if (vk is 0x08 or 0x2E or (>= 0x21 and <= 0x28)) return true;
+        return mods.Contains(0x11) && vk is 'A' or 'C' or 'V' or 'X' or 'Y' or 'Z';
     }
 
     // Egalite exacte, fins de ligne seules normalisees (relecture de Codex du 22/10 : casse et espaces comptent).
@@ -224,9 +234,9 @@ static partial class ChromiumInput
         // Julien keeps working while the agent works (05/11): posted messages to a window that is not in front never meet
         // his keyboard or mouse, so they do not wait for him to stop. Only a process's first simulated activation can use
         // its launch right to the foreground (handled below): that one still waits for a quiet moment.
-        // That right belongs to a process started moments ago; an app running for over a minute has none (05/11: Codex open
-        // for hours, each new engine session waited for a quiet moment before its first text).
-        if (first && RecentlyStarted(pid)) JulienPause.ThrowIfActive(quietMs);
+        // Measured 05/11: Codex running for an hour still came in front for 17 ms at a new engine's first activation, so
+        // every first activation waits for a quiet moment, whatever the age of the process.
+        if (first) JulienPause.ThrowIfActive(quietMs);
         EmergencyStop.ThrowIfStopped();
         var noted = Win32.GetForegroundWindow();
         var input = Win32.Probe().LastInput;
@@ -284,12 +294,6 @@ static partial class ChromiumInput
             LastTaken = taken;
             LastGiveBack = giveBack;
         }
-    }
-
-    static bool RecentlyStarted(uint pid)
-    {
-        try { using var process = Process.GetProcessById((int)pid); return DateTime.Now - process.StartTime < TimeSpan.FromSeconds(60); }
-        catch (Exception error) when (error is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { return true; }
     }
 
     // Prise et restitution du premier plan de la derniere voie (lues par RunAction, y compris apres une erreur).

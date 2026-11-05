@@ -10,6 +10,21 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.23] - 2026-11-05
+
+### Added
+- A key an app refuses in the background goes by the real keyboard in a brief foreground lease, without asking:
+  only while the user is not typing or moving the mouse, his window given back at once (measured 0.2 to 0.7 s).
+- Editing keys (Backspace, Delete, Home, End, arrows, Ctrl+A, C, V, X, Y, Z) leave the background in a Chromium
+  app: its editor does not apply them while its window is inactive (Codex, measured). Command keys (Enter, Ctrl+K)
+  still go in the background.
+
+### Fixed
+- Every first simulated activation of a process waits for a quiet moment again: Codex running for an hour still came
+  in front for 17 ms (3.16.20 had dropped the wait for processes older than a minute).
+- A key aimed at an unfocused Chromium field no longer tries a background focus that is never allowed: with
+  foreground:true it was refused inside the foreground lease, after the window had been brought in front.
+
 ## [3.16.22] - 2026-11-05
 
 ### Fixed
