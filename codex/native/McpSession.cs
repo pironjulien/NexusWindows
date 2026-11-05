@@ -331,7 +331,8 @@ static partial class McpServer
         if (field == "value" && actual == null && Str(matches[0], "role") is "text" or "label") actual = matches[0]["name"];
         if (actual == null && (expect["equals"] != null || expect["includes"] != null)) return false;
         // Text is compared with its spaces normalized (line breaks, non-breaking spaces), and includes ignores case.
-        if (expect["equals"] is JsonValue eq && field == "value" && eq.TryGetValue<string>(out var expectedText)) return NormalizeLegacyText(actual?.ToString()) == NormalizeLegacyText(expectedText);
+        // A field showing its placeholder as its value is empty (Codex, 05/11: a cleared field read « Que voulez-vous faire ? »).
+        if (expect["equals"] is JsonValue eq && field == "value" && eq.TryGetValue<string>(out var expectedText)) return NormalizeLegacyText(Str(matches[0], "role") is "edit" or "document" or "combobox" ? ChromiumInput.WithoutPlaceholder(actual?.ToString() ?? "", Str(matches[0], "name")) : actual?.ToString()) == NormalizeLegacyText(expectedText);
         if (expect["equals"] != null) return JsonNode.DeepEquals(actual, expect["equals"]);
         if (expect["includes"] != null) return NormalizeLegacyText(actual?.ToString()).Contains(NormalizeLegacyText(Str(expect, "includes")), StringComparison.OrdinalIgnoreCase);
         return expect.ContainsKey("exists") && Bool(expect, "exists");

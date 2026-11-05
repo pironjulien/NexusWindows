@@ -272,8 +272,10 @@ static partial class ChromiumInput
             }
             var before = WithoutPlaceholder(ReadBoundValue() ?? throw new BackgroundNotApplicableException("Text value unreadable before writing; nothing was typed"), target.Name);
             try { return RunObservedText(before, text, replace, new SimulatedTextIo(CheckPresence, ReadBoundValue,
-                () => { if (replace) Key("ctrl+a"); else { CheckFocus(); Call(new { op = "caretToEnd", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow }, deadline); } },
-                () => Key("delete"), unit => PostObservedCharacters(unit, CheckFocus, CheckPresence, character => Win32.Post(top, WM_CHAR, character, 1)),
+                () => { CheckFocus(); if (!replace) Call(new { op = "caretToEnd", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow }, deadline); },
+                // The field is emptied by its UIA value (one SetValue ""), then typed into: Codex ignores posted keys
+                // (measured), so Ctrl+A then Delete left its text in place and the replacement never started (05/11).
+                () => { CheckFocus(); Program.InputStarted = true; Call(new { op = "setValue", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow, value = "" }, deadline); }, unit => PostObservedCharacters(unit, CheckFocus, CheckPresence, character => Win32.Post(top, WM_CHAR, character, 1)),
                 () => Key("enter"), () => Remaining(deadline) > 0, () => { var stamp = Stopwatch.GetTimestamp(); Thread.Sleep(20); RecordTiming("wait", stamp); })); }
             finally
             {

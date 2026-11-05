@@ -10,6 +10,14 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.22] - 2026-11-05
+
+### Fixed
+- Replacing text in a Chromium field (type with replace:true) empties it by its UIA value, then types: Codex ignores
+  posted keys, so Ctrl+A then Delete left its text and the replacement never started.
+- A value postcondition on an editable field showing its placeholder as its value (a cleared Codex field) holds for
+  an empty value; a label whose text is its own name keeps its exact comparison.
+
 ## [3.16.21] - 2026-11-05
 
 ### Fixed
