@@ -129,6 +129,9 @@ static partial class McpServer
             else if (kv.Key == "window") { if (Number(element, "nativeWindow") != kv.Value!.GetValue<long>()) return false; }
             else if (kv.Key == "role" && kv.Value?.GetValue<string>() is { } role && role.StartsWith("legacy/", StringComparison.Ordinal)) { if (!LegacyRoles(role[7..]).Contains(Str(element, "role"))) return false; }
             else if (kv.Key == "name") { if (!TargetName.Same(Str(element, "name"), kv.Value?.GetValue<string>())) return false; }
+            // A split button is a button (05/11: the « Ouvrir » of the Open dialog Chrome shows is one; aimed as a button, it was
+            // « Semantic target count is 0 »).
+            else if (kv.Key == "role" && kv.Value?.GetValue<string>() == "button") { if (Str(element, "role") is not ("button" or "splitbutton")) return false; }
             else if (kv.Key is "role" or "automationId") { if (Str(element, kv.Key) != kv.Value?.GetValue<string>()) return false; }
             else throw new InvalidOperationException($"Unknown selector field {kv.Key}");
         }
@@ -720,11 +723,14 @@ static partial class McpServer
             var pid = Win32.ProcessOf(window);
             int Windows() { var n = 0; Win32.EnumWindows((h, _) => { if (Win32.IsWindowVisible(h) && Win32.ProcessOf(h) == pid) n++; return true; }, 0); return n; }
             var initial = Stamp(before); var windows = Windows();
-            var timer = Stopwatch.StartNew();
+            var timer = Stopwatch.StartNew(); var revealed = false;
             while (timer.ElapsedMilliseconds < WebClickWatchMs)
             {
                 EmergencyStop.ThrowIfStopped(); Thread.Sleep(150);
                 if (Windows() != windows || Stamp(InspectNative(state)) != initial) return null;
+                // A page Chrome keeps hidden behind other windows can act on the click without publishing it: shown once (never a
+                // second click), its new state is read again before anything is said.
+                if (!revealed && timer.ElapsedMilliseconds >= 450) { revealed = true; ChromiumReveal.TryReveal(window); }
             }
             return "Input sent (accessibility click), but nothing changed in the page or the app within 1.2 s: this control may ignore a background click. Look before anything else; never resend blindly. With the user's agreement, repeat with foreground:true for a real click";
         }

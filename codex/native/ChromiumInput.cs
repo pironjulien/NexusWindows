@@ -90,7 +90,7 @@ static partial class ChromiumInput
     // keyboard » : Ctrl+K recu par la page, premier plan de Julien intact). Effet relu par la session (« sent »).
     public static Result SendKeys(nint window, string spec, int? quietMs, Action? started = null)
     {
-        var (mods, vk, layout) = Keys.ParseForWindow(window, spec);
+        var (mods, vk, layout) = Keys.ParseForChromium(window, spec);
         if (EditingKey(mods, vk)) throw new BackgroundNotApplicableException("A Chromium editor does not apply editing keys while its window is inactive (measured 05/11: Backspace, Delete, Home and Ctrl+A had no effect in Codex): no background technique");
         return Run(window, null, quietMs, "keys", started, (top, _) =>
         {

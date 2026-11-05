@@ -44,6 +44,7 @@ static partial class Program
         var after = Win32.Probe();
         var targetPid = Win32.ProcessOf(window);
         var taken = takenUnderToken ?? (after.Foreground != before.Foreground && after.Foreground != 0 && Win32.ProcessOf(after.Foreground) == targetPid);
+        if (mode != "foreground" && op == "click" && ChromiumInput.IsChromium(window)) WatchOpenedDialog(window, before.Foreground, before.LastInput);
         return new
         {
             ok = true, technique = outcome.Technique, mechanism = outcome.Mechanism, effect = outcome.Effect,
@@ -53,6 +54,42 @@ static partial class Program
             inputDuringAction = before.LastInput != after.LastInput,
             foreground = new { before = (long)before.Foreground, after = (long)after.Foreground },
         };
+    }
+
+    // A click in a Chromium page that opens a window of its own (the Windows Open dialog of a file field, 05/11): Chrome's
+    // file chooser activates itself as it appears, up to ~1.5 s later, and kept the user's foreground ~1.3 s (bench). For 3 s
+    // after the click, without delaying the reply, a window owned by the clicked window, or of the same executable, that
+    // takes the foreground is put back behind: the user's window gets it back at once, unless the user moved meanwhile.
+    internal const int DialogWatchMs = 3000;
+    static void WatchOpenedDialog(nint window, nint noted, uint input)
+    {
+        if (noted == 0 || Win32.ProcessOf(noted) == Win32.ProcessOf(window)) return; // the user was in that app: nothing to give back
+        var exe = ProcessName(Win32.ProcessOf(window));
+        new Thread(() =>
+        {
+            try
+            {
+                var clock = Stopwatch.StartNew();
+                while (clock.ElapsedMilliseconds < DialogWatchMs)
+                {
+                    Thread.Sleep(10);
+                    if (Win32.Probe().LastInput != input) return; // the user acted: his choice stands
+                    var fg = Win32.GetForegroundWindow();
+                    if (fg == 0 || fg == noted) continue;
+                    if (!OpenedBy(fg, window, exe)) return; // another window took it: not ours to undo
+                    ForegroundReturn.GiveBack(noted, fg, input);
+                    return;
+                }
+            }
+            catch (Exception) { } // a watcher never fails the action it follows
+        }) { IsBackground = true, Name = "chromium-dialog-foreground" }.Start();
+    }
+    internal static bool OpenedBy(nint candidate, nint window, string exe)
+    {
+        for (var owner = Win32.GetWindow(candidate, Win32.GW_OWNER); owner != 0; owner = Win32.GetWindow(owner, Win32.GW_OWNER))
+            if (owner == window) return true;
+        return candidate == window || Win32.ProcessOf(candidate) == Win32.ProcessOf(window) ||
+            exe.Length > 0 && string.Equals(ProcessName(Win32.ProcessOf(candidate)), exe, StringComparison.OrdinalIgnoreCase) && Win32.GetWindow(candidate, Win32.GW_OWNER) != 0;
     }
 
     // Repli des observations natives : UIA sous le jeton de premier plan commun (peut prendre le premier plan). Une fois

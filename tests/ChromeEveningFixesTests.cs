@@ -131,6 +131,34 @@ public class ChromeEveningFixesTests
     }
 
     [Fact]
+    public void The_file_name_then_Ouvrir_in_one_act_survive_the_refreshing_file_list()
+    {
+        JsonArray Steps() => new(
+            new JsonObject { ["kind"] = "typeText", ["text"] = "essai.html", ["focus"] = new JsonObject { ["role"] = "combobox", ["name"] = "Nom du fichier :" } },
+            new JsonObject { ["kind"] = "click", ["selector"] = new JsonObject { ["role"] = "combobox", ["name"] = "Nom du fichier :" } });
+        Assert.False(McpServer.ValidateNativeObservation(OpenDialog(3), OpenDialog(5), new JsonObject(), Steps()));
+        // A step without a named target keeps the whole-window guard.
+        var blind = Steps(); blind.Add(new JsonObject { ["kind"] = "key", ["key"] = "enter" });
+        Assert.ThrowsAny<ActionRefusedException>(() => McpServer.ValidateNativeObservation(OpenDialog(3), OpenDialog(5), new JsonObject(), blind));
+    }
+
+    [Fact]
+    public void Keys_after_a_click_in_a_field_go_on_in_the_same_act()
+    {
+        var click = new JsonObject { ["kind"] = "click", ["selector"] = new JsonObject { ["role"] = "edit", ["name"] = "Code" } };
+        var sent = new JsonObject { ["status"] = "sent-unconfirmed", ["technique"] = "background:simulated-activation" };
+        Assert.True(McpServer.KeyFollowsDeliveredKey(click, sent, new JsonObject { ["kind"] = "key", ["key"] = "alt+1" }));
+        Assert.False(McpServer.KeyFollowsDeliveredKey(click, sent, new JsonObject { ["kind"] = "key", ["key"] = "alt+1", ["target"] = "Autre" }));
+        var button = new JsonObject { ["kind"] = "click", ["selector"] = new JsonObject { ["role"] = "button", ["name"] = "Valider" } };
+        Assert.False(McpServer.KeyFollowsDeliveredKey(button, sent, new JsonObject { ["kind"] = "key", ["key"] = "enter" }));
+        // Alt in the background, Chromium only: never what Windows itself does with Alt.
+        Assert.Equal([0x09, 0x1B, 0x20, 0x73], Keys.AltForWindows);
+        // The Open dialog's « Ouvrir » is a split button: aimed as a button, it is found.
+        var dialog = OpenDialog(1); dialog["elements"]!.AsArray().Add(new JsonObject { ["index"] = 4, ["depth"] = 1, ["role"] = "splitbutton", ["name"] = "Ouvrir", ["automationId"] = "1", ["runtimeId"] = new JsonArray(42, 104), ["nativeWindow"] = 104, ["ancestors"] = new JsonArray(0), ["visible"] = true });
+        Assert.Equal("splitbutton", McpServer.NormalizeStep(Claude(), dialog, JsonNode.Parse("""{"do":"click","target":{"role":"button","name":"Ouvrir"}}""")!.AsObject())["selector"]!["role"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void Chromium_reveal_is_kept_for_covered_browser_windows()
     {
         var result = SelfTest.Node(ComUia.ChromiumWarmupSelfTest());

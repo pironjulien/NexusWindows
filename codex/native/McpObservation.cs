@@ -117,6 +117,29 @@ static partial class McpServer
         return false;
     }
 
+    // A batch whose every step names a classic control with a handle of its own, unchanged since the look (the Open
+    // dialog: type the file name, then « Ouvrir »): its window's other parts may change (the file list refreshes) without
+    // refusing the batch; each step still resolves and guards its own target before input. Any step without a named
+    // target, or on a control without its own handle, keeps the whole-window guard.
+    static bool EveryStepOnItsOwnHandle(JsonObject observed, JsonObject current, JsonObject args, JsonArray steps)
+    {
+        if (Str(args, "operation", "run") != "run" || args["routine"] != null || args["remember"] != null || steps.Count == 0) return false;
+        if (NativeWindowContext(observed) != NativeWindowContext(current)) return false;
+        var root = Elements(observed).OfType<JsonObject>().FirstOrDefault(e => e["ancestors"] is not JsonArray { Count: > 0 });
+        if (root == null) return false;
+        foreach (var node in steps)
+        {
+            if (node is not JsonObject step || (step["selector"] as JsonObject ?? step["focus"] as JsonObject) is not { } selector) return false;
+            if (new[] { "point", "x", "y", "screenshotId", "ocrTarget" }.Any(step.ContainsKey)) return false;
+            JsonObject before, after;
+            try { before = UniqueNative(observed, selector); after = UniqueNative(current, selector); }
+            catch (ActionRefusedException) { return false; }
+            if (!OwnWindowHandle(observed, before, root) || !JsonNode.DeepEquals(ElementIdentity(observed, before), ElementIdentity(current, after)) ||
+                NativeContextDigest(observed, before) != NativeContextDigest(current, after) || Bool(after, "disabled")) return false;
+        }
+        return true;
+    }
+
     // The control (or, for a field synthesized under a classic combo box, that combo box) has a window handle of its own,
     // which no other element of the observation shares.
     static bool OwnWindowHandle(JsonObject snapshot, JsonObject target, JsonObject root)
@@ -131,6 +154,7 @@ static partial class McpServer
     {
         if (ValidateNativeTargetContext(observed, current, args, steps)) return true;
         if (StructureNative(observed) == StructureNative(current)) return false;
+        if (EveryStepOnItsOwnHandle(observed, current, args, steps)) return false;
         throw new ActionRefusedException("Interface structure changed in the observed target/context; observe again before input");
     }
 }

@@ -10,6 +10,26 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.25] - 2026-11-05
+
+The limits left by 3.16.24 on Chrome, fixed and measured on the shared bench (family « chrome », the evening's real
+gestures, three profiles).
+
+### Fixed
+- A click in a field of a Chromium page in the background gives it the focus: the page publishes its focus change
+  only at an accessibility request, so the field read « not focused » (« Focus without activation not read back »).
+  The keys that follow the click in the same act go to that field.
+- Alt shortcuts (alt+1, alt+n…) reach a Chromium window in the background, as system key messages with the Alt
+  context bit under the simulated activation. Alt+Tab, Esc, Space and F4, and the Windows key, stay with Windows.
+- A dialog that a click in Chrome opens and that activates itself (the Windows Open dialog of a file field) gives the
+  user's foreground back at once: 16 ms on the bench instead of 1.3 s.
+- Enter aimed at the address bar right after a set goes through: the field takes the focus first, in the background.
+- The file name then « Ouvrir » in one act: a batch whose every step names a control with its own window handle is no
+  longer refused because the dialog's file list refreshed.
+- A control aimed as a button also finds a split button (the Open dialog's « Ouvrir »).
+- A click on a page control after which nothing shows reveals the covered page once and reads it again (never a
+  second click): an effect the hidden page did not publish is seen.
+
 ## [3.16.24] - 2026-11-05
 
 Six failures met while removing an extension in chrome://extensions and changing the image of a Chrome Web

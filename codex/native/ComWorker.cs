@@ -87,7 +87,7 @@ static partial class ComWorker
                     () => throw Before("No InvokePattern")),
                 "scrollIntoView" => WithPattern(element, ComUia.ScrollItemPatternId, p => { BeforeAct(); ComUia.CallSlot(p, 3); return new Outcome(Uia, "ScrollItem.ScrollIntoView", "sent"); }, () => throw Before("No ScrollItemPattern")),
                 "setFocus" => request.TryGetProperty("expectedWindowBirth", out _) ? SetBoundFocus(element, window, request) : SetFocus(element),
-                "takeFocus" => request.TryGetProperty("expectedWindowBirth", out _) ? BoundChromiumFocus(element, window, request, true) : TakeFocus(element),
+                "takeFocus" => request.TryGetProperty("expectedWindowBirth", out _) ? BoundChromiumFocus(element, window, request, true) : TakeFocus(element, window),
                 "caretToEnd" => CaretToEnd(element),
                 "hasFocus" => request.TryGetProperty("expectedWindowBirth", out _) ? BoundChromiumFocus(element, window, request, false) : new Outcome(Uia, "HasKeyboardFocus", ComUia.HasKeyboardFocus(element) ? "applied" : "none"),
                 "setValue" => SetValue(element, Text("value")),
@@ -103,14 +103,19 @@ static partial class ComWorker
     }
     // Focus sans activation (MSAA accSelect), relu jusqu'a 500 ms : « applied » si l'element a le focus clavier, sinon
     // « sent » (focus demande mais non relu ; rien n'est tape ensuite).
-    static Outcome TakeFocus(nint element)
+    static Outcome TakeFocus(nint element, nint window = 0)
     {
         BeforeAct();
         ComUia.TakeFocus(element);
+        // A Chromium page behind other windows publishes its focus change only at an accessibility request (the same
+        // ScrollIntoView of its document the bound text route makes): without it a focused web field read « not focused »
+        // (05/11: a click in a page field, « Focus without activation not read back »).
+        var chromium = window != 0 && ChromiumInput.HasChromiumContent(window);
         var clock = Stopwatch.StartNew();
         while (clock.ElapsedMilliseconds < 500)
         {
             if (ComUia.HasKeyboardFocus(element)) return new(Uia, "accSelect(SELFLAG_TAKEFOCUS)", "applied");
+            if (chromium && ComUia.Shared.Flush(window) == "stopped") throw new EmergencyStopException("Emergency stop during Chromium focus publication");
             Thread.Sleep(20);
         }
         return new(Uia, "accSelect(SELFLAG_TAKEFOCUS)", "sent");

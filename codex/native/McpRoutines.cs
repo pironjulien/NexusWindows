@@ -319,6 +319,10 @@ static partial class McpServer
         !physicalAllowed && routine == null && state.Interaction == null && Str(step, "kind") == "key"
         && Bool(step, "fallback", true) && Bool(result, "needsForeground") && Str(result, "status") == "refused";
     internal static bool KeyFollowsDeliveredKey(JsonObject step, JsonObject result, JsonNode? next) =>
+        // A click that gave a field the focus (05/11: « Code » in a page, then three keys): the keys that follow read the focus
+        // again before any input and go to that field.
+        Str(step, "kind") == "click" && (step["selector"] as JsonObject)?["role"]?.ToString() is "edit" or "document" && Str(result, "technique").Length > 0 &&
+        next is JsonObject afterClick && Str(afterClick, "kind", Str(afterClick, "do", Str(afterClick, "action", ""))) == "key" && !NamesOwnTarget(afterClick) ||
         Str(step, "kind") == "key" && next is JsonObject following && Str(following, "kind", Str(following, "do", Str(following, "action", ""))) == "key" &&
         result["keySequence"] is JsonObject sequence && Number(sequence, "delivered") == Number(sequence, "total") && Number(sequence, "total") > 0 &&
         (sequence["deliveries"] as JsonArray ?? new()).OfType<JsonObject>().All(d => Str(d, "delivery") == "confirmed");

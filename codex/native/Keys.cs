@@ -27,6 +27,7 @@ static class Keys
     [DllImport("user32.dll")] static extern short GetAsyncKeyState(int vk);
     [DllImport("user32.dll")] static extern nint SendMessageTimeoutW(nint hwnd, uint msg, nint wparam, nint lparam, uint flags, uint timeout, out nint result);
 
+    const uint WM_SYSKEYDOWN = 0x0104, WM_SYSKEYUP = 0x0105;
     const uint WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101, WM_SETFOCUS = 0x0007, WM_KILLFOCUS = 0x0008;
     // Modificateurs simules tenus au moins 0,5 s apres l'envoi : a 0,15 s, Ctrl+K poste a une fenetre Win32 recouverte
     // arrivait parfois apres la restauration (mesure de NexusClaude du 23/10, bench/miss_probes.py).
@@ -90,6 +91,21 @@ static class Keys
         return (mods, vk);
     }
     static (List<int> Mods, int Vk) Parse(string spec, nint layout) => ParseCore(spec, false, ch => VkKeyScanExW(ch, layout));
+
+    // Alt in the background, for a Chromium window only (05/11: alt+n, alt+1 refused « system keys »): its shortcuts are read
+    // from WM_SYSKEYDOWN with the Alt context bit and the simulated keyboard state, under the same simulated activation as
+    // any key. Never the Windows key, nor what Windows itself handles with Alt (Tab, Esc, Space for the system menu, F4
+    // that closes): those keep their physical route.
+    internal static readonly int[] AltForWindows = [0x09, 0x1B, 0x20, 0x73];
+    public static (List<int> Mods, int Vk, nint Layout) ParseForChromium(nint window, string spec)
+    {
+        var layout = GetKeyboardLayout(Win32.GetWindowThreadProcessId(window, out _));
+        var (mods, vk) = ParseCore(spec, true, ch => VkKeyScanExW(ch, layout));
+        if (mods.Contains(0x5B) || mods.Contains(0x5C) || vk is 0x5B or 0x5C) throw new BackgroundNotApplicableException("Windows keys have no safe background technique (system keys)");
+        if (vk == 0x12) throw new BackgroundNotApplicableException("Alt alone has no safe background technique (it would open the menu)");
+        if (mods.Contains(0x12) && AltForWindows.Contains(vk)) throw new BackgroundNotApplicableException("Alt+Tab, Esc, Space and F4 belong to Windows: no background technique");
+        return (mods, vk, layout);
+    }
 
     // Real input supports Alt/Windows too; the background parser still refuses system modifiers before input.
     public static (List<int> Mods, int Vk) ParseFor(string spec, nint layout) => ParseCore(spec, true, ch => VkKeyScanExW(ch, layout));
@@ -200,16 +216,19 @@ static class Keys
         void Post(uint msg, int key, bool up)
         {
             if (sent == 0) { McpServer.BeforeKeySequenceInput(); McpServer.NativeInteraction.CheckInputLease(); started(); }
-            try { Win32.Post(target, msg, key, KeyLparam(key, up, layout)); }
+            var context = msg is WM_SYSKEYDOWN or WM_SYSKEYUP ? (nint)(1L << 29) : 0;
+            try { Win32.Post(target, msg, key, KeyLparam(key, up, layout) | context); }
             catch (Exception error) when (sent > 0) { throw new InvalidOperationException($"Partial key input ({sent} messages posted); outcome unknown", error); }
             sent++;
         }
         using (mods.Count > 0 ? new SimulatedModifiers(owner, mods) : null)
         {
-            foreach (var m in mods) Post(WM_KEYDOWN, m, false);
-            Post(WM_KEYDOWN, vk, false);
-            Post(WM_KEYUP, vk, true);
-            for (var i = mods.Count - 1; i >= 0; i--) Post(WM_KEYUP, mods[i], true);
+            // With Alt (Chromium only, ParseForChromium): system key messages with the Alt context bit, as Windows sends them.
+            var alt = mods.Contains(0x12);
+            foreach (var m in mods) Post(alt ? WM_SYSKEYDOWN : WM_KEYDOWN, m, false);
+            Post(alt ? WM_SYSKEYDOWN : WM_KEYDOWN, vk, false);
+            Post(alt ? WM_SYSKEYUP : WM_KEYUP, vk, true);
+            for (var i = mods.Count - 1; i >= 0; i--) Post(alt && mods[i] == 0x12 ? WM_KEYUP : alt ? WM_SYSKEYUP : WM_KEYUP, mods[i], true);
         }
         return mods.Count > 0 ? "WM_KEYDOWN/WM_KEYUP, simulated keyboard state" : "WM_KEYDOWN/WM_KEYUP";
     }

@@ -239,12 +239,24 @@ static partial class McpServer
         {
             if (devtools) Cdp.ValidateDomKey(key);
             else if (physicalAllowed) Keys.ParseFor(key, layout);
+            else if (ChromiumInput.IsChromium(window)) Keys.ParseForChromium(window, key);
             else Keys.ParseForWindow(window, key);
         }, NormalizeKeyChord);
         if (step["expect"] is JsonObject expect && ExpectationHolds(state, snapshot, expect, ocr: true))
         {
             if (ExactExpectation(expect) || LegacyStateCheck(expect)) return StepResult("already-satisfied", "=", false, true, "Exact state already satisfied; no input sent");
             throw new ActionRefusedException("Vague postcondition is already true before input; choose a condition that this sequence changes");
+        }
+        // A key aimed at a Chromium field that does not hold the focus (05/11: Enter on the address bar after a set, « The named
+        // keyboard target is not focused »): the field takes it first in the background, as a click on it does, read back.
+        if (!devtools && ChromiumInput.IsChromium(window) && (step["selector"] as JsonObject ?? step["focus"] as JsonObject) is { } named &&
+            StepTarget(snapshot, step, named) is { } field && !Bool(field, "focused") && Str(field, "role") is "edit" or "document")
+        {
+            var focus = NativeRequest(state, "click"); focus["selector"] = SelectorOf(field); AddIdentity(focus, field, snapshot);
+            Program.InputStarted = false;
+            try { ObjectOf(ExecuteInternal(focus)); }
+            catch (BackgroundNotApplicableException) when (!Program.InputStarted) { } // not focusable in the background: the key keeps its own refusal
+            snapshot = InspectNative(state);
         }
         JsonObject? last = null;
         return ExecuteKeySequence(keys, key =>
