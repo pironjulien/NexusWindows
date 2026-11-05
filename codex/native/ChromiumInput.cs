@@ -21,6 +21,9 @@ static partial class ChromiumInput
 {
     const uint WM_ACTIVATE = 0x0006, WM_NCACTIVATE = 0x0086, WM_CHAR = 0x0102;
     public const int Budget = 9000, Unit = 8, FirstSettleMs = 150;
+    // Message text (typeText, WriteClaude): packets of 64 characters, each still read back before the next one. Eight per
+    // packet made a short message take one read-back every 8 characters (05/11: about 2 s for a 58-character line).
+    public const int TextUnit = 64;
     // Texte : contrat historique du profil Claude (NexusClaude server._run, timeout_s=180, frappe par tranches sans
     // plafond global de 9 s), pour les trois profils MCP depuis le 01/11. Chaque paquet reste relu et garde (focus,
     // presence, STOP, annulation du client MCP). Le helper --server garde Budget : son client Node borne une action
@@ -107,12 +110,12 @@ static partial class ChromiumInput
     public static bool Same(string? actual, string expected) => actual is not null && actual.Replace("\r\n", "\n") == expected.Replace("\r\n", "\n");
 
     // Unites de frappe : au plus Unit unites UTF-16, sans couper une paire de substitution.
-    public static List<string> Units(string text)
+    public static List<string> Units(string text, int size = Unit)
     {
         var units = new List<string>();
         for (var i = 0; i < text.Length;)
         {
-            var length = Math.Min(Unit, text.Length - i);
+            var length = Math.Min(size, text.Length - i);
             if (i + length < text.Length && char.IsHighSurrogate(text[i + length - 1])) length--;
             units.Add(text.Substring(i, length));
             i += length;
@@ -216,12 +219,17 @@ static partial class ChromiumInput
             throw new BackgroundNotApplicableException("The window is in the foreground: simulated activation not needed");
         using var token = ForegroundToken.Acquire("Chromium simulated activation (" + purpose + ")");
         var deadline = Environment.TickCount64 + (budget ?? Budget);
-        JulienPause.ThrowIfActive(quietMs);
+        var pid = Win32.ProcessOf(top);
+        var first = !Primed.Contains(pid);
+        // Julien keeps working while the agent works (05/11): posted messages to a window that is not in front never meet
+        // his keyboard or mouse, so they do not wait for him to stop. Only a process's first simulated activation can use
+        // its launch right to the foreground (handled below): that one still waits for a quiet moment.
+        // That right belongs to a process started moments ago; an app running for over a minute has none (05/11: Codex open
+        // for hours, each new engine session waited for a quiet moment before its first text).
+        if (first && RecentlyStarted(pid)) JulienPause.ThrowIfActive(quietMs);
         EmergencyStop.ThrowIfStopped();
         var noted = Win32.GetForegroundWindow();
         var input = Win32.Probe().LastInput;
-        var pid = Win32.ProcessOf(top);
-        var first = !Primed.Contains(pid);
         var taken = false;
         string? giveBack = null;
         var activated = false; // aucun message d'activation avant : rien a defaire en sortie
@@ -276,6 +284,12 @@ static partial class ChromiumInput
             LastTaken = taken;
             LastGiveBack = giveBack;
         }
+    }
+
+    static bool RecentlyStarted(uint pid)
+    {
+        try { using var process = Process.GetProcessById((int)pid); return DateTime.Now - process.StartTime < TimeSpan.FromSeconds(60); }
+        catch (Exception error) when (error is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { return true; }
     }
 
     // Prise et restitution du premier plan de la derniere voie (lues par RunAction, y compris apres une erreur).

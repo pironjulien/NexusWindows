@@ -148,6 +148,10 @@ static partial class McpServer
             return Elements(snapshot).OfType<JsonObject>().SingleOrDefault(e => Number(e, "index", -1) == index) ?? throw new ActionRefusedException("Element index absent from current observation");
         var exact = FindNative(snapshot, LegacySelector(JsonValue.Create(name)!));
         if (exact.Count == 1) return exact[0];
+        // Two controls with the same name, only one of them on screen (05/11: Codex's two « Nouveau chat », the second one a
+        // hidden hover button): the visible one is the one the user sees and means.
+        var shown = exact.Where(e => (e["flags"] as JsonArray)?.Any(f => f?.ToString() == "offscreen") != true).ToList();
+        if (exact.Count > 1 && shown.Count == 1) return shown[0];
         if (exact.Count > 1) throw new ActionRefusedException($"Ambiguous target \"{name}\": {string.Join(", ", exact.Select(e => $"#{e["index"]} {e["role"]}"))}");
         // Partial field labels are usable, but never fuzzy button/link/menu matching.
         var partialSelector = LegacySelector(JsonValue.Create(name)!); var partialName = Str(partialSelector, "name");
@@ -258,7 +262,7 @@ static partial class McpServer
             {
                 JsonNode? wanted = kind switch
                 {
-                    "setValue" => step["value"]?.DeepClone(), "typeText" => JsonValue.Create((Bool(step, "replace") ? "" : Str(target, "value")) + Str(step, "text")), "select" => step["option"]?.DeepClone(),
+                    "setValue" => step["value"]?.DeepClone(), "typeText" => JsonValue.Create((Bool(step, "replace") ? "" : ChromiumInput.WithoutPlaceholder(Str(target, "value"), Str(target, "name"))) + Str(step, "text")), "select" => step["option"]?.DeepClone(),
                     "secondary" => JsonValue.Create(Str(step, "action") == "Expand"),
                     "click" when action == "check" => JsonValue.Create(true), "click" when action == "uncheck" => JsonValue.Create(false),
                     "click" when field == "checked" => JsonValue.Create(!Bool(target, "checked")), _ => JsonValue.Create(true),

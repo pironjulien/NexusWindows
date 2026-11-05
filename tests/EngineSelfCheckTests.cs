@@ -128,15 +128,15 @@ public class EngineSelfCheckTests
     }
 
     [Fact]
-    public void Claude_chromium_text_guards_250_bounded_packets_and_2000_runes()
+    public void Claude_chromium_text_guards_32_bounded_packets_and_2000_runes()
     {
         var result = SelfTest.Node(ChromiumInput.SimulatedPacketGuardSelfTest());
         Assert.True(result["ok"].B());
         Assert.False(result["gui"].B());
         Assert.False(result["inputSent"].B());
         Assert.True(result["checks"].L() >= 6);
-        Assert.Equal(250, result["packets"].L());
-        Assert.Equal(250, result["packetProofs"].L());
+        Assert.Equal(32, result["packets"].L());
+        Assert.Equal(32, result["packetProofs"].L());
         Assert.Equal(2000, result["presenceChecks"].L());
         Assert.Equal(0, result["proofDuringRune"].L());
         Assert.Equal(2000, result["utf16Posted"].L());

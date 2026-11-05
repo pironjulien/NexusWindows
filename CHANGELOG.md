@@ -10,6 +10,34 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.20] - 2026-11-05
+
+The user keeps working while an agent works: asking « OK » of Codex and Antigravity hidden in the notification area
+took 64 s and 14 calls; Codex now takes three calls and about 2 s, with no foreground taken.
+
+### Fixed
+- Text in a Chromium app (Codex, Claude, Antigravity, Chrome) is no longer stopped by the user's keyboard or mouse in
+  another window: only bringing that window in front stops it, or the user's first input when it already was.
+  Messages to a window that is not in front no longer wait for a quiet moment either, except a process's first
+  simulated activation in its first minute, the only one that can take the foreground.
+- An empty field showing its placeholder as its value (Codex's « Travaillez avec Codex ») counts as empty: text
+  waited its whole 170 s budget for « placeholder + text », the real cause of the 53 s for 8 characters.
+- A field that shows no change for 5 s stops the text at once instead of at the end of the 170 s budget.
+- An app's window hidden in the notification area is brought back behind the user's windows, at its own place and
+  without activation, when it is named (it was « No window matches »); an app that destroyed its window (Antigravity)
+  is reported as running without a window, to be launched.
+- A reused window that comes back maximized across several screens (Antigravity, 5138 px) is put back at its place.
+- Two controls with the same name, only one on screen, resolve to the visible one.
+- A narrowed look (query, within) keeps the indices shown by the looks before it.
+- foreground on a step allows its physical fallback, like foreground on the batch; it was ignored without a word.
+
+### Changed
+- Message text goes in packets of 64 characters (was 8), each still read back before the next.
+- A step sent without a postcondition no longer ends a one-off batch when the next step names its own target; the
+  batch then reports unverified. Routines keep stopping.
+- A key aimed at a Chromium field that does not hold the focus gives it the focus in the background first.
+- look query accepts « A|B ».
+
 ## [3.16.19] - 2026-11-05
 
 ### Fixed

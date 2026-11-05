@@ -242,13 +242,24 @@ static partial class McpServer
                 var anchor = AnchorNative(before, step);
                 if (entryForRun != null && !Bool(entryForRun["migration"], "requiresAnchors") && (entryForRun["anchors"] as JsonArray)?[i]?.GetValue<string>() != anchor) throw new ActionRefusedException("Routine target/context changed; look and inspect before an explicit new run");
                 if (anchors.Count <= i) anchors.Add(anchor);
-                stepResult = PerformNative(state, step, before, physicalAllowed && Bool(step, "fallback", true));
+                // foreground on a step allows its physical fallback like foreground on the batch (05/11: it was ignored
+                // without a word); fallback:false still forbids it.
+                var stepPhysical = physicalAllowed || RoutineBoolean(step, "foreground", false) && RoutineBoolean(args, "fallback", true);
+                stepResult = PerformNative(state, step, before, stepPhysical && Bool(step, "fallback", true));
             }
             catch (Exception e) { stepResult = RoutineFailure(e, preparationInputAttempted || Program.InputStarted); }
             stepResult = RoutinePreparedResult(stepResult, preparationInputAttempted);
             stepResult["index"] = i; stepResult["action"] = Str(step, "kind"); results.Add(stepResult);
             Journal.WriteEntry(state.Agent, Version, state.SessionId, named.App, Str(step, "kind"), Str(stepResult, "status"), Str(stepResult, "technique"), actionTimer.ElapsedMilliseconds, Bool(stepResult, "foregroundTaken"), Str(stepResult, "message"));
             if (Str(stepResult, "status") == "verified") transitions++;
+            // A step delivered without a postcondition (sent-unconfirmed) no longer ends a one-off batch when the next step
+            // names its own target: that step resolves and guards its target again on a fresh observation before any input,
+            // so nothing goes blind (05/11: paste then key took one call per step). Routines keep stopping.
+            if (Str(stepResult, "status") == "sent-unconfirmed" && routine == null && remember == null && i + 1 < steps.Count && NamesOwnTarget(steps[i + 1]))
+            {
+                completedThisCall++;
+                continue;
+            }
             if (!Bool(stepResult, "success"))
             {
                 state.Pending = null;
@@ -279,11 +290,13 @@ static partial class McpServer
             persistenceError = "Steps completed; routine persistence failed: " + error.GetType().Name;
             if (routine != null) state.FailedRoutines.Add(ReviewKey(named.App, routine));
         }
-        var response = BatchResponse(state, results, steps.Count, steps.Count, "success", null);
+        var unconfirmed = results.OfType<JsonObject>().Any(r => Str(r, "status") == "sent-unconfirmed");
+        var response = BatchResponse(state, results, steps.Count, steps.Count, unconfirmed ? "unverified" : "success", null);
         if (persistenceError != null) { response["structuredContent"]!["persistenceError"] = persistenceError; response["content"]!.AsArray().Add(TextBlock(persistenceError)); }
         return response;
     }
     static string ReviewKey(string app, string routine) => Routines.ApplicationKey(app) + "|" + routine;
+    internal static bool NamesOwnTarget(JsonNode? step) => step is JsonObject s && (s["target"] != null || s["selector"] is JsonObject || s["focus"] is JsonObject);
 
     static JsonObject RoutinePauseFailure(SessionState state, JsonArray results, int total, int next, Exception error)
     {

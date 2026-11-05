@@ -12,7 +12,7 @@ using System.Text.Json.Nodes;
 // - Applique les garde-fous communs (GardeFous.cs), journalise chaque action (Journal.cs) et pilote Windows en processus via Program.Execute.
 static partial class McpServer
 {
-    public const string Version = "3.16.19";
+    public const string Version = "3.16.20";
     static readonly string[] ModernProtocolVersions = ["2026-07-28"];
     static readonly string[] LegacyProtocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
     const string ProtocolVersionMeta = "io.modelcontextprotocol/protocolVersion";
@@ -350,6 +350,15 @@ static partial class McpServer
         return list;
     }
 
+    // Antigravity destroys its window when closed to the notification area (05/11): only a launch brings it back.
+    static bool RunsWithoutWindow(string name)
+    {
+        var wanted = name.Trim();
+        if (wanted.Length < 3 || long.TryParse(wanted, out _)) return false;
+        var processes = Process.GetProcesses();
+        try { return processes.Any(p => p.ProcessName.Contains(wanted, StringComparison.OrdinalIgnoreCase)); }
+        finally { foreach (var p in processes) p.Dispose(); }
+    }
     static (long Id, string App, string Title, long Pid) ResolveWindow(SessionState state, JsonObject args, bool modern)
     {
         var winNode = args["window"] ?? args["hwnd"];
@@ -394,11 +403,40 @@ static partial class McpServer
                 }
             }
         }
+        // No visible window: the app may have hidden its window in the notification area (Codex, Antigravity closed to the
+        // tray, 05/11: "No window matches"). Its one main window of a real size is brought back behind the user's windows.
+        if (matches.Count == 0 && winNode is JsonValue named && named.TryGetValue<string>(out var hiddenName) && !long.TryParse(hiddenName.Trim(), out _))
+        {
+            var wantedHidden = hiddenName.Trim();
+            var visibleIds = all.Select(w => w.Id).ToHashSet();
+            var hidden = ListDesktopWindows(false).Where(w => !visibleIds.Contains(w.Id) && w.Owner == 0
+                && (w.Title.Contains(wantedHidden, StringComparison.OrdinalIgnoreCase) || w.App.Contains(wantedHidden, StringComparison.OrdinalIgnoreCase))
+                && Win32.GetWindowRect((nint)w.Id, out var box) && box.Width >= 200 && box.Height >= 200).ToList();
+            if (hidden.Count == 1)
+            {
+                var back = (hidden[0].Id, hidden[0].App, hidden[0].Title, hidden[0].Pid);
+                BringBackHidden(state, back);
+                // The app redraws its interface once shown again (05/11: the next act refused, "Interface structure
+                // changed"): read until two readings 200 ms apart have the same structure, 3 s at most.
+                state.BoundWindow = back;
+                var settle = Stopwatch.StartNew(); var previous = "";
+                while (settle.ElapsedMilliseconds < 3000)
+                {
+                    EmergencyStop.ThrowIfStopped();
+                    var structure = StructureNative(InspectNative(state));
+                    if (structure == previous) break;
+                    previous = structure; Thread.Sleep(200);
+                }
+                matches = hidden;
+            }
+        }
         if (matches.Count != 1)
         {
             throw new InvalidOperationException(matches.Count > 0
                 ? $"{matches.Count} windows match \"{winNode}\": {string.Join(", ", matches.Select(w => $"{w.Id} \"{w.Title}\""))}"
-                : $"No window matches \"{winNode}\"; list windows");
+                : RunsWithoutWindow(winNode.ToString() ?? "")
+                    ? $"No window matches \"{winNode}\": the app is running without a window (closed to the notification area); launch it to bring its window back"
+                    : $"No window matches \"{winNode}\"; list windows");
         }
         var chosen = (matches[0].Id, matches[0].App, matches[0].Title, matches[0].Pid);
         state.BoundWindow = chosen;

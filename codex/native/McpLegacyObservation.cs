@@ -274,7 +274,9 @@ static partial class McpServer
         var query = Str(args, "query");
         // 150 lines by default for the three profiles (the rest is summarized with its regions), up to 2000 on request.
         var maximum = (int)Math.Clamp(Number(args, "max_elements", 150), 10, 2000);
-        bool Wanted(JsonObject e) => query.Length == 0 || TargetName.Contains(Str(e, "name"), query) || TargetName.Contains(Str(e, "value"), query);
+        // query "A|B" lists the elements that carry A or B (05/11: three looks for three names).
+        var alternatives = query.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        bool Wanted(JsonObject e) => query.Length == 0 || alternatives.Any(a => TargetName.Contains(Str(e, "name"), a) || TargetName.Contains(Str(e, "value"), a));
         // Dense windows (Claude, Slack, Teams: hundreds of nested unnamed panes): every profile reads a skeleton first, then one
         // region with within=N, like agent-desktop's --skeleton/--root (31/10). Unnamed containers stay targetable by name
         // of their children and come back with detail="full".
@@ -294,7 +296,7 @@ static partial class McpServer
             .Where(e => !changed || !previousLines.TryGetValue((int)Number(e, "index"), out var old) || old != allLines[(int)Number(e, "index")]).ToList();
         var listed = candidates.Take(maximum).ToList();
         var lines = listed.ToDictionary(e => (int)Number(e, "index"), e => allLines[(int)Number(e, "index")]);
-        var removed = changed ? previousLines.Where(p => !allLines.ContainsKey(p.Key) && (query.Length == 0 || p.Value.Contains(query, StringComparison.OrdinalIgnoreCase))).Select(p => "- " + p.Value).ToList() : [];
+        var removed = changed ? previousLines.Where(p => !allLines.ContainsKey(p.Key) && (query.Length == 0 || alternatives.Any(a => p.Value.Contains(a, StringComparison.OrdinalIgnoreCase)))).Select(p => "- " + p.Value).ToList() : [];
         var rendered = changed ? lines.Select(p => (previousLines.ContainsKey(p.Key) ? "~ " : "+ ") + p.Value).Concat(removed).ToList() : lines.Values.ToList();
         if (changed && rendered.Count == 0) rendered = ["No visible element change since the previous look."];
         if (show == "text") rendered = [Str(snapshot["accessibility"], "document_text")];
@@ -308,7 +310,10 @@ static partial class McpServer
             listed.Clear();
         }
         // Indices displayed by an earlier look stay usable after a "changes" look that lists only what moved.
-        memory.Lines = allLines; memory.Shown = table != null ? [within] : changed ? memory.Shown.Where(allLines.ContainsKey).Concat(lines.Keys).ToHashSet() : listed.Select(e => (int)Number(e, "index")).ToHashSet();
+        // A narrowed look (query, within) adds what it lists to what the previous looks showed, instead of hiding it (05/11:
+        // "This index was not displayed" for a button listed by the full look just before). Each #N still carries its
+        // identity, checked again before any input.
+        memory.Lines = allLines; memory.Shown = table != null ? [within] : changed || query.Length > 0 || within >= 0 ? memory.Shown.Where(allLines.ContainsKey).Concat(lines.Keys).ToHashSet() : listed.Select(e => (int)Number(e, "index")).ToHashSet();
         if (shot?["marks"]?["drawn"] is JsonArray drawn && wantsImage) foreach (var shown in drawn) memory.Shown.Add(shown!.GetValue<int>());
         var routines = new NativeRoutineMemory(state.Agent, target.App); routines.Sync();
         var data = snapshot.DeepClone().AsObject(); data["observation"] = id; data["window"] = target.Id; data["hwnd"] = target.Id; data["title"] = target.Title; data["routines"] = routines.List();

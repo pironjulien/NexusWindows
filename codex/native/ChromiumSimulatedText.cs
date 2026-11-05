@@ -58,6 +58,11 @@ static partial class ChromiumInput
         }
         return null;
     }
+    // An empty Chromium editor may expose its placeholder as its value (05/11: Codex's empty field read "Travaillez avec
+    // Codex\n", its name): the text then never read back as placeholder + text, and typing waited for its whole budget.
+    // A value that is exactly the field's name is an empty field.
+    internal static string WithoutPlaceholder(string value, string? name) =>
+        name is { Length: > 0 } && ComparableText(value).Trim() == ComparableText(name).Trim() ? "" : value;
     internal static List<string> SimulatedWriteUnits(string text)
     {
         text = text.Replace("\r\n", "\n").Replace('\r', '\n'); var result = new List<string>();
@@ -65,7 +70,7 @@ static partial class ChromiumInput
         for (var i = 0; i <= text.Length; i++)
             if (i == text.Length || text[i] == '\n')
             {
-                if (i > start) result.AddRange(Units(text[start..i]));
+                if (i > start) result.AddRange(Units(text[start..i], TextUnit));
                 if (i < text.Length) result.Add("\n"); start = i + 1;
             }
         return result;
@@ -83,7 +88,7 @@ static partial class ChromiumInput
         }
     }
     sealed record SimulatedTextIo(Action Check, Func<string?> Read, Action Prepare, Action Delete, Action<string> Characters,
-        Action Enter, Func<bool> TimeLeft, Action Wait);
+        Action Enter, Func<bool> TimeLeft, Action Wait, int StallMs = 5000);
     static Outcome RunObservedText(string before, string rawText, bool replace, SimulatedTextIo io)
     {
         var text = rawText.Replace("\r\n", "\n").Replace('\r', '\n'); var sent = 0; var changed = false;
@@ -96,12 +101,17 @@ static partial class ChromiumInput
             io.Check(); var value = io.Read() ?? throw new InvalidOperationException("Target value became unreadable; no further text sent");
             return ComparableText(value);
         }
+        // A field that shows no change for StallMs will not show the awaited one: stop then, not at the end of the whole
+        // text budget (05/11: Ctrl+A and Delete did not empty Codex's field, and the wait lasted 170 s).
         string WaitFor(Func<string, bool> ready)
         {
+            string? last = null; var stall = Stopwatch.StartNew();
             while (true)
             {
                 var value = Read(); if (ready(value)) return value;
+                if (value != last) { last = value; stall.Restart(); }
                 if (!io.TimeLeft()) throw new InvalidOperationException("Text effect was not read back within the native input budget; no replay");
+                if (stall.ElapsedMilliseconds >= io.StallMs) throw new InvalidOperationException($"The field showed no change for {io.StallMs / 1000} s; no replay");
                 io.Wait();
             }
         }
@@ -176,7 +186,12 @@ static partial class ChromiumInput
             if (!Win32.IsWindow(window) || Win32.ProcessOf(window) != windowPid || Program.ProcessStartedUtc(windowPid) != birth || Win32.ClassName(window) != windowClass)
                 throw new ActionRefusedException("Chromium window/process changed; no further text sent");
             input ??= Win32.Probe().LastInput;
-            if (Win32.Probe().LastInput != input || InForeground(window) != alreadyForeground || !Win32.IsWindowEnabled(window)) throw new JulienActiveException("The user resumed input, window activation changed or a modal dialog appeared; text stopped");
+            // Julien's keyboard and mouse elsewhere do not stop text sent to a window that is not in front (05/11: 8 of 58
+            // characters, then stopped by a mouse move in another window). Typing stops when he brings this window in front,
+            // or, when it already was, at his first input.
+            if (alreadyForeground && Win32.Probe().LastInput != input) throw new JulienActiveException("The user typed or clicked in this window, which is in front; text stopped");
+            if (InForeground(window) != alreadyForeground) throw new JulienActiveException(alreadyForeground ? "The window left the foreground; text stopped" : "The window came to the foreground; text stopped");
+            if (!Win32.IsWindowEnabled(window)) throw new JulienActiveException("A modal dialog appeared in the window; text stopped");
         }
         void Guard()
         {
@@ -226,7 +241,7 @@ static partial class ChromiumInput
                         throw new ActionRefusedException("The original text target identity changed or became unreadable");
                     var value = current.Value ?? (current.HasText ? ComUia.DocumentText(current.Element) : null);
                     if (value is { Length: > ComUia.MaxText }) throw new ActionRefusedException("The full original field value cannot be read; text was not assumed complete");
-                    return value;
+                    return value is null ? null : WithoutPlaceholder(value, target.Name);
                 }
                 finally { Program.InputStarted |= entered; }
             }
@@ -252,7 +267,7 @@ static partial class ChromiumInput
                     Program.InputStarted = true;
                 });
             }
-            var before = ReadBoundValue() ?? throw new BackgroundNotApplicableException("Text value unreadable before writing; nothing was typed");
+            var before = WithoutPlaceholder(ReadBoundValue() ?? throw new BackgroundNotApplicableException("Text value unreadable before writing; nothing was typed"), target.Name);
             try { return RunObservedText(before, text, replace, new SimulatedTextIo(CheckPresence, ReadBoundValue,
                 () => { if (replace) Key("ctrl+a"); else { CheckFocus(); Call(new { op = "caretToEnd", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow }, deadline); } },
                 () => Key("delete"), unit => PostObservedCharacters(unit, CheckFocus, CheckPresence, character => Win32.Post(top, WM_CHAR, character, 1)),
@@ -285,7 +300,7 @@ static partial class ChromiumInput
             PostObservedCharacters(unit, () => { packetProofs++; if (insidePacketRunes) proofDuringRune++; },
                 () => { insidePacketRunes = true; presenceChecks++; }, _ => posted++);
         }
-        Check(packets == 250 && packetProofs == 250, "2000 characters have exactly 250 fresh packet proofs");
+        Check(packets == 32 && packetProofs == 32, "2000 characters have exactly 32 fresh packet proofs");
         Check(presenceChecks == 2000 && posted == 2000, "presence is checked before every real rune");
         Check(proofDuringRune == 0, "no UIA packet proof is requested from inside the rune loop");
         var unicode = new List<char>(); var unicodeProofs = 0; var unicodePresence = 0;

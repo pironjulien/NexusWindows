@@ -72,7 +72,7 @@ public class ChromeExtensionReloadTests
         var typed = Simulated(new { before = "https://www.google.com/", text = url, replace = true, suggest = url });
         Assert.True(typed["ok"].B(), typed.ToJsonString());
         Assert.Equal(url, typed["value"].S());
-        Assert.Equal(3, typed["events"].Strings().Count(e => e.StartsWith("chars:", StringComparison.Ordinal)));
+        Assert.Equal(1, typed["events"].Strings().Count(e => e.StartsWith("chars:", StringComparison.Ordinal))); // one 64-character packet
 
         // A suggestion longer than the text is reported, never hidden.
         var longer = Simulated(new { before = "", text = "chrome://ext", replace = true, suggest = url });
@@ -96,7 +96,7 @@ public class ChromeExtensionReloadTests
         var typed = Simulated(new { before = "", text = url, replace = false, suggest = url });
         Assert.True(typed["ok"].B(), typed.ToJsonString());
         Assert.Contains("\"applied\"", typed["result"]!.ToJsonString());
-        Assert.Equal(3, typed["events"].Strings().Count(e => e.StartsWith("chars:", StringComparison.Ordinal)));
+        Assert.Equal(1, typed["events"].Strings().Count(e => e.StartsWith("chars:", StringComparison.Ordinal))); // one 64-character packet
         // A shorter text completed by the suggestion is accepted and the suggestion reported.
         var shorter = Simulated(new { before = "", text = "chrome://ext", replace = false, suggest = url });
         Assert.True(shorter["ok"].B(), shorter.ToJsonString());

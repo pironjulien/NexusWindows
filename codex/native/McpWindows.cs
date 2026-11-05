@@ -6,6 +6,29 @@ using System.Text.Json.Nodes;
 static partial class McpServer
 {
     [DllImport("user32.dll")] static extern bool IsZoomed(nint hwnd);
+    [DllImport("user32.dll")] static extern nint MonitorFromWindow(nint hwnd, uint flags);
+    [StructLayout(LayoutKind.Sequential)] struct MonitorBox { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] struct MonitorDetails { public int Size; public MonitorBox Monitor, Work; public uint Flags; }
+    [DllImport("user32.dll")] static extern bool GetMonitorInfoW(nint monitor, ref MonitorDetails info);
+
+    // Maximized over more than its monitor (05/11: Antigravity brought back from the notification area by its own second
+    // instance, maximized 5138 px wide across both screens).
+    internal static bool MaximizedAcrossMonitors(nint hwnd)
+    {
+        if (!IsZoomed(hwnd) || !Win32.GetWindowRect(hwnd, out var rect)) return false;
+        var info = new MonitorDetails { Size = Marshal.SizeOf<MonitorDetails>() };
+        if (!GetMonitorInfoW(MonitorFromWindow(hwnd, 2 /* MONITOR_DEFAULTTONEAREST */), ref info)) return false;
+        return rect.Width > info.Monitor.Right - info.Monitor.Left + 64 || rect.Height > info.Monitor.Bottom - info.Monitor.Top + 64;
+    }
+
+    // A window the app hid in the notification area (closed to the tray, process still running) is brought back behind the
+    // user's windows, without activation, at its own place (window placement): the three agents can then see it and act
+    // in it while the user keeps working. Same boundary as the window tool (token, pause, identity).
+    static string BringBackHidden(SessionState state, (long Id, string App, string Title, long Pid) target)
+    {
+        var outcome = ObjectOf(ExecuteWindowTool(state, target, "restore", new JsonObject()));
+        return Str(outcome, "status");
+    }
     static (long Id, string App, string Title, long Pid)? ShellWindow(string name)
     {
         var cls = name == "taskbar" ? "Shell_TrayWnd" : name == "desktop" ? "Progman" : "";

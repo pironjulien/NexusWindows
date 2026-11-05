@@ -112,7 +112,7 @@ public class ChromiumTests
         foreach (var unit in units)
         {
             Assert.True(unit == "\n" || !unit.Contains('\n'));
-            Assert.True(unit.Length <= 8);
+            Assert.True(unit.Length <= ChromiumInput.TextUnit);
             Assert.False(char.IsHighSurrogate(unit[^1]), "packet ends inside surrogate pair");
             Assert.False(char.IsLowSurrogate(unit[0]), "packet starts inside surrogate pair");
         }
@@ -141,9 +141,10 @@ public class ChromiumTests
         var clear = Simulated(new { before = "old text", text = "replacement", replace = true, noAck = true });
         Assert.False(clear["ok"].B()); Assert.Equal("AfterInputException", clear["error"].S());
         Assert.Equal(["select-all", "delete"], clear["events"].Strings()); Assert.Equal("old text", clear["value"].S());
-        var chars = Simulated(new { before = "", text = "12345678remaining", replace = false, noAck = true });
+        var packet = new string('1', ChromiumInput.TextUnit);
+        var chars = Simulated(new { before = "", text = packet + "remaining", replace = false, noAck = true });
         Assert.False(chars["ok"].B()); Assert.Matches("unknown, do not replay", chars["message"].S());
-        Assert.Equal(["caret-end", "chars:12345678"], chars["events"].Strings()); Assert.Equal(1, chars["inputPackets"].I());
+        Assert.Equal(["caret-end", "chars:" + packet], chars["events"].Strings()); Assert.Equal(1, chars["inputPackets"].I());
     }
 
     [Fact]
@@ -151,9 +152,10 @@ public class ChromiumTests
     {
         var enter = Simulated(new { before = "", text = "A\nDO NOT SEND", replace = false, suppressEnter = true });
         Assert.False(enter["ok"].B()); Assert.Equal(["caret-end", "chars:A", "enter"], enter["events"].Strings());
-        var focus = Simulated(new { before = "", text = "12345678DO NOT SEND", replace = false, loseAfter = 1 });
-        Assert.False(focus["ok"].B()); Assert.Equal(["caret-end", "chars:12345678"], focus["events"].Strings());
-        Assert.Equal("12345678", focus["value"].S());
+        var first = new string('1', ChromiumInput.TextUnit);
+        var focus = Simulated(new { before = "", text = first + "DO NOT SEND", replace = false, loseAfter = 1 });
+        Assert.False(focus["ok"].B()); Assert.Equal(["caret-end", "chars:" + first], focus["events"].Strings());
+        Assert.Equal(first, focus["value"].S());
         var before = Simulated(new { before = "", text = "nothing", replace = false, loseAfter = 0 });
         Assert.False(before["ok"].B()); Assert.Empty(before["events"].Strings()); Assert.Equal(0, before["inputPackets"].I());
     }

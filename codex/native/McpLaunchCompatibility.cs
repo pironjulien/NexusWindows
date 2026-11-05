@@ -466,6 +466,13 @@ static partial class McpServer
                 lease.Check(); notes.Add(profile == null ? "DevTools on the newly launched application's own session." : "DevTools browser: a new isolated profile, implicit sign-in disabled, no sync; account guard active.");
             }
             if (selected.Any(w => before.Contains(w.Id))) notes.Add("Existing window reused: it may contain the user's other tabs/documents; do not close the whole window.");
+            // An app's own second instance may bring its hidden window back maximized over every screen (05/11: Antigravity
+            // 5138 px wide): it goes back to its own place, without activation.
+            foreach (var w in selected.Where(w => MaximizedAcrossMonitors((nint)w.Id)).ToList())
+            {
+                try { BringBackHidden(state, (w.Id, w.App, w.Title, w.Pid)); notes.Add("The window came back maximized across several screens: put back at its own place."); }
+                catch (Exception error) when (error is not EmergencyStopException) { notes.Add("The window came back maximized across several screens and could not be put back (" + error.GetType().Name + ")."); }
+            }
             if (selected.Count == 0) notes.Add("Launch dispatched once; no window could be attributed. The application may reuse an existing window; run windows before deciding anything else.");
         }
         finally { ReturnForeground(); }
