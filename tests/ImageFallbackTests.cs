@@ -111,31 +111,52 @@ public class ImageFallbackTests
     }
 
     [Fact]
-    public void A_capture_over_the_limit_keeps_its_size_and_goes_jpeg_before_any_shrinking()
+    public void The_ceiling_is_three_megabytes()
     {
-        // 1600x1000 of noise: lossless and near-lossless WebP all exceed 500 KB, a JPEG step fits at full size.
-        const int w = 1600, h = 1000;
-        var pixels = Picture(w, h, 60);
-        Assert.True(WebP.Lossless(ImageEncoding.DropLowBits(pixels, 3), w, h).Length > ImageEncoding.Limit);
+        Assert.Equal(3 * 1024 * 1024, ImageEncoding.Limit);
+    }
+
+    [Fact]
+    public void A_capture_between_500_KB_and_3_MB_stays_lossless()
+    {
+        // Noisy 2000x1125 screen: well above the old 500 KB ceiling, under 3 MB: sent lossless, full size.
+        const int w = 2000, h = 1125;
+        var pixels = Picture(w, h, 2);
+        var lossless = WebP.Lossless(pixels, w, h).Length;
+        Assert.InRange(lossless, 500 * 1024 + 1, ImageEncoding.Limit);
         var (image, width, height, how) = Capture.Encode(pixels, w, h);
         Assert.Equal((w, h), (width, height));
+        Assert.Equal("webp-lossless", how);
+        Assert.Equal(lossless, image.Bytes.Length);
+    }
+
+    [Fact]
+    public void A_capture_over_the_limit_keeps_its_size_and_goes_jpeg_before_any_shrinking()
+    {
+        // 1600x1000 of noise with a 500 KB limit: lossless and near-lossless WebP all exceed it, a JPEG step fits.
+        const int w = 1600, h = 1000, limit = 500 * 1024;
+        var pixels = Picture(w, h, 60);
+        Assert.True(WebP.Lossless(ImageEncoding.DropLowBits(pixels, 3), w, h).Length > limit);
+        var (image, width, height, how) = Capture.Encode(pixels, w, h, limit: limit);
+        Assert.Equal((w, h), (width, height));
         Assert.Matches("^jpeg-q(82|72|60)$", how);
-        Assert.True(image.Bytes.Length <= ImageEncoding.Limit);
+        Assert.True(image.Bytes.Length <= limit);
         Assert.Equal((w, h), JpegSize(image.Bytes));
     }
 
     [Fact]
     public void A_capture_shrinks_only_when_no_step_fits()
     {
-        // Pure noise over the whole range: even JPEG 60 exceeds 500 KB at full size.
-        const int w = 2000, h = 1125;
+        // Pure noise over the whole range with a 500 KB limit: even JPEG 60 exceeds it at full size.
+        const int w = 2000, h = 1125, limit = 500 * 1024;
         var random = new Random(3);
         var pixels = new byte[w * h * 4];
         random.NextBytes(pixels);
-        var (image, width, height, how) = Capture.Encode(pixels, w, h);
+        Assert.True(ImageEncoding.Jpeg(pixels, w, h, 60).Length > limit);
+        var (image, width, height, how) = Capture.Encode(pixels, w, h, limit: limit);
         Assert.True(width < w && height < h);
         Assert.EndsWith($"-{width}x{height}", how);
-        Assert.True(image.Bytes.Length <= ImageEncoding.Limit);
+        Assert.True(image.Bytes.Length <= limit);
     }
 
     [Theory]

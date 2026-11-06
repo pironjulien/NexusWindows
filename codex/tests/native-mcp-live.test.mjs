@@ -204,7 +204,7 @@ test('native AGY: local safety form validates refusal and exact-action token bin
     assert.equal(r.status, 'success', JSON.stringify(r)); await fixture.wait(r => r.event === 'local send 1');
     assert.equal(fixture.lines.filter(r => r.event).length, 1);
     const screenshot = await call('computer_take_screenshot', { full_screen: true, output_path: path.join(state, 'screen-export.webp') });
-    assert.equal(screenshot.method, 'desktop-bitblt'); assert.ok(screenshot.width <= 2000 && screenshot.height <= 2000); assert.ok(screenshot.size_bytes <= 500 * 1024);
+    assert.equal(screenshot.method, 'desktop-bitblt'); assert.ok(screenshot.width <= 2000 && screenshot.height <= 2000); assert.ok(screenshot.size_bytes <= 3 * 1024 * 1024);
     const exported = await readFile(path.join(state, 'screen-export.webp')); assert.equal(exported.toString('ascii', 0, 4), 'RIFF'); assert.equal(exported.toString('ascii', 8, 12), 'WEBP');
     await call('look', { hwnd });
     const privateTestValue = 'fixture-only-private-value';

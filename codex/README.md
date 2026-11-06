@@ -220,8 +220,8 @@ cursor, no yellow border where Windows allows it, works covered). WinRT and Dire
 over 40 with the kept item, 16 to 20 ms per capture). Still blank: never a screen copy, which would show the window
 on top of a covered one; the MCP server reports the image as unavailable, and in the Codex skill a window Sky lists
 falls back to Sky's screenshot. Native images follow the common Nexus image
-rule: at most 2000 px and 2.56 MP, lossless WebP from a built-in encoder (above 500 KB: 2, then 3 low bits per colour dropped, then JPEG from
-quality 82 at the same size, then reduced: never over 500 KB), local files (32 at most, removed after 10 minutes at the next capture, at server start and at a clean stop):
+rule: at most 2000 px and 2.56 MP, lossless WebP from a built-in encoder (above 3 MB: 2, then 3 low bits per colour dropped, then JPEG from
+quality 82 at the same size, then reduced: never over 3 MB), local files (32 at most, removed after 10 minutes at the next capture, at server start and at a clean stop):
 evidence for the model, and the coordinate frame of a point action that names the image (`screenshotId`), scaled back
 to the screen pixel. `look(region=[x1, y1, x2, y2])` reads an area of the last full image at full resolution, enlarged
 up to 2x for small text; its own `screenshotId` takes points. An image identical to the last one sent for that window

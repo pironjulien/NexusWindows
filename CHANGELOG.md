@@ -10,6 +10,15 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.27] - 2026-11-06
+
+### Changed
+- A capture stays lossless WebP up to 3 MB instead of 500 KB (shared Nexus image rule of 2026-11-06): measured the
+  same day, Claude, Codex and Antigravity took every image up to 6.8 MB, through their own image viewer and through
+  an MCP tool result, and read 16 small codes per image almost without error. The heaviest real screen measured
+  (a photo wallpaper at 2000×1125) weighs 1.76 MB lossless, so screens are no longer sent lossy. Above 3 MB the
+  fallback of 3.16.26 still applies (2 then 3 low bits dropped, then JPEG at the same size).
+
 ## [3.16.26] - 2026-11-06
 
 The three editions follow the shared Nexus image rule updated on 2026-11-06 for a screenshot over 500 KB.

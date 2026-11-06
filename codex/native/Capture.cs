@@ -11,8 +11,8 @@ sealed class CaptureUnavailableException(string message) : InvalidOperationExcep
 // Windows.Graphics.Capture de la fenetre elle-meme (Wgc.cs, method "wgc") ; uniforme encore = vide (blank), image
 // indisponible, jamais une copie de l'ecran (elle montrerait la fenetre du dessus d'une fenetre recouverte).
 // Regle image commune des produits Nexus (27/10) : cote long <= 2000 px et <= 2,56 Mpx (2 500 tuiles GPT en detail high ;
-// Claude Code reduit lui-meme au-dela de 2000 px), WebP sans perte (WebP.cs) tant qu'il tient 500 Ko, puis le repli du
-// 06/11 (ImageEncoding.cs : 2 puis 3 bits retires, puis JPEG 82, 72, 60 a la meme taille) ; jamais plus de 500 Ko
+// Claude Code reduit lui-meme au-dela de 2000 px), WebP sans perte (WebP.cs) tant qu'il tient 3 Mo, puis le repli du
+// 06/11 (ImageEncoding.cs : 2 puis 3 bits retires, puis JPEG 82, 72, 60 a la meme taille) ; jamais plus de 3 Mo
 // (reduction seulement si aucune etape ne tient). L'image peut donc etre
 // plus petite que la fenetre : `frame` reste le cadre ECRAN et un point x,y de l'image vise
 // frame.left + x * frame.width / width (session.mjs).
@@ -20,7 +20,6 @@ static partial class Capture
 {
     const int MaxSide = 2000;
     const double MaxPixels = 2.56e6;
-    const int HardLimit = 500 * 1024;
 
     const uint PW_RENDERFULLCONTENT = 2;
     const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
@@ -217,7 +216,7 @@ static partial class Capture
 
     // Taille et encodage de l'image envoyee au modele (regle commune ci-dessus).
     // annotate : numeros dessines sur l'image deja reduite, a chaque tentative (taille constante dans l'image finale).
-    internal static (ImageEncoding.Encoded Image, int Width, int Height, string How) Encode(byte[] pixels, int width, int height, double enlarge = 1.0, Func<byte[], int, int, byte[]>? annotate = null)
+    internal static (ImageEncoding.Encoded Image, int Width, int Height, string How) Encode(byte[] pixels, int width, int height, double enlarge = 1.0, Func<byte[], int, int, byte[]>? annotate = null, int limit = ImageEncoding.Limit)
     {
         var fit = Math.Min(enlarge, Math.Min(MaxSide / (double)Math.Max(width, height), Math.Sqrt(MaxPixels / ((double)width * height))));
         for (var attempt = 0; ; attempt++)
@@ -226,7 +225,7 @@ static partial class Capture
             var image = w == width && h == height ? pixels : w > width ? Resize(pixels, width, height, w, h) : Shrink(pixels, width, height, w, h);
             if (annotate != null) image = annotate(image, w, h);
             // Chaine commune a la meme taille ; seulement si rien ne tient, image reduite (x0,85) et chaine reprise.
-            var encoded = ImageEncoding.Fit(image, w, h, HardLimit);
+            var encoded = ImageEncoding.Fit(image, w, h, limit);
             if (encoded == null && (w <= 64 || attempt >= 8)) encoded = ImageEncoding.Smallest(image, w, h);
             if (encoded is { } done) return (done, w, h, done.How + (fit != 1.0 ? $"-{w}x{h}" : ""));
             fit *= 0.85;

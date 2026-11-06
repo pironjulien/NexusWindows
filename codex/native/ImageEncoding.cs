@@ -1,13 +1,13 @@
 using System.Runtime.InteropServices;
 
 // Shared Nexus image rule (NexusShared/images.md, fallback updated 2026-11-06), the same for the three editions:
-// lossless WebP while it fits 500 KB; then lossless WebP with 2, then 3 low bits per colour channel dropped (never more:
+// lossless WebP while it fits 3 MB (500 KB until 2026-11-06: no AI refused up to 6.8 MB); then lossless WebP with 2, then 3 low bits per colour channel dropped (never more:
 // 4 bits lost words in the Windows OCR bench); then lossy. Windows has no lossy WebP encoder (WIC only decodes), so
 // the lossy steps are JPEG from quality 82 (GDI+), at the same pixel size. Only when none fits does the caller shrink
 // the image and run the chain again.
 static class ImageEncoding
 {
-    internal const int Limit = 500 * 1024;
+    internal const int Limit = 3 * 1024 * 1024;
     internal static readonly int[] DroppedBits = [2, 3];
     internal static readonly int[] JpegQualities = [82, 72, 60];
 
