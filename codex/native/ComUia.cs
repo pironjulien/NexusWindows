@@ -209,16 +209,19 @@ unsafe sealed partial class ComUia
     UiTree GatedReadTreeOnce(nint hwnd, bool withPopups, bool publish = true)
     {
         using var gate = UiaReadGate.Enter();
-        return ReadTreeOnce(hwnd, withPopups, publish);
+        // A provider that cannot serialize its whole subtree in one cache response (06/11, the « Signaler un problème »
+        // form of the Feedback Hub: a WinUI 3 window hosting a WebView2, « Malformed Cacheresponse pTreeStructure String
+        // (missing closing parens) » on every look and act) is read again level by level, one round trip per element.
+        return TreeReadFallback.Read(() => ReadTreeOnce(hwnd, withPopups, publish), () => ReadTreeOnce(hwnd, withPopups, publish: false, byLevels: true));
     }
 
-    UiTree ReadTreeOnce(nint hwnd, bool withPopups, bool publish = true)
+    UiTree ReadTreeOnce(nint hwnd, bool withPopups, bool publish = true, bool byLevels = false)
     {
         // Une lecture seule de Chromium recouvert peut rester en retard d'une action : publier AVANT de
         // construire le cache, sinon toutes les attentes relisent le meme ancien arbre. Aucun nouveau clic.
         if (publish) LastPublication = Flush(hwnd);
-        var levels = false;
-        Win32.EnumChildWindows(hwnd, (child, _) =>
+        var levels = byLevels;
+        if (!levels) Win32.EnumChildWindows(hwnd, (child, _) =>
         {
             if (Win32.BaseClass(child) == "combobox" && Win32.Send(child, Win32.CB_GETDROPPEDSTATE) is > 0) { levels = true; return false; }
             return true;
@@ -251,7 +254,7 @@ unsafe sealed partial class ComUia
                     // « found 2 » pour « Copier » au second tour).
                     if (tree.Nodes.Any(n => n.NativeWindow == popup)) continue;
                     nint popupRoot;
-                    Check(((delegate* unmanaged[Stdcall]<nint, nint, nint, nint*, int>)Vt(automation)[10])(automation, popup, treeRequest, &popupRoot));
+                    Check(((delegate* unmanaged[Stdcall]<nint, nint, nint, nint*, int>)Vt(automation)[10])(automation, popup, levels ? elementRequest : treeRequest, &popupRoot));
                     if (popupRoot == 0) throw new InvalidOperationException("Open menu could not be read");
                     pending.Push((popupRoot, 1, [0]));
                     continue;
@@ -279,7 +282,9 @@ unsafe sealed partial class ComUia
                     SynthesizeListBox(tree, node);
                     continue;
                 }
-                var children = levels ? Children(element) : CachedChildren(element);
+                // Level by level, an element whose children the provider cannot describe keeps its place without them
+                // (flag « unreadable »): the rest of the window stays readable, its image and points still usable.
+                var children = levels ? TreeReadFallback.ChildrenOrNone(() => Children(element), out node.Unreadable) : CachedChildren(element);
                 // Ordre du document : premier enfant traite en premier.
                 for (var i = children.Count - 1; i >= 0; i--) pending.Push((children[i], depth + 1, [.. ancestors, node.Index]));
             }
@@ -1048,6 +1053,8 @@ sealed class Node
     public string? Value;
     // Offscreen : UIA IsOffscreen (defile hors de la partie visible, fenetre reduite...), signale a la session.
     public bool Disabled, Focused, Password, ValueTruncated, HasInvoke, HasToggle, HasText, Offscreen, IsDefault;
+    // Unreadable: the provider failed to describe this element's children (TreeReadFallback); the subtree is missing.
+    public bool Unreadable;
     public string AccessKey = "";
     public bool? Selected, Checked, Expanded;
     public nint NativeWindow;
@@ -1073,5 +1080,30 @@ sealed class UiTree : IDisposable
     {
         foreach (var node in Nodes) { ComUia.Release(node.Element); node.Element = 0; }
         Nodes.Clear();
+    }
+}
+
+// Provider faults while UI Automation builds a cached tree: the whole-subtree request is replaced by a read level by
+// level, and a single element whose children cannot be read is kept without them. Only provider failures (COM errors,
+// malformed cache responses surfacing as argument or index errors) are absorbed; the engine's own refusals, bounds and
+// emergency stop (InvalidOperationException family) pass through unchanged.
+static class TreeReadFallback
+{
+    public static bool IsProviderFault(Exception error) => error is ExternalException or ArgumentException or IndexOutOfRangeException;
+    public static int Fallbacks;
+    public static UiTree Read(Func<UiTree> subtree, Func<UiTree> levels)
+    {
+        try { return subtree(); }
+        catch (Exception error) when (IsProviderFault(error))
+        {
+            Interlocked.Increment(ref Fallbacks);
+            return levels();
+        }
+    }
+    public static List<nint> ChildrenOrNone(Func<List<nint>> read, out bool unreadable)
+    {
+        unreadable = false;
+        try { return read(); }
+        catch (Exception error) when (IsProviderFault(error)) { unreadable = true; return []; }
     }
 }

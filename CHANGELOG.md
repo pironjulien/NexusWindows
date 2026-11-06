@@ -10,6 +10,16 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.28] - 2026-11-06
+
+### Fixed
+- A window whose UI Automation provider cannot describe its whole tree in one cached response is read level by level
+  instead of failing. The « Signaler un problème » form of the Windows Feedback Hub (a WinUI 3 window hosting a
+  WebView2) failed every `look` and `act`, image mode and image points included, with « Malformed Cacheresponse
+  pTreeStructure String (missing closing parens) »; the whole form is now listed (fields, category, buttons) and
+  its fields are set in the background. An element whose children still cannot be read keeps its place with the
+  flag `unreadable`, and the look's summary points to the image and image points for that part.
+
 ## [3.16.27] - 2026-11-06
 
 ### Changed

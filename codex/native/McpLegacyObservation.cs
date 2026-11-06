@@ -332,6 +332,8 @@ static partial class McpServer
             : changed ? $"{listed.Count} added or changed element(s), {removed.Count} removed" : $"{listed.Count} of {total} element(s) listed")
             + (query.Length > 0 ? $" for query \"{query}\"" : "") + (within >= 0 ? $" within [{within}]" : "")
             + (hidden > 0 ? $"; {hidden} empty container(s) hidden" : "")
+            + (Elements(snapshot).OfType<JsonObject>().Count(e => (e["flags"] as JsonArray)?.Any(f => f?.ToString() == "unreadable") == true) is var unreadable and > 0
+                ? $"; content of {unreadable} element(s) unreadable by UI Automation (flag unreadable): use the image and image points there" : "")
             + (candidates.Count > listed.Count ? $"; {candidates.Count - listed.Count} more: narrow with query, within or max_elements" : "")
             + (skeleton && within < 0 && query.Length == 0 && candidates.Count > listed.Count && Regions(snapshot, parents) is { Count: > 0 } regions ? "; regions (look within=N): " + string.Join(", ", regions) : "")
             + (show == "text" || Str(args, "detail") == "full" ? "" : "; full tree and document text with detail=\"full\"") + ".";
