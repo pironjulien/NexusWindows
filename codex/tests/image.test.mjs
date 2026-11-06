@@ -78,6 +78,26 @@ test('pas d image en double : même image et même cadre non jointe, mode image 
   assert.equal(images(await tools.call('look', { window: 7, mode: 'both' })), 1);
 });
 
+test('repli avec perte de la règle image (06/11) : une capture .jpg part en image/jpeg', async () => {
+  const { WindowsTools } = await import('../lib/mcp.mjs');
+  const { mkdtemp, writeFile } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const path = await import('node:path');
+  const dir = await mkdtemp(path.join(tmpdir(), 'nexus-img-'));
+  const file = path.join(dir, 'a.jpg');
+  await writeFile(file, Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+  const session = {
+    async windows() { return [{ id: 7, app: 'process:C:/a.exe', title: 'A' }]; },
+    async bind(w) { return { ...w }; },
+    async observe() {
+      const image = { id: 'native-1', path: file, width: 400, height: 300, frame: { left: 0, top: 0, width: 800, height: 600 } };
+      return { window: { id: 7, title: 'A', app: 'process:C:/a.exe' }, elements: [], images: [image], source: 'native-uia' };
+    },
+  };
+  const content = await new WindowsTools(session).call('look', { window: 7, mode: 'image' });
+  assert.deepEqual(content.filter(c => c.type === 'image').map(c => c.mimeType), ['image/jpeg']);
+});
+
 test('le repère des régions suit aussi l image complète renvoyée par act (refresh)', async () => {
   const { WindowsTools } = await import('../lib/mcp.mjs');
   const { mkdtemp, writeFile } = await import('node:fs/promises');

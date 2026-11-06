@@ -116,7 +116,7 @@ Tool descriptions, server instructions, tool and parameter names are in English;
 - **Designed for Gemini**: golden rule *look, then act in one batch with label targets*; every action reply carries
   a one-line `next` (✓ done · = already done, do not redo · ~ effect not seen, look at the attached image · ✗ failure,
   cause and what to try) and, when the effect was not read back, a WebP image of the window (common Nexus image rule:
-  ≤ 2000 px and 2.56 MP, lossless up to 500 KB, never over 500 KB; not attached again when the screen is unchanged;
+  ≤ 2000 px and 2.56 MP, lossless up to 500 KB, then 2 or 3 low bits dropped, then JPEG at the same size, never over 500 KB; not attached again when the screen is unchanged;
   `look(zoom=box_2d)` enlarges an area for small text). An
   unknown or failed result requires a fresh `look` before deciding the remaining actions. Anti-repeat guard (the
   three profiles): the same batch resent to the same window, with no `look` of it in between and the window

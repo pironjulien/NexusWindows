@@ -11,8 +11,9 @@ sealed class CaptureUnavailableException(string message) : InvalidOperationExcep
 // Windows.Graphics.Capture de la fenetre elle-meme (Wgc.cs, method "wgc") ; uniforme encore = vide (blank), image
 // indisponible, jamais une copie de l'ecran (elle montrerait la fenetre du dessus d'une fenetre recouverte).
 // Regle image commune des produits Nexus (27/10) : cote long <= 2000 px et <= 2,56 Mpx (2 500 tuiles GPT en detail high ;
-// Claude Code reduit lui-meme au-dela de 2000 px), WebP sans perte (WebP.cs) tant qu'il tient 500 Ko, sinon quasi sans
-// perte (2 bits de poids faible par canal) ; jamais plus de 500 Ko (reduction supplementaire). L'image peut donc etre
+// Claude Code reduit lui-meme au-dela de 2000 px), WebP sans perte (WebP.cs) tant qu'il tient 500 Ko, puis le repli du
+// 06/11 (ImageEncoding.cs : 2 puis 3 bits retires, puis JPEG 82, 72, 60 a la meme taille) ; jamais plus de 500 Ko
+// (reduction seulement si aucune etape ne tient). L'image peut donc etre
 // plus petite que la fenetre : `frame` reste le cadre ECRAN et un point x,y de l'image vise
 // frame.left + x * frame.width / width (session.mjs).
 static partial class Capture
@@ -129,18 +130,19 @@ static partial class Capture
             string? file = null;
             int imageWidth = crop.Width, imageHeight = crop.Height;
             var encoding = "";
+            var mimeType = "image/webp";
             if (!blank)
             {
-                var (bytes, w, h, how) = Encode(pixels, crop.Width, crop.Height, enlarge, annotate);
-                imageWidth = w; imageHeight = h; encoding = how;
+                var (encoded, w, h, how) = Encode(pixels, crop.Width, crop.Height, enlarge, annotate);
+                imageWidth = w; imageHeight = h; encoding = how; mimeType = encoded.MimeType;
                 Directory.CreateDirectory(directory);
-                file = Path.Combine(directory, Guid.NewGuid().ToString("N") + ".webp");
-                File.WriteAllBytes(file, bytes);
+                file = Path.Combine(directory, Guid.NewGuid().ToString("N") + encoded.Extension);
+                File.WriteAllBytes(file, encoded.Bytes);
                 lock (LastGate) Last = (file, pixels, crop); // pleine resolution, sans marques : lue par Recognize
             }
             return new
             {
-                ok = true, method, wgcError, path = file, width = imageWidth, height = imageHeight, scale, blank, encoding, mimeType = "image/webp",
+                ok = true, method, wgcError, path = file, width = imageWidth, height = imageHeight, scale, blank, encoding, mimeType,
                 deviation = Math.Round(deviation, 2), uniformity = Math.Round(uniformity, 3), ms = timer.ElapsedMilliseconds,
                 frame = new { left = crop.Left, top = crop.Top, width = crop.Width, height = crop.Height },
                 windowFrame = new { left = windowArea.Left, top = windowArea.Top, width = windowArea.Width, height = windowArea.Height },
@@ -215,7 +217,7 @@ static partial class Capture
 
     // Taille et encodage de l'image envoyee au modele (regle commune ci-dessus).
     // annotate : numeros dessines sur l'image deja reduite, a chaque tentative (taille constante dans l'image finale).
-    static (byte[] Bytes, int Width, int Height, string How) Encode(byte[] pixels, int width, int height, double enlarge = 1.0, Func<byte[], int, int, byte[]>? annotate = null)
+    internal static (ImageEncoding.Encoded Image, int Width, int Height, string How) Encode(byte[] pixels, int width, int height, double enlarge = 1.0, Func<byte[], int, int, byte[]>? annotate = null)
     {
         var fit = Math.Min(enlarge, Math.Min(MaxSide / (double)Math.Max(width, height), Math.Sqrt(MaxPixels / ((double)width * height))));
         for (var attempt = 0; ; attempt++)
@@ -223,24 +225,12 @@ static partial class Capture
             int w = Math.Max(1, (int)Math.Floor(width * fit)), h = Math.Max(1, (int)Math.Floor(height * fit));
             var image = w == width && h == height ? pixels : w > width ? Resize(pixels, width, height, w, h) : Shrink(pixels, width, height, w, h);
             if (annotate != null) image = annotate(image, w, h);
-            var bytes = WebP.Lossless(image, w, h);
-            var how = "webp-lossless";
-            if (bytes.Length > HardLimit)
-            {
-                bytes = WebP.Lossless(Quantize(image), w, h);
-                how = "webp-near-lossless";
-            }
-            if (bytes.Length <= HardLimit || w <= 64 || attempt >= 8) return (bytes, w, h, how + (fit != 1.0 ? $"-{w}x{h}" : ""));
+            // Chaine commune a la meme taille ; seulement si rien ne tient, image reduite (x0,85) et chaine reprise.
+            var encoded = ImageEncoding.Fit(image, w, h, HardLimit);
+            if (encoded == null && (w <= 64 || attempt >= 8)) encoded = ImageEncoding.Smallest(image, w, h);
+            if (encoded is { } done) return (done, w, h, done.How + (fit != 1.0 ? $"-{w}x{h}" : ""));
             fit *= 0.85;
         }
-    }
-
-    // Quasi sans perte : 2 bits de poids faible de chaque canal mis a zero (ecart <= 3 sur 255, texte intact).
-    static byte[] Quantize(byte[] bgra)
-    {
-        var result = (byte[])bgra.Clone();
-        for (var i = 0; i < result.Length; i++) if ((i & 3) != 3) result[i] = (byte)(result[i] & 0xFC);
-        return result;
     }
 
     // Reduction par moyenne de surface (BGRA) : chaque pixel d'arrivee moyenne les pixels sources qu'il couvre.

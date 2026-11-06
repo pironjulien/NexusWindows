@@ -702,7 +702,7 @@ export class WindowsSession {
   }
   async #pruneCaptures(directory) {
     let files;
-    try { files = (await readdir(directory)).filter(f => f.endsWith('.png') || f.endsWith('.webp')); } catch { return; }
+    try { files = (await readdir(directory)).filter(f => f.endsWith('.png') || f.endsWith('.webp') || f.endsWith('.jpg')); } catch { return; }
     const dated = [];
     for (const name of files) {
       try { dated.push({ file: path.join(directory, name), at: (await stat(path.join(directory, name))).mtimeMs }); } catch { /* déjà retiré */ }

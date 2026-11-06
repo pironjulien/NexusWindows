@@ -344,12 +344,12 @@ static partial class McpServer
         if (shot != null && wantsImage)
         {
             var bytes = File.ReadAllBytes(Str(shot, "path"));
-            if (args["output_path"] != null) { var output = Path.GetFullPath(Str(args, "output_path")); Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.Copy(Str(shot, "path"), output, true); data["output_path"] = output; }
+            if (args["output_path"] != null) { var output = ExportPath(Str(args, "output_path"), Str(shot, "path")); Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.Copy(Str(shot, "path"), output, true); data["output_path"] = output; }
             var areaKey = (args["region"] ?? args["zoom"])?.ToJsonString() ?? "full";
             var print = Routines.Digest(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)) + shot["frame"]!.ToJsonString());
             data["image"] = shotId; data["capture"] = shot.DeepClone();
             if (show != "image" && memory.Sent.TryGetValue(areaKey, out var oldPrint) && oldPrint == print) content.Add(TextBlock("Image unchanged: same pixels and frame; show=image resends it."));
-            else { content.Add(TextBlock($"image {shotId}; {shot.ToJsonString(JsonOut)}")); content.Add(new JsonObject { ["type"] = "image", ["data"] = Convert.ToBase64String(bytes), ["mimeType"] = "image/webp" }); memory.Sent[areaKey] = print; }
+            else { content.Add(TextBlock($"image {shotId}; {shot.ToJsonString(JsonOut)}")); content.Add(new JsonObject { ["type"] = "image", ["data"] = Convert.ToBase64String(bytes), ["mimeType"] = Str(shot, "mimeType") }); memory.Sent[areaKey] = print; }
         }
         state.CurrentObservation = JsonSerializer.SerializeToElement(snapshot); state.CurrentObservationId = id; state.ObservedAt = DateTimeOffset.UtcNow;
         return new JsonObject { ["content"] = content, ["structuredContent"] = data };

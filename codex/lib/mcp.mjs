@@ -188,7 +188,7 @@ async function observationContent(observation, sent = null, always = false, rece
   const w = observation.window ?? {};
   const content = [text(`window ${w.id} "${w.title ?? ''}" (${w.app ?? '?'}) · ${observation.elements?.length ?? 0} elements · ${observation.source}`), text(summary)];
   for (const image of observation.images ?? []) {
-    const mimeType = image.path.endsWith('.webp') ? 'image/webp' : 'image/png';
+    const mimeType = image.path.endsWith('.webp') ? 'image/webp' : /\.jpe?g$/i.test(image.path) ? 'image/jpeg' : 'image/png';
     let data;
     try { data = await readFile(image.path); }
     catch { continue; /* capture purgée entre-temps : l'arbre reste */ }

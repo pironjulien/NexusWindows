@@ -10,6 +10,19 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+## [3.16.26] - 2026-11-06
+
+The three editions follow the shared Nexus image rule updated on 2026-11-06 for a screenshot over 500 KB.
+
+### Changed
+- A capture over 500 KB goes through lossless WebP with 2, then 3 low bits per colour dropped (never more), then JPEG
+  at quality 82, 72 or 60, all at the same pixel size; the image is made smaller only when none fits. Before, it
+  dropped 2 bits and then shrank the image. Measured offline with Windows OCR on real screens: a photo wallpaper
+  2560×1440 was sent at 1228×690 with 2 % of its words still readable, now at 2000×1125 in JPEG 82 (152 KB) with 69 %.
+  Screens that fit 500 KB are unchanged (lossless, or 2 bits dropped).
+- A JPEG capture is sent as `image/jpeg` with a `.jpg` file; an exported capture (`output_path`) takes the extension
+  of the format actually written.
+
 ## [3.16.25] - 2026-11-05
 
 The limits left by 3.16.24 on Chrome, fixed and measured on the shared bench (family « chrome », the evening's real
