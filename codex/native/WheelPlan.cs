@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-// Sens et quantite d'une molette au point (lib/session.mjs : deltaY = -120 x crans de scrollY, deltaX = +120 x crans de
+// Sens et quantite d'une molette au point (deltaY = -120 x crans de scrollY, deltaX = +120 x crans de
 // scrollX). Convention Windows : seul l'axe VERTICAL est inverse (cran vers le bas = delta negatif) ; a l'horizontale,
 // delta positif = vers la droite (WM_MOUSEHWHEEL). Relecture de Codex du 21/10 : le sens horizontal etait inverse.
 readonly record struct ScrollPlan(bool Vertical, bool Forward, int Notches)

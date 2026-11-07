@@ -6,7 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-// Procedures verifiees et persistantes (meme schema 1 que codex/lib/routines.mjs) :
+// Procedures verifiees et persistantes (schema 1) :
 // - jamais d'autorisation (confirm, accord) ni de texte utilisateur non parametre dans la definition
 // - expansion {{parametre}}, validation des selecteurs et postconditions, synchronisation miroir.
 static class Routines

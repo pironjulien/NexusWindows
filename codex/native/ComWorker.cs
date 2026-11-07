@@ -571,7 +571,7 @@ static partial class ComWorker
 static class ComBridge
 {
     static Process? child;
-    public const int TimeoutMs = 10000; // lib/native.mjs (COM_ACTION_MS) le depasse toujours
+    public const int TimeoutMs = 10000; // borne d'un appel au processus des motifs UI Automation
     static nint job;
 
     [StructLayout(LayoutKind.Sequential)]

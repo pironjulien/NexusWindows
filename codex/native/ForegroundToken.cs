@@ -6,7 +6,7 @@ using System.Text.Json;
 sealed class ForegroundToken : IDisposable
 {
     const long Offset = 1L << 32;
-    public const int WaitMs = 8000; // attente maximale du jeton ; lib/native.mjs (TOKEN_WAIT_MS) la depasse toujours
+    public const int WaitMs = 8000; // attente maximale du jeton
     readonly FileStream stream;
     [ThreadStatic] static ForegroundToken? current;
     int references = 1;

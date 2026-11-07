@@ -419,7 +419,7 @@ static partial class Program
                         throw new BackgroundNotApplicableException("Accessibility tree unavailable for a background action: " + error.Message);
                     }
                     var targets = nodes.Where(n => Matches(n, selector) && (!selector.TryGetProperty("ancestor", out var anc) || n.Ancestors.Any(i => Matches(nodes[i], anc)))).ToArray();
-                    // Meme regle que lib/tree.mjs findElements : libelle homonyme d'un seul controle ecarte (sans role).
+                    // Libelle homonyme d'un seul controle ecarte (sans role).
                     if (targets.Length > 1 && !selector.TryGetProperty("role", out _) && targets.Count(n => n.Role != "text") == 1)
                         targets = targets.Where(n => n.Role != "text").ToArray();
                     if (targets.Length != 1) throw new BackgroundNotApplicableException($"Semantic target count is {targets.Length}; expected one");

@@ -1,7 +1,5 @@
 # NexusWindows for Codex
 
-<!-- mcp-name: io.github.pironjulien/nexus-windows-codex -->
-
 <img src="https://raw.githubusercontent.com/pironjulien/NexusWindows/main/plugin/assets/logo.png" alt="NexusWindows icon" width="96">
 
 [![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows)](https://github.com/pironjulien/NexusWindows/releases)
@@ -84,7 +82,7 @@ Updates replace the engine behind the same path: running sessions keep their ver
 The Codex plugin (this profile's guide and skill, `plugin/` at the repository root) comes from the NexusSystem plugin
 catalog, which NexusSystem adds to Codex for you (`codex plugin marketplace add pironjulien/NexusSystem` by hand); it
 starts the same native engine. The npm package `nexus-windows-codex` (a Node.js adapter, last published as 3.7.4) is
-retired and deprecated: an older `npx -y nexus-windows-codex` declaration is replaced by `--register codex`.
+retired and no longer updated: an older `npx -y nexus-windows-codex` declaration is replaced by `--register codex`.
 
 ## Tools
 

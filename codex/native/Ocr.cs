@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 // OCR Windows natif (Windows.Media.Ocr) en secours d'une fenetre sans arbre UI Automation utile (Tk, canevas, jeu) :
-// lignes de texte de l'image avec leur rectangle, que la session rend ciblables au point de cette image (session.mjs).
+// lignes de texte de l'image avec leur rectangle, que la session MCP rend ciblables au point de cette image (McpSession).
 // Reference de comportement : NexusWindows Claude (ocr.py, 10 a 21 ms par fenetre au labo du 20/10). Lecture seule et
 // locale : rien ne sort du poste. Aucune langue OCR installee ou WinRT indisponible : l'OCR est indisponible, jamais
 // une erreur d'outil.
@@ -26,7 +26,7 @@ static unsafe class Ocr
     static string? unavailable;
     // Vrai SEULEMENT quand l'absence de l'OCR est prouvee : aucune langue OCR (TryCreateFromUserProfileLanguages rend
     // null), classe WinRT non enregistree, combase sans WinRT. Toute autre panne (allocation, activation de
-    // SoftwareBitmap, moteur bloque) reste une panne : missing faux, session.mjs refuse le geste qui a besoin de la
+    // SoftwareBitmap, moteur bloque) reste une panne : missing faux, la session MCP refuse le geste qui a besoin de la
     // lecture (relecture de Codex du 27/10), et la creation est retentee a l'image suivante.
     public static bool Missing { get; private set; }
     const int ClassNotRegistered = unchecked((int)0x80040154); // REGDB_E_CLASSNOTREG

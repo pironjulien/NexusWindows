@@ -15,12 +15,19 @@ and npm (`nexus-windows-codex`).
   TOML reader, the `nexus-windows-codex` npm package files, `codex/.mcp.json`, its own `.codex-plugin` and
   `.agents` marketplace, `setup.ps1`, `install.ps1` and the `node --test` suites). Codex already ran the native
   engine through the common plugin (`plugin/.codex-plugin`, `NexusWindows.exe --mcp --agent codex`) and
-  `--register codex`; the npm package, frozen at 3.7.4, is deprecated. An older `npx -y nexus-windows-codex`
-  declaration is still recognised and replaced by `--register codex`.
+  `--register codex`; the npm package stays frozen at 3.7.4 and is no longer updated (it is not marked deprecated
+  on npm). An older `npx -y nexus-windows-codex` declaration is still recognised and replaced by `--register codex`.
 - Node.js from the test and release workflows, and the npm ecosystem from Dependabot. `test.ps1` is now
-  `dotnet test` alone.
+  `dotnet test` alone, with no Node.js anywhere.
+- The `mcp-name` marker of the Codex README, left from the npm entry that no longer publishes it.
+- The VSTest packages of the test project (`Microsoft.NET.Test.Sdk`, `xunit.runner.visualstudio`): xunit.v3 runs
+  natively on Microsoft.Testing.Platform, the runner global.json already selects.
 
 ### Changed
+- The DOM scripts the engine injects into Chromium pages (deep focus, select mutation) are executed by an embedded
+  ECMAScript engine (Jint) inside xUnit instead of `node --test`, which was skipped in silence where Node.js was
+  absent, the CI included.
+- xunit.v3 4.0.2.
 - The real-process checks of the shared emergency stop (stop file, guard, refusals) and foreground token (exclusion,
   deferral, release when the holder ends or dies) moved from the Node suites to xUnit
   (`SharedProtocolProcessTests`); the foreground token cases hold the PC's real lock and run with `test.ps1 -Full`.

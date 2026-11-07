@@ -15,7 +15,7 @@ sealed class CaptureUnavailableException(string message) : InvalidOperationExcep
 // 06/11 (ImageEncoding.cs : 2 puis 3 bits retires, puis JPEG 82, 72, 60 a la meme taille) ; jamais plus de 3 Mo
 // (reduction seulement si aucune etape ne tient). L'image peut donc etre
 // plus petite que la fenetre : `frame` reste le cadre ECRAN et un point x,y de l'image vise
-// frame.left + x * frame.width / width (session.mjs).
+// frame.left + x * frame.width / width (McpSession.NativePoint).
 static partial class Capture
 {
     const int MaxSide = 2000;
@@ -152,7 +152,7 @@ static partial class Capture
     }
 
     // Derniere image ecrite, en pleine resolution (une seule, remplacee a chaque capture) : l'OCR la lit apres coup,
-    // seulement si l'arbre UI Automation s'avere trop pauvre (session.mjs), sans recapturer ni relire le WebP.
+    // seulement si l'arbre UI Automation s'avere trop pauvre (session MCP), sans recapturer ni relire le WebP.
     static readonly object LastGate = new();
     static (string Path, byte[] Pixels, Win32.Rect Area)? Last;
 

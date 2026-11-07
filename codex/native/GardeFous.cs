@@ -433,7 +433,7 @@ static class GardeFous
         return results.ToArray();
     }
 
-    // --- Accords lies a l'action exacte (commun/garde_fous.py & codex/lib/garde-fous.mjs) ---
+    // --- Accords lies a l'action exacte ---
     public sealed record OutwardAction(
         string Tool,
         string Gesture,

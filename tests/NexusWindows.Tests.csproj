@@ -9,9 +9,10 @@
     <RootNamespace>NexusWindows.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="xunit.v3" Version="4.0.1" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <!-- xunit.v3 runs natively on Microsoft.Testing.Platform (global.json): no VSTest adapter or test SDK. Jint
+         executes the DOM scripts the engine injects into Chromium pages. -->
+    <PackageReference Include="xunit.v3" Version="4.0.2" />
+    <PackageReference Include="Jint" Version="4.17.0" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

@@ -235,7 +235,7 @@ Questions or concerns: open an issue on this repository.
 From the repository root (the folder of `global.json`):
 
 ```powershell
-./test.ps1    # dotnet test (engine, launcher, installers) then node --test (Codex adapter), offline
+./test.ps1    # dotnet test (engine, launcher, installers), offline
 ```
 
 Build and test outputs go to `%USERPROFILE%\.nexus\build\nexuswindows`, never into the source tree.

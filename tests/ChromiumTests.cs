@@ -1,8 +1,8 @@
 // Chromium, CEF and Claude Desktop (Electron) input rules of the engine, offline (formerly cef.test.mjs,
 // native-chromium-simulated.test.mjs and native-claude-cdp.test.mjs over --chromium-selftest and
-// --claude-cdp-selftest). The DOM scripts the engine injects are still executed by Node (node:vm), as before.
-using System.Diagnostics;
+// --claude-cdp-selftest). The DOM scripts the engine injects are executed by an embedded ECMAScript engine (Jint).
 using System.Text.Json.Nodes;
+using Jint;
 
 namespace NexusWindows.Tests;
 
@@ -209,23 +209,55 @@ public class ChromiumTests
     [Fact]
     public void Production_dom_scripts_focus_and_select_mutation_behave_in_a_javascript_engine()
     {
-        // The engine injects these scripts into Chromium pages: they are executed by Node's vm with DOM doubles.
-        var node = Environment.GetEnvironmentVariable("PATH")!.Split(';').Select(d => Path.Combine(d.Trim(), "node.exe")).FirstOrDefault(File.Exists);
-        Assert.SkipWhen(node is null, "Node.js absent: the injected DOM scripts cannot be executed.");
-        var scripts = Path.Combine(Path.GetTempPath(), "nexus-claude-dom-" + Guid.NewGuid().ToString("N") + ".json");
-        File.WriteAllText(scripts, Claude(new { scripts = true }).ToJsonString());
-        try
-        {
-            var start = new ProcessStartInfo(node!) { RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true, UseShellExecute = false };
-            foreach (var argument in new[] { "--test", Path.Combine(TestEnvironment.RepositoryRoot, "tests", "js", "claude-dom-scripts.test.mjs") }) start.ArgumentList.Add(argument);
-            start.Environment["NEXUS_CLAUDE_DOM_SCRIPTS"] = scripts;
-            using var process = Process.Start(start)!;
-            var output = process.StandardOutput.ReadToEndAsync();
-            var errors = process.StandardError.ReadToEnd();
-            Assert.True(process.WaitForExit(60000), "node --test timed out");
-            Assert.True(process.ExitCode == 0, output.Result + errors);
-        }
-        finally { File.Delete(scripts); }
+        // The engine injects these scripts into Chromium pages: they run in an embedded ECMAScript engine (Jint) with
+        // DOM doubles, each one evaluated in the global scope like a page script. Every case ends with check(): a
+        // failed expectation returns its label instead of "ok".
+        var scripts = Claude(new { scripts = true });
+        var engine = new Engine(options => options.TimeoutInterval(TimeSpan.FromSeconds(30)));
+        engine.SetValue("focusEditable", scripts["focusEditable"].S());
+        engine.SetValue("selectBody", scripts["select"].S());
+        const string harness = """
+            var failures = [];
+            function expect(label, ok) { if (!ok) failures.push(label); }
+            var run = function (source) { return (0, eval)(source); };
+            // Focus: inner input wins over a rich host, open shadow focus is deep, passwords are untouched.
+            var hit;
+            var document = { activeElement: null, elementFromPoint: function () { return hit; }, getSelection: function () { return { anchorNode: hit }; } };
+            function node(tagName, parentElement, editable) {
+              return { tagName: tagName, parentElement: parentElement || null, isContentEditable: !!editable,
+                focus: function () { document.activeElement = this; }, getRootNode: function () { return document; },
+                contains: function (other) { for (var n = other; n; n = n.parentElement) if (n === this) return true; return false; },
+                matches: function () { return false; } };
+            }
+            var rich = node('DIV', null, true), child = node('SPAN', rich, true);
+            hit = child; expect('rich host', run(focusEditable) === rich);
+            var input = node('INPUT', rich); hit = input;
+            expect('inner input', run(focusEditable) === input);
+            var host = node('CUSTOM'), shadow = node('INPUT');
+            host.shadowRoot = { elementFromPoint: function () { return shadow; }, activeElement: null };
+            shadow.focus = function () { document.activeElement = host; host.shadowRoot.activeElement = shadow; };
+            hit = host; expect('open shadow', run(focusEditable) === shadow);
+            var password = node('INPUT'); password.type = 'password'; hit = password; document.activeElement = input;
+            expect('password result', run(focusEditable) === null); expect('password focus kept', document.activeElement === input);
+            // Select: exact single option and both events; duplicated or disabled choices send no event.
+            var Event = function (type) { this.type = type; };
+            function apply(options) {
+              var events = [];
+              var element = { tagName: 'SELECT', isConnected: true, disabled: false, value: 'old', options: options,
+                dispatchEvent: function (e) { events.push(e.type); } };
+              var fn = run('(function(){' + selectBody + '})');
+              return JSON.stringify({ ok: fn.call(element), value: element.value, events: events });
+            }
+            expect('select exact', apply([{ text: 'Bleu ciel', value: 'sky' }, { text: ' BLEU ', value: 'blue' }])
+              === JSON.stringify({ ok: true, value: 'blue', events: ['input', 'change'] }));
+            [[{ text: 'Bleu ciel', value: 'sky' }], [{ text: 'Bleu', value: 'a' }, { text: 'bleu', value: 'b' }],
+             [{ text: 'Bleu', value: 'a', disabled: true }], [{ text: 'Bleu', value: 'a', parentElement: { disabled: true } }]]
+              .forEach(function (options, i) {
+                expect('select refused ' + i, apply(options) === JSON.stringify({ ok: false, value: 'old', events: [] }));
+              });
+            failures.length ? failures.join(', ') : 'ok';
+            """;
+        Assert.Equal("ok", engine.Evaluate(harness).AsString());
     }
 
     [Fact]

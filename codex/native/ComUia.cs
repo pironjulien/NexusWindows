@@ -358,7 +358,7 @@ unsafe sealed partial class ComUia
                 // message n'est converti) ; le helper travaille en pixels reels (app.manifest), comme GetClientRect.
                 var r = Scaled(logical, scale);
                 visible = !r.Intersect(client).Empty;
-                // Ligne hors de la partie visible de la LISTE : aucun rectangle, donc refusee comme hors champ (session.mjs,
+                // Ligne hors de la partie visible de la LISTE : aucun rectangle, donc refusee comme hors champ (McpSession,
                 // Program.cs), meme si elle tombe encore dans la fenetre (relecture de Codex, 21/10 : ligne sous la liste).
                 var origin = new Win32.Point { X = r.Left, Y = r.Top };
                 Win32.ClientToScreen(hwnd, ref origin);

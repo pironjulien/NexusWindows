@@ -6,8 +6,8 @@ using System.Diagnostics;
 // Activation SIMULEE : WM_NCACTIVATE puis WM_ACTIVATE envoyes a la fenetre de premier niveau (elle se croit active sans
 // l'etre, premier plan de Julien intact), focus DOM par MSAA accSelect (relu), caracteres par WM_CHAR, effet relu ;
 // desactivation POSTEE en sortie (traitee apres les caracteres encore en file), toute activation potentielle comprise.
-// Sous le jeton de premier plan commun, dans une echeance bornee (Budget apres le jeton : le delai Node couvre jeton,
-// voie complete et nettoyage). Premiere fois pour un processus : son droit de premier plan de lancement a pu servir
+// Sous le jeton de premier plan commun, dans une echeance bornee (Budget apres le jeton, voie complete et nettoyage
+// compris). Premiere fois pour un processus : son droit de premier plan de lancement a pu servir
 // (premier plan pris puis rendu, rapporte) et Chromium a recu une vraie desactivation : activation renvoyee et focus
 // repris avant toute frappe. Frappe par UNITES bornees : focus de la cible relu avant chacune, valeur relue apres chacune
 // (rien ne part tant que ce qui precede n'est pas relu ; jamais de delai arbitraire). Comparaisons EXACTES (fins de ligne
@@ -26,8 +26,7 @@ static partial class ChromiumInput
     public const int TextUnit = 64;
     // Texte : contrat historique du profil Claude (NexusClaude server._run, timeout_s=180, frappe par tranches sans
     // plafond global de 9 s), pour les trois profils MCP depuis le 01/11. Chaque paquet reste relu et garde (focus,
-    // presence, STOP, annulation du client MCP). Le helper --server garde Budget : son client Node borne une action
-    // Chromium a CHROMIUM_BUDGET_MS (lib/native.mjs).
+    // presence, STOP, annulation du client MCP). Le mode requete JSON sans --mcp (Program.cs) garde Budget.
     public const int McpTextBudget = 170_000;
     public static int TextBudget { get; set; } = McpTextBudget;
     static readonly HashSet<uint> Primed = new();
