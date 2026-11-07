@@ -1,4 +1,4 @@
-// Earlier engine versions and leftovers removed at install and update (codex/native/InstalledVersions.cs), in a
+// Earlier engine versions and leftovers removed at install and update (commun/engine/InstalledVersions.cs), in a
 // throwaway profile: the installed, running and declared versions stay, the others go; a folder in use is never half
 // removed; only this product's own disposable browser profiles go, once their browser has closed.
 using System.Globalization;

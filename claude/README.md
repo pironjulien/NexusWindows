@@ -7,7 +7,7 @@
 [![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows)](https://github.com/pironjulien/NexusWindows/releases)
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusWindows/blob/main/claude/LICENSE)
-[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://github.com/pironjulien/NexusWindows/tree/main/codex/native)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://github.com/pironjulien/NexusWindows/tree/main/commun/engine)
 [![MCP](https://img.shields.io/badge/MCP-server-7ee2a8)](https://modelcontextprotocol.io)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](#installation)
 
@@ -19,7 +19,7 @@
 and Claude Code see and operate Windows desktop applications while the user keeps their mouse, keyboard and
 foreground window.
 
-Version 3.9.2 · Windows 10/11 (x64, ARM64) · native .NET 10, nothing else to install · MIT licence
+Windows 10/11 (x64, ARM64) · native .NET 10, nothing else to install · MIT licence
 
 Part of the Nexus family: [NexusWindows](https://julienpiron.fr/nexuswindows/)
 ([Claude](https://github.com/pironjulien/NexusWindows) ·
@@ -278,104 +278,25 @@ flowchart LR
   Engine --> Capture["PrintWindow / Windows.Graphics.Capture, Windows OCR"]
 ```
 
-One C# (.NET 10) engine serves the three profiles (`codex/native/`, `--agent claude|codex|antigravity`); each profile
+One C# (.NET 10) engine serves the three profiles (`commun/engine/`, `--agent claude|codex|antigravity`); each profile
 keeps its own tools and guide. The stable launcher (`commun/launcher/`) checks the engine's recorded SHA-256 and runs
 it with the same standard input and output, so an update never changes a client's declaration. The shared safety
 policy is `commun/garde-fous.json`.
 
 ## Measurements
 
-All figures come from [`bench/RESULTS.md`](https://github.com/pironjulien/NexusWindows/blob/main/claude/bench/RESULTS.md) and the raw files in `bench/results/` (measured on one
-PC, October 2026; the notes in `RESULTS.md` are in French).
+The current figures are in [the 3 November 2026 benchmark](https://github.com/pironjulien/NexusWindows/blob/main/docs/benchmarks/2026-11-03-cua-driver/README.md):
+the common engine (3.16.5, Claude profile) and Cua Driver 0.38.0 on the same covered lab windows (Win32, WinForms, WPF,
+Electron, Edge), the application as the judge, 116 trials each.
 
-| What | Result |
-|---|---|
-| Capture, PrintWindow | 10 to 26 ms, covered windows included |
-| Real MCP server, 73 actions on the lab apps (0.4.0 to 0.5.0) | 69 succeeded, 5 explicit refusals, 0 false success, 0 cursor move, clipboard never touched; median 78 ms, p90 321 ms |
-| 2,000 characters with 20 line breaks | Win32 38 ms, WinForms 66 ms, WPF 141 ms, Electron/Edge with DevTools 82 to 108 ms |
-| Chromium simulated activation, scenario of 18 steps (0.7.0) | Electron 18/18, 1 foreground take of 9 ms (launch right, first time); Edge 18/18, 0 foreground take |
-| Same, Electron without switches, hidden | 17/18; the failure is a page that rebuilds 1,500 elements per keystroke, reported as ✗ |
-| Typing 700 characters on 6 lines, simulated activation | 0.85 to 1.1 s (Electron, Edge), 1.9 to 2 s when occluded |
-| Final render of an `act` (0.7.0 vs 0.6.1) | Win32 418 → 221 ms, Electron 341 → 205 ms (window-settle detection replaces a fixed 300 ms wait) |
-| Open drop-down list, choose in it (WinForms and WPF forms, real MCP server) | 8/8 scenarios, the application received the choice every time; `select` in an open WinForms list 113 ms (was 22 s and a failure); 0 foreground take sampled every 5 ms, cursor never moved |
+| 116 trials, target covered | NexusWindows 3.16.5 | Cua Driver 0.38.0 |
+|---|---|---|
+| Real effect | **98** | 54 |
+| False success (reported done, the app got nothing) | **0** | 16 |
+| Trials with an intrusion (foreground, cursor or clipboard) | **2** (launch: foreground given back at 0 ms) | 13 |
 
-### Cross-agent parity bench (October 26, 2026)
-
-The three NexusWindows editions (this one, [for Codex](https://github.com/pironjulien/NexusWindows) and for
-Antigravity) ran the same 33 tasks, 3 rounds each, on the Electron, WinForms and WPF lab windows, placed at the bottom
-of the z-order under an opaque cover, nobody at the PC (the bench stops the moment the user touches the mouse or
-keyboard). The effect is judged by the application (event received or value read back), never by the tool's report.
-Raw results: `bench/results/2026-10-26_1045-parity.json` (summary in French next to it).
-
-| | Exact effect | Without intrusion | False success | Median | p95 |
-|---|---|---|---|---|---|
-| nexus-windows for Claude 3.3.0 | 84/99 | 83/99 | 0 | 957 ms | 5.6 s |
-| NexusWindows for Codex | 84/99 | 82/99 | 0 | 691 ms | 3.8 s |
-| NexusWindows for Antigravity | 84/99 | 80/99 | 0 | 817 ms | 3.4 s |
-
-Gap between the three: 0. Every Electron task 3/3 for all three. The 15 failures are the same for all three and are
-background limits refused honestly, not false successes: WPF raw click, Ctrl+K in WPF, WPF context menu, and double
-click in WinForms and WPF (the cover sits over the point; WinForms ignores a double click posted to a covered point).
-"Intrusion" means the foreground was taken, the cursor moved or the clipboard was written during the attempt.
-
-Offline test suite: see the Tests badge (`test.ps1` on Windows, plus a startup check on Linux).
-
-## Side by side with Cua Driver and Windows-MCP (October 26, 2026)
-
-[Cua Driver](https://github.com/trycua/cua) 0.38.0 is the closest other tool: it also works in the background by
-default. [Windows-MCP](https://github.com/CursorTouch/Windows-MCP) 0.8.8 is the most used Windows MCP server; it has no
-background mode. All three were driven through their real MCP servers (`bench/cua_vs_nexus.py`) on the same lab
-windows, covered by an opaque window, nobody at the PC (the bench refuses to start before 2 minutes without physical
-input and stops at the first one); each was used the way its own guide tells an agent (Cua: background first, then
-clicks, then its foreground fallback; Windows-MCP: bring the window forward with `App switch`, then act on the screen).
-The effect is judged by the application (event received or value read back), never by the tool's report. Foreground
-changes are sampled every millisecond, the real cursor before and after each attempt. 51 tasks across Win32, WinForms,
-WPF, Tk, Electron and Edge (`bench/tally_cua.py`, raw results in `bench/results/2026-10-26_1210-cua-vs-nexus.json`).
-The Python bench of that date has since been retired with the Python engine; its raw results stay in `bench/results/`.
-
-| All 51 tasks, target covered | nexus-windows 3.3.0 | Cua Driver 0.38.0 | Windows-MCP 0.8.8 |
-|---|---|---|---|
-| Effect proven in the background | **44** | 26 (+1 by clicks, +6 after taking the foreground) | 0 (no background mode; 10 effects in the foreground) |
-| False success (reported done, the app got nothing) | **0** | 4 | not comparable, see below |
-| Scrolling a covered list (Tk, Electron, Edge) | **3/3** | 0/3 | 0/3 |
-| Foreground taken | **0** | 3 | 15 (never given back) |
-| Real cursor moved | **0** | 0 | 34 |
-| Median time of a successful action | **598 ms** | 728 ms | 1,478 ms |
-
-Windows-MCP reached the effect on all 9 Win32 tasks once its `App switch` brought the window forward. On the
-WinForms, WPF, Tk, Electron and Edge windows the switch left the window behind 30 times, and its click or typing then
-landed on the window on top (here the bench's cover; in real use, the user's own window) while it reported the click:
-36 "done" answers with no effect, which says more about the absence of a background mode than about its reporting,
-so they are not counted as false successes in the table. 5 more attempts failed in the bench adapter (an item of an
-open list or menu was not found on screen).
-
-Misses of this server in this run: WPF raw click, wheel and Ctrl+K, a wheel on a covered canvas (Tk, Electron,
-Edge), and Win32 Ctrl+K this time; each was reported as refused or as an unknown outcome (`~`), never as done.
-
-History, from 3.0.1 (35 of 45 covered rows) to 3.0.2 (October 23, 44 of 51 against Cua's 28, details in
-`bench/RESULTS.md`): Tk clicks and shortcuts, Win32 Ctrl+K, and scrolling covered lists. Still
-refused, with the cause read in each toolkit's source and measured: WPF clicks, wheel and shortcuts, a wheel on a
-covered canvas, input at a point of a hidden Electron page. Taken from Cua: reading only what changed
-(`then="changes"`). Not taken: its injected WPF click (moves the user's real cursor), CDP clicks in an already open
-Chrome (turns on remote debugging in the user's real profile). Tried and dropped: simulated activation for WPF
-shortcuts (WPF takes the foreground), `WM_POINTERWHEEL` (Windows refuses to post it), `WM_VSCROLL` to the Chromium
-renderer (no effect), `InjectSyntheticPointerInput` (goes to the window on top).
-
-## Cross-agent bench (October 16, 2026)
-
-The same task was run by the three Windows desktop agents used on this PC (this server, the Codex layer and the
-Antigravity layer) on WinForms and WPF forms created without activation at the bottom of the z-order, while the
-user kept working: fill three fields, tick a box, open the "Formule" drop-down list, choose "Bravo" in the open
-list, validate. Proof is the result label read back in the application. Physical input was forbidden and counted.
-
-| | Morning | After fixes | Measured |
-|---|---|---|---|
-| This server (0.7.0 + drop-down fixes) | 17/20 | **19/20** | open list read back on both families; `select` in an open WinForms list 113 ms instead of 22 s; application received `Formule=Bravo;Envois=1`; 0 foreground take over 1,371 and 773 samples (20 ms), 0 cursor move, 0 physical input |
-| [NexusWindows for Codex](https://github.com/pironjulien/NexusWindows) 1.4.0 | 16/20 | **19/20** | every step verified on both families; observe + batch 1.2 to 1.4 s |
-| Antigravity layer | 18/20 | **19/20** | open WinForms list read and chosen; batch status is the worst step |
-
-What still keeps this server from 20: clicking "Validate" stays `~` without an `expect` (the application did receive
-it), and a `click` on a closed WPF list is `~` where `expand` is `✓`.
+Raw results and every task are in that folder. Benchmarks of the earlier Python engine (October 2026) were retired
+with it.
 
 ## Security
 

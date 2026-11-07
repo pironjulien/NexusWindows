@@ -1,4 +1,4 @@
-// Anti-repeat guard of act (codex/native/McpRepeatGuard.cs), offline: the rule of 16/10 (Gemini resent the same batch
+// Anti-repeat guard of act (commun/engine/McpRepeatGuard.cs), offline: the rule of 16/10 (Gemini resent the same batch
 // six times) restored for the three profiles on 02/11, with a changed window and repeat:true as the legitimate repeats.
 using System.Text.Json.Nodes;
 

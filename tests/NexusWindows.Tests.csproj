@@ -16,7 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
-    <ProjectReference Include="..\codex\native\NexusWindows.Engine.csproj" />
+    <ProjectReference Include="..\commun\engine\NexusWindows.Engine.csproj" />
     <ProjectReference Include="..\commun\launcher\NexusWindows.Launcher.csproj" />
   </ItemGroup>
 </Project>

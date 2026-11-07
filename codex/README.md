@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows)](https://github.com/pironjulien/NexusWindows/releases)
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusWindows/blob/main/LICENSE)
-[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://github.com/pironjulien/NexusWindows/tree/main/codex/native)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://github.com/pironjulien/NexusWindows/tree/main/commun/engine)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](#installation)
 
 [![NexusWindows: Windows computer use for AI agents, in the background. Works with Claude, Codex and Antigravity.](https://raw.githubusercontent.com/pironjulien/NexusWindows/main/codex/docs/assets/banner.webp)](https://julienpiron.fr/nexuswindows/)
@@ -256,9 +256,9 @@ titles, confirmations or accords; `remember` with `steps:[]` forgets it.
 While an action runs (`act`, opening, closing, focusing; never an observation), a small logo spins on itself in the
 bottom-right corner of the bound window's screen, like a game loading screen (the logo and its shadow only, no halo). It goes away
 1.6 s after the last action. The emergency-stop guard, alive for the whole MCP session, draws it on the commands
-`busy <hwnd>` and `idle` (`native/BusyIndicator.cs`): a layered window that is always on top, borderless,
+`busy <hwnd>` and `idle` (`commun/engine/BusyIndicator.cs`): a layered window that is always on top, borderless,
 click-through, never activated, absent from the taskbar and excluded from screen captures. Rendering is analytic
-(shadow, coin) from `native/logo.png` decoded by GDI+, with no added dependency. `NEXUS_WINDOWS_INDICATOR=0`
+(shadow, coin) from `commun/engine/logo.png` decoded by GDI+, with no added dependency. `NEXUS_WINDOWS_INDICATOR=0`
 turns it off.
 
 ## Working alongside other agents
@@ -284,10 +284,10 @@ monotonic clock: deleting the file or changing the clock does not lift it.
 
 ## Architecture
 
-The Codex profile is served by the common C# (.NET 10) engine (`codex/native/`, started as
+The Codex profile is served by the common C# (.NET 10) engine (`commun/engine/`, started as
 `NexusWindows.exe --mcp --agent codex` through the stable launcher `commun/launcher/`), with the shared safety policy
 `commun/garde-fous.json`. Its MCP contract (tool names, descriptions and parameters of the Codex profile) is embedded
-in the engine (`codex/native/NativeSchemas.json`). `plugin/` at the repository root holds the plugin of the three AI
+in the engine (`commun/engine/NativeSchemas.json`). `plugin/` at the repository root holds the plugin of the three AI
 apps; Codex reads `.codex-plugin/plugin.json` and `.codex-mcp.json` there.
 
 ```mermaid

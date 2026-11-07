@@ -1,5 +1,5 @@
 # Release, in two channels, with the shared Nexus release workflows of NexusSystem.
-# - Development: every push to main checks one version everywhere (codex/native, the launcher, server.json, the
+# - Development: every push to main checks one version everywhere (commun/engine, the launcher, server.json, the
 #   manifests and CHANGELOG.md), runs test.ps1 and builds (commun/package.ps1) NexusWindows-win-x64.zip and
 #   NexusWindows-win-arm64.zip (stable launcher and engine, both Native AOT: what get.ps1 installs), the
 #   Claude Desktop extension nexus-windows-claude.mcpb (x64, the name NexusSystem and the MCP registry use) and
@@ -54,11 +54,11 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $version = ([xml](Get-Content codex/native/NexusWindows.Engine.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "codex/native/NexusWindows.Engine.csproj: no X.Y.Z version ($version)." }
+          $version = ([xml](Get-Content commun/engine/NexusWindows.Engine.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "commun/engine/NexusWindows.Engine.csproj: no X.Y.Z version ($version)." }
           $server = Get-Content server.json -Raw | ConvertFrom-Json
           $found = [ordered]@{
-            'codex/native/McpServer.cs' = [regex]::Match((Get-Content codex/native/McpServer.cs -Raw), 'Version = "([^"]+)"').Groups[1].Value
+            'commun/engine/McpServer.cs' = [regex]::Match((Get-Content commun/engine/McpServer.cs -Raw), 'Version = "([^"]+)"').Groups[1].Value
             'commun/launcher/NexusWindows.Launcher.csproj' = ([xml](Get-Content commun/launcher/NexusWindows.Launcher.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
             'commun/native-runtime.ps1' = [regex]::Match((Get-Content commun/native-runtime.ps1 -Raw), "Version='([^']+)'").Groups[1].Value
             'claude/mcpb/manifest.json' = (Get-Content claude/mcpb/manifest.json -Raw | ConvertFrom-Json).version

@@ -21,7 +21,7 @@ try {
         $stage = Join-Path $work $rid
         $engine = Join-Path $stage 'engine'
         # Native AOT: one NexusWindows.exe (about 14 MB instead of 78 MB, twice as fast to start), no assembly or host file.
-        & dotnet publish (Join-Path $root 'codex\native\NexusWindows.Engine.csproj') -c Release -r $rid -o $engine `
+        & dotnet publish (Join-Path $root 'commun\engine\NexusWindows.Engine.csproj') -c Release -r $rid -o $engine `
             -p:PublishAot=true -p:AssemblyName=NexusWindows -p:DebugType=none "-p:BaseIntermediateOutputPath=$work\obj-engine-$rid\" "-p:BaseOutputPath=$work\bin-engine-$rid\" --nologo
         if ($LASTEXITCODE) { throw "Engine build failed ($rid)." }
         & dotnet publish (Join-Path $root 'commun\launcher\NexusWindows.Launcher.csproj') -c Release -r $rid -o (Join-Path $work "launcher-$rid") `

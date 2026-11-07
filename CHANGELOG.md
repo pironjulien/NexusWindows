@@ -6,7 +6,43 @@ All notable changes to NexusWindows are documented in this file. The format is b
 
 Releases up to 30 October 2026 were made in separate repositories for each profile (Claude 3.7.4, Codex 3.7.4,
 Antigravity 3.6.0), since removed; those versions remain on PyPI (`nexus-windows-claude`, `nexus-windows-antigravity`)
-and npm (`nexus-windows-codex`).
+and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated in favour of
+`io.github.pironjulien/nexus-windows`.
+
+## [Unreleased]
+
+## [3.17.4] - 2026-11-07
+
+### Fixed
+- A malformed request no longer ends an MCP session. A request field of an unexpected JSON type (`jsonrpc`, `method`,
+  `protocolVersion`, a tool name or the requested protocol version given as a number, an object or an array), a key
+  repeated in an object, or a string escaping a lone surrogate (`"\uD800"`) threw while the request was read; for a
+  cancellation notice that happened in the stdin reader thread, which ends the process. Such a request now gets the
+  JSON-RPC error it calls for (parse error, invalid request or invalid params), or nothing for a notification.
+
+### Added
+- Fuzzing of the MCP request decoding (`tests/McpFuzzTests.cs`): seed requests of every method mutated byte by byte and
+  structurally (JSON types swapped, keys repeated, deep nesting, truncation, long strings, random bytes) go through the
+  stdin reader and `HandleMessage` for the three profiles, which must answer with a well-formed JSON-RPC message or
+  nothing and never throw. 20,000 messages with a fixed seed in every `test.ps1` run, 2,000,000 with a new seed in the
+  weekly `Fuzz` workflow; a call naming a real tool is never sent, so it never touches the desktop. It found the
+  failures above.
+- `Registry status` workflow (by hand, GitHub OIDC login): sets every version of one of this owner's MCP registry
+  entries to deprecated, with a message naming its replacement, or back to active.
+- Tests: no README states the product version by hand, and `CHANGELOG.md` keeps the Keep a Changelog format (an
+  Unreleased section, its six change types only, a comparison link for every version).
+
+### Changed
+- The common engine moved from `codex/native/` to `commun/engine/`, next to its launcher: it serves the three profiles,
+  not Codex alone. The tests, packaging, installer, release check and Dependabot follow; its code is unchanged.
+- The Claude and Antigravity READMEs no longer state a version by hand (they still said 3.9.2); the release badge does.
+- The Claude README's measurements now come from the current benchmark (3 November 2026, the common engine and Cua
+  Driver 0.38.0) instead of tables of the retired Python engine.
+- `TestResults/` is ignored by Git.
+
+### Removed
+- `claude/bench`: the French notes and the 33 raw result files of the October 2026 Python bench, whose scripts were
+  removed with that engine (archived outside the repository).
 
 ## [3.17.3] - 2026-11-07
 
@@ -15,12 +51,12 @@ and npm (`nexus-windows-codex`).
   use) as removed, with its size: it is now reported "set aside, removed at the next pass" and only folders actually
   deleted are counted.
 
-### Tests
-- The running-engine test now reaches the blinded pass before checking the lock, so an engine without `engine.lock`
+### Changed
+- Tests: the running-engine test now reaches the blinded pass before checking the lock, so an engine without `engine.lock`
   (3.17.1 and earlier, `test.ps1 -Engine`) fails exactly there, its folder moved away; a lock-less control (a running
   copy of `cmd.exe` in a version folder) shows on every run that a blinded pass moves such a folder.
-- The fallback when `engine.lock` cannot be created (the engine file itself held open) and the scan of an elevated
-  process of the same account (run when one is present) are covered.
+- Tests: the fallback when `engine.lock` cannot be created (the engine file itself held open) and the scan of an
+  elevated process of the same account (run when one is present) are covered.
 
 ## [3.17.2] - 2026-11-07
 
@@ -799,3 +835,55 @@ took 64 s and 14 calls; Codex now takes three calls and about 2 s, with no foreg
   events with a clock that only moves every ~15 ms on Windows; it now uses an event counter).
 - A UIA or Win32 input whose effect is not confirmed no longer triggers another technique or a physical click;
   repeated inputs require a newer observation of the same window; `expanded` and `focused` postconditions are checked.
+
+[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.4...HEAD
+[3.17.4]: https://github.com/pironjulien/NexusWindows/compare/v3.17.3...v3.17.4
+[3.17.3]: https://github.com/pironjulien/NexusWindows/compare/v3.17.2...v3.17.3
+[3.17.2]: https://github.com/pironjulien/NexusWindows/compare/v3.17.1...v3.17.2
+[3.17.1]: https://github.com/pironjulien/NexusWindows/compare/v3.17.0...v3.17.1
+[3.17.0]: https://github.com/pironjulien/NexusWindows/compare/v3.16.28...v3.17.0
+[3.16.28]: https://github.com/pironjulien/NexusWindows/compare/v3.16.27...v3.16.28
+[3.16.27]: https://github.com/pironjulien/NexusWindows/compare/v3.16.26...v3.16.27
+[3.16.26]: https://github.com/pironjulien/NexusWindows/compare/v3.16.25...v3.16.26
+[3.16.25]: https://github.com/pironjulien/NexusWindows/compare/v3.16.24...v3.16.25
+[3.16.24]: https://github.com/pironjulien/NexusWindows/compare/v3.16.23-dev.66...v3.16.24
+[3.16.23]: https://github.com/pironjulien/NexusWindows/compare/v3.16.22...v3.16.23-dev.66
+[3.16.22]: https://github.com/pironjulien/NexusWindows/compare/v3.16.21...v3.16.22
+[3.16.21]: https://github.com/pironjulien/NexusWindows/compare/v3.16.20...v3.16.21
+[3.16.20]: https://github.com/pironjulien/NexusWindows/compare/v3.16.19...v3.16.20
+[3.16.19]: https://github.com/pironjulien/NexusWindows/compare/v3.16.18...v3.16.19
+[3.16.18]: https://github.com/pironjulien/NexusWindows/compare/v3.16.17...v3.16.18
+[3.16.17]: https://github.com/pironjulien/NexusWindows/compare/v3.16.16...v3.16.17
+[3.16.16]: https://github.com/pironjulien/NexusWindows/compare/v3.16.15...v3.16.16
+[3.16.15]: https://github.com/pironjulien/NexusWindows/compare/v3.16.14...v3.16.15
+[3.16.14]: https://github.com/pironjulien/NexusWindows/compare/v3.16.13...v3.16.14
+[3.16.13]: https://github.com/pironjulien/NexusWindows/compare/v3.16.12...v3.16.13
+[3.16.12]: https://github.com/pironjulien/NexusWindows/compare/v3.16.11...v3.16.12
+[3.16.11]: https://github.com/pironjulien/NexusWindows/compare/v3.16.10...v3.16.11
+[3.16.10]: https://github.com/pironjulien/NexusWindows/compare/v3.16.9...v3.16.10
+[3.16.9]: https://github.com/pironjulien/NexusWindows/compare/v3.16.8...v3.16.9
+[3.16.8]: https://github.com/pironjulien/NexusWindows/compare/v3.16.7...v3.16.8
+[3.16.7]: https://github.com/pironjulien/NexusWindows/compare/v3.16.6...v3.16.7
+[3.16.6]: https://github.com/pironjulien/NexusWindows/compare/v3.16.5...v3.16.6
+[3.16.5]: https://github.com/pironjulien/NexusWindows/compare/v3.16.4...v3.16.5
+[3.16.4]: https://github.com/pironjulien/NexusWindows/compare/v3.16.3...v3.16.4
+[3.16.3]: https://github.com/pironjulien/NexusWindows/compare/v3.16.2...v3.16.3
+[3.16.2]: https://github.com/pironjulien/NexusWindows/compare/v3.16.1...v3.16.2
+[3.16.1]: https://github.com/pironjulien/NexusWindows/compare/v3.16.0...v3.16.1
+[3.16.0]: https://github.com/pironjulien/NexusWindows/compare/v3.15.1...v3.16.0
+[3.15.1]: https://github.com/pironjulien/NexusWindows/compare/v3.15.0...v3.15.1
+[3.15.0]: https://github.com/pironjulien/NexusWindows/compare/v3.14.0...v3.15.0
+[3.14.0]: https://github.com/pironjulien/NexusWindows/compare/v3.13.0...v3.14.0
+[3.13.0]: https://github.com/pironjulien/NexusWindows/compare/v3.12.0...v3.13.0
+[3.12.0]: https://github.com/pironjulien/NexusWindows/compare/v3.11.0...v3.12.0
+[3.11.0]: https://github.com/pironjulien/NexusWindows/compare/v3.10.0...v3.11.0
+[3.10.0]: https://github.com/pironjulien/NexusWindows/compare/v3.9.8...v3.10.0
+[3.9.8]: https://github.com/pironjulien/NexusWindows/compare/v3.9.7...v3.9.8
+[3.9.7]: https://github.com/pironjulien/NexusWindows/compare/v3.9.6...v3.9.7
+[3.9.6]: https://github.com/pironjulien/NexusWindows/compare/v3.9.5...v3.9.6
+[3.9.5]: https://github.com/pironjulien/NexusWindows/compare/v3.9.4...v3.9.5
+[3.9.4]: https://github.com/pironjulien/NexusWindows/compare/v3.9.2...v3.9.4
+[3.9.2]: https://github.com/pironjulien/NexusWindows/compare/v3.9.1...v3.9.2
+[3.9.1]: https://github.com/pironjulien/NexusWindows/compare/v3.9.0...v3.9.1
+[3.9.0]: https://github.com/pironjulien/NexusWindows/compare/v3.8.0...v3.9.0
+[3.8.0]: https://github.com/pironjulien/NexusWindows/releases/tag/v3.8.0

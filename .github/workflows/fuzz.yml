@@ -1,0 +1,34 @@
+# Weekly fuzzing of the MCP request decoding (tests/McpFuzzTests.cs): the same harness test.ps1 runs with a fixed seed
+# and 20,000 messages, here with 2,000,000 messages and a new seed each run (the run number, printed so a failure can be
+# replayed with NEXUS_FUZZ_SEED). Offline, no tool reaches the desktop. Actions pinned by commit SHA.
+name: Fuzz
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    if: github.repository == 'pironjulien/NexusWindows'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: McpFuzzTests
+        shell: pwsh
+        env:
+          NEXUS_FUZZ_ITERATIONS: '2000000'
+          NEXUS_FUZZ_SEED: ${{ github.run_number }}
+        run: |
+          Write-Host "Seed $env:NEXUS_FUZZ_SEED"
+          dotnet test --project tests -- --filter-class NexusWindows.Tests.McpFuzzTests
+          if ($LASTEXITCODE) { throw "Fuzzing failed (seed $env:NEXUS_FUZZ_SEED)." }

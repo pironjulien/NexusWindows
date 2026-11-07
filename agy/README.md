@@ -7,7 +7,7 @@
 [![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows)](https://github.com/pironjulien/NexusWindows/releases)
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusWindows/blob/main/agy/LICENSE)
-[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://github.com/pironjulien/NexusWindows/tree/main/codex/native)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://github.com/pironjulien/NexusWindows/tree/main/commun/engine)
 [![MCP](https://img.shields.io/badge/MCP-server-7ee2a8)](https://modelcontextprotocol.io)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](#installation)
 
@@ -20,7 +20,7 @@ Antigravity (Gemini) see and operate Windows desktop applications while the user
 foreground window. Built for a fast model: one look, then one batch of steps with label targets, and every reply
 says what to do next.
 
-Version 3.9.2 · Windows 10/11 (x64, ARM64) · native .NET 10, nothing else to install · MIT licence
+Windows 10/11 (x64, ARM64) · native .NET 10, nothing else to install · MIT licence
 
 Part of the Nexus family: [NexusWindows](https://julienpiron.fr/nexuswindows/)
 ([Claude](https://github.com/pironjulien/NexusWindows) ·
@@ -189,7 +189,7 @@ tools; the lab is fixed and Electron will count at the next run. A comparison wi
 
 ## Architecture
 
-The Antigravity profile is served by the common C# (.NET 10) engine (`codex/native/`, started as
+The Antigravity profile is served by the common C# (.NET 10) engine (`commun/engine/`, started as
 `NexusWindows.exe --mcp --agent antigravity` through the stable launcher `commun/launcher/`), with the shared safety
 policy `commun/garde-fous.json`. `plugin/antigravity/` (at the repository root) holds the Antigravity plugin and its agent guide
 (`SKILL.md`), installed by `NexusWindows.exe --register antigravity`.

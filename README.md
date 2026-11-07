@@ -131,7 +131,7 @@ For current MCP requests, native file dialogs, UTF-8 stdio and blank Chromium pa
 <details>
 <summary><b>Repository layout</b></summary>
 
-- `codex/native/`: the common C# (.NET 10) engine, `NexusWindows.exe`, serving the three profiles as MCP stdio
+- `commun/engine/`: the common C# (.NET 10) engine, `NexusWindows.exe`, serving the three profiles as MCP stdio
   servers (`--mcp --agent claude|codex|antigravity`) and declaring itself to them (`--register`).
 - `commun/`: the shared safety policy (`garde-fous.json`), the stable launcher (`launcher/`), the workstation
   installer of the immutable engine (`native-runtime.ps1`) and the release packaging (`package.ps1`).

@@ -4,6 +4,7 @@ build/
 dist/
 native/bin/
 obj/
+TestResults/
 *.log
 *.tmp
 *.bak

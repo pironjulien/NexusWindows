@@ -12,13 +12,13 @@ using System.Text.Json.Nodes;
 // - Applique les garde-fous communs (GardeFous.cs), journalise chaque action (Journal.cs) et pilote Windows en processus via Program.Execute.
 static partial class McpServer
 {
-    public const string Version = "3.17.3";
+    public const string Version = "3.17.4";
     static readonly string[] ModernProtocolVersions = ["2026-07-28"];
     static readonly string[] LegacyProtocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
     const string ProtocolVersionMeta = "io.modelcontextprotocol/protocolVersion";
     const string ServerInfoMeta = "io.modelcontextprotocol/serverInfo";
     const string ClientCapabilitiesMeta = "io.modelcontextprotocol/clientCapabilities";
-    const int UnsupportedProtocolVersion = -32022;
+    internal const int UnsupportedProtocolVersion = -32022;
 
     static readonly JsonSerializerOptions JsonOut = new()
     {
@@ -563,14 +563,34 @@ static partial class McpServer
         }
     }
 
+    // A request is read strictly: a key repeated in any object is a parse error, never an exception when the object is
+    // first read (JsonObject refuses a duplicate key lazily, outside the parse). Every field the decoder reads as text
+    // goes through Text: a value of another JSON type (number, object, array) reads as absent, so it is answered with a
+    // JSON-RPC error instead of an exception that would end the session (McpFuzzTests).
+    static readonly JsonDocumentOptions RequestJson = new() { AllowDuplicateProperties = false };
+
+    static string? Text(JsonNode? node) => node is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : null;
+
+    // Parses one request line. Writing the tree back checks every escape at once: "\uD800" (a lone surrogate) is valid
+    // JSON but no .NET string, and would otherwise throw later wherever that value is read or echoed (the answer's id).
+    // Throws JsonException, ArgumentException (text that is not valid UTF-16) or InvalidOperationException.
+    static JsonNode? ParseRequest(string raw)
+    {
+        var node = JsonNode.Parse(raw, documentOptions: RequestJson);
+        node?.ToJsonString();
+        return node;
+    }
+
+    static bool UnreadableRequest(Exception error) => error is JsonException or ArgumentException or InvalidOperationException;
+
     public static JsonObject? HandleMessage(SessionState state, string rawLine)
     {
         JsonNode? parsed;
         try
         {
-            parsed = JsonNode.Parse(rawLine);
+            parsed = ParseRequest(rawLine);
         }
-        catch (JsonException)
+        catch (Exception error) when (UnreadableRequest(error))
         {
             return new JsonObject
             {
@@ -581,12 +601,11 @@ static partial class McpServer
         }
 
         if (parsed is not JsonObject msg ||
-            msg["jsonrpc"]?.GetValue<string>() != "2.0" ||
-            msg["method"] is not JsonValue methodVal ||
-            !methodVal.TryGetValue<string>(out var method))
+            Text(msg["jsonrpc"]) != "2.0" ||
+            Text(msg["method"]) is not { } method)
         {
             var badId = (parsed as JsonObject)?["id"];
-            var safeId = badId is JsonValue bv && (bv.TryGetValue<string>(out _) || bv.TryGetValue<long>(out _)) ? badId.DeepClone() : null;
+            var safeId = badId is JsonValue bv && (Text(bv) != null || bv.TryGetValue<long>(out _)) ? badId.DeepClone() : null;
             return new JsonObject
             {
                 ["jsonrpc"] = "2.0",
@@ -600,7 +619,7 @@ static partial class McpServer
         var meta = @params?["_meta"] as JsonObject;
         var askedNode = meta?[ProtocolVersionMeta];
         var modern = askedNode != null;
-        var asked = askedNode?.ToString() ?? "";
+        var asked = askedNode is null ? "" : Text(askedNode) ?? askedNode.ToJsonString();
         var serverInfo = ServerInfoFor(state.Agent);
         var instructions = InstructionsFor(state.Agent);
 
@@ -683,7 +702,7 @@ static partial class McpServer
                         ["requested"] = asked,
                     });
                 }
-                var legacy = @params?["protocolVersion"]?.GetValue<string>() ?? "";
+                var legacy = Text(@params?["protocolVersion"]) ?? "";
                 var chosen = LegacyProtocolVersions.Contains(legacy, StringComparer.Ordinal) ? legacy : LegacyProtocolVersions[0];
                 return Reply(new JsonObject
                 {
@@ -711,7 +730,7 @@ static partial class McpServer
 
             case "tools/call":
             {
-                var toolName = @params?["name"]?.GetValue<string>() ?? "";
+                var toolName = Text(@params?["name"]) ?? "";
                 var listedTools = BuildToolsList(state.Agent);
                 var normalized = state.Agent == "antigravity" ? CanonicalNormalizeToolName(toolName) : toolName;
                 var known = listedTools.Any(t => t?["name"]?.GetValue<string>() == normalized);
@@ -821,20 +840,20 @@ static partial class McpServer
     }
 
     // Identifiant JSON-RPC d'une requete (forme JSON, "1" et 1 distincts), null pour une notification ou un message illisible.
-    static string? RequestId(string raw)
+    internal static string? RequestId(string raw)
     {
-        try { return JsonNode.Parse(raw) is JsonObject msg && msg["method"] != null && msg["id"] is JsonValue id ? id.ToJsonString() : null; }
-        catch (JsonException) { return null; }
+        try { return ParseRequest(raw) is JsonObject msg && msg["method"] != null && msg["id"] is JsonValue id ? id.ToJsonString() : null; }
+        catch (Exception error) when (UnreadableRequest(error)) { return null; }
     }
 
-    static string? CancelledRequestId(string raw)
+    internal static string? CancelledRequestId(string raw)
     {
         try
         {
-            return JsonNode.Parse(raw) is JsonObject msg && msg["id"] == null && msg["method"]?.GetValue<string>() == "notifications/cancelled"
+            return ParseRequest(raw) is JsonObject msg && msg["id"] == null && Text(msg["method"]) == "notifications/cancelled"
                 && msg["params"]?["requestId"] is JsonValue id ? id.ToJsonString() : null;
         }
-        catch (Exception error) when (error is JsonException or InvalidOperationException) { return null; }
+        catch (Exception error) when (UnreadableRequest(error)) { return null; }
     }
 
     public static int SelfTest()
