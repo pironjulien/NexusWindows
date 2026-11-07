@@ -8,6 +8,15 @@ Releases up to 30 October 2026 were made in separate repositories for each profi
 Antigravity 3.6.0), since removed; those versions remain on PyPI (`nexus-windows-claude`, `nexus-windows-antigravity`)
 and npm (`nexus-windows-codex`).
 
+## [3.17.1] - 2026-11-07
+
+### Fixed
+- `get.ps1` no longer fails with "being used by another process" when a scanner briefly opens the freshly copied
+  engine (the same failure seen once with NexusAGYmail's `get.ps1` in NexusSystem's pack job on a fresh Windows
+  runner). Renaming the staged engine folder to `native\<sha-256>`, and replacing the stable launcher by its fresh
+  copy, wait out such an external, transient hold (sharing, lock or access violation while the staged item is still
+  there) for at most 10 s; any other error still fails the installation, and a failed staged folder is removed.
+
 ## [3.17.0] - 2026-11-07
 
 ### Removed

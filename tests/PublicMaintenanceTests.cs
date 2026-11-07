@@ -82,4 +82,77 @@ public sealed class PublicMaintenanceTests
         Assert.False(Directory.Exists(Path.Combine(profile, ".gemini", "config", "plugins")));
         Assert.False(Directory.Exists(Path.Combine(home, "backups")));
     }
+
+    [Theory]
+    [InlineData("pwsh")]
+    [InlineData("powershell")]
+    public async Task A_scanner_briefly_holding_the_fresh_engine_does_not_fail_the_installation(string shell)
+    {
+        // What an antivirus does to a freshly written executable: opens it for a moment (every sharing mode allowed),
+        // which blocks renaming its folder. get.ps1 waits that hold out instead of failing ("being used by another
+        // process", seen once in NexusSystem's pack job on a fresh Windows runner, with NexusAGYmail's get.ps1).
+        var root = Path.Combine(TestEnvironment.SharedHome, "scanner-" + Guid.NewGuid().ToString("N"));
+        var profile = Path.Combine(root, "profile");
+        var home = Path.Combine(profile, ".nexus", "nexus-windows");
+        Directory.CreateDirectory(home);
+        // An existing installation (what -UpdateOnly, NexusSystem's maintenance, updates).
+        File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), Path.Combine(home, "NexusWindows.exe"));
+        File.WriteAllText(Path.Combine(home, "installation.json"), "{\"previous\":true}");
+        var packageRoot = Path.Combine(root, "package");
+        Directory.CreateDirectory(Path.Combine(packageRoot, "engine"));
+        File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), Path.Combine(packageRoot, "NexusWindows.exe"));
+        File.Copy(SelfTest.Engine, Path.Combine(packageRoot, "engine", "NexusWindows.exe"));
+        foreach (var file in new[] { "NexusWindows.Engine.dll", "NexusWindows.Engine.runtimeconfig.json", "NexusWindows.Engine.deps.json" })
+            File.Copy(Path.Combine(AppContext.BaseDirectory, file), Path.Combine(packageRoot, "engine", file));
+        File.WriteAllText(Path.Combine(packageRoot, "engine", "garde-fous.json"), "{}");
+        var zip = Path.Combine(root, "package.zip");
+        ZipFile.CreateFromDirectory(packageRoot, zip);
+
+        string? held = null;
+        bool stagedWhileHeld = false;
+        using var released = new ManualResetEventSlim();
+        using var watcher = new FileSystemWatcher(home, "NexusWindows.exe") { IncludeSubdirectories = true };
+        var scanner = new Thread(() =>
+        {
+            string path = watcher.WaitForChanged(WatcherChangeTypes.Created, 60_000) is { TimedOut: false } change ? Path.Join(home, change.Name) : "";
+            for (int i = 0; i < 400 && held is null && path.Length > 0; i++)
+            {
+                try
+                {
+                    using var scan = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    held = path;
+                    Thread.Sleep(2_000);
+                    stagedWhileHeld = File.Exists(path);
+                }
+                catch (IOException) { Thread.Sleep(5); }  // still being copied
+            }
+            released.Set();
+        }) { IsBackground = true };
+        watcher.EnableRaisingEvents = true;
+        scanner.Start();
+
+        var start = new ProcessStartInfo(shell)
+        {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true,
+        };
+        foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(TestEnvironment.RepositoryRoot, "get.ps1"), "-UpdateOnly" }) start.ArgumentList.Add(arg);
+        start.Environment["NEXUS_WINDOWS_PROFILE"] = profile;
+        start.Environment["NEXUS_WINDOWS_SOURCE"] = zip;
+        start.Environment["NEXUS_PACK"] = "1";
+        start.Environment["NEXUS_PACK_TARGETS"] = "codex";
+        using var process = Process.Start(start)!;
+        var output = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+        var error = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+        await process.WaitForExitAsync(TestContext.Current.CancellationToken);
+        Assert.True(released.Wait(60_000, TestContext.Current.CancellationToken));
+        Assert.True(process.ExitCode == 0, await error + await output);
+        Assert.NotNull(held);
+        Assert.Contains("stage-", held, StringComparison.OrdinalIgnoreCase);
+        Assert.True(stagedWhileHeld, "the hold must have overlapped the staged folder");
+        var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(home, "installation.json")))!;
+        var engine = manifest["NativeExecutable"].S();
+        Assert.True(File.Exists(engine), await output);
+        Assert.Equal(Path.Combine(home, "native"), Path.GetDirectoryName(Path.GetDirectoryName(engine)), ignoreCase: true);
+        Assert.Empty(Directory.GetDirectories(home, "stage-*"));
+    }
 }

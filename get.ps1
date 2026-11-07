@@ -100,6 +100,31 @@ function Write-Json([string]$Path, $Data) {
     if (Test-Path -LiteralPath $Path) { [IO.File]::Replace($temporary, $Path, [NullString]::Value) } else { [IO.File]::Move($temporary, $Path) }
 }
 
+# Antivirus and indexing services open freshly written executables for a moment to scan them. While they do, the folder
+# holding them cannot be renamed, and a file opened without delete sharing cannot be renamed either: once, on a fresh
+# GitHub Windows runner, such a rename failed with "being used by another process" and passed when run again (seen in
+# NexusAGYmail's get.ps1). Only that external, transient hold (sharing, lock or access violation while the staged item is
+# still there) is waited out, at most 10 s; any other error, or a longer hold, fails.
+function Invoke-PastScannerHold([scriptblock]$Rename, [string]$Staged, [string]$Target, [switch]$TargetMayExist) {
+    $transient = 0x80070020, 0x80070021, 0x80070005  # ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION, ERROR_ACCESS_DENIED
+    for ($attempt = 1; ; $attempt++) {
+        try { & $Rename; return }
+        catch {
+            $failure = $_.Exception
+            while ($failure.InnerException -and $failure -is [Management.Automation.MethodInvocationException]) { $failure = $failure.InnerException }
+            $held = ($failure -is [IO.IOException] -or $failure -is [UnauthorizedAccessException]) -and
+                ($transient -contains $failure.HResult) -and (Test-Path -LiteralPath $Staged) -and
+                ($TargetMayExist -or -not (Test-Path -LiteralPath $Target))
+            if (-not $held -or $attempt -ge 40) { throw "Cannot move $Staged to $($Target): $($failure.Message)" }
+            Start-Sleep -Milliseconds 250
+        }
+    }
+}
+
+function Move-StagedFolder([string]$From, [string]$To) {
+    Invoke-PastScannerHold { [IO.Directory]::Move($From, $To) }.GetNewClosure() $From $To
+}
+
 # A running EXE cannot be overwritten but can be renamed: the new launcher replaces it by ReplaceFile, the running copy
 # becomes NexusWindows.exe.old-<guid>, removed by a later run once its session has ended.
 function Update-Launcher([string]$Source) {
@@ -108,8 +133,9 @@ function Update-Launcher([string]$Source) {
     try {
         if (Test-Path -LiteralPath $Stable) {
             if ((Sha256 $Stable) -eq (Sha256 $Source)) { return }
-            [IO.File]::Replace($staged, $Stable, (Join-Path $Home_ ('NexusWindows.exe.old-' + [guid]::NewGuid().ToString('N'))))
-        } else { [IO.File]::Move($staged, $Stable) }
+            $aside = Join-Path $Home_ ('NexusWindows.exe.old-' + [guid]::NewGuid().ToString('N'))
+            Invoke-PastScannerHold { [IO.File]::Replace($staged, $Stable, $aside) }.GetNewClosure() $staged $Stable -TargetMayExist
+        } else { Invoke-PastScannerHold { [IO.File]::Move($staged, $Stable) }.GetNewClosure() $staged $Stable }
     } finally { if (Test-Path -LiteralPath $staged) { Remove-Item -LiteralPath $staged -Force } }
 }
 
@@ -172,12 +198,16 @@ function Install-NexusWindows {
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
             # Keep staging short for Windows PowerShell 5.1's legacy path limit; the final hash directory remains immutable.
             $staging = Join-Path $Home_ ('stage-' + [guid]::NewGuid().ToString('N'))
-            Copy-Item -LiteralPath $engine -Destination $staging -Recurse
-            $artifacts = [ordered]@{}
-            foreach ($file in Get-ChildItem -LiteralPath $staging -File) { $artifacts[$file.Name] = Sha256 $file.FullName }
-            $runtime = [ordered]@{ Schema = 2; SourceRoot = "release $tag"; NativeHash = $hash; NativeExecutable = (Join-Path $target 'NexusWindows.exe'); Version = $version; NativeArtifacts = $artifacts }
-            Write-Json (Join-Path $staging 'runtime.json') $runtime
-            [IO.Directory]::Move($staging, $target)
+            try {
+                Copy-Item -LiteralPath $engine -Destination $staging -Recurse
+                $artifacts = [ordered]@{}
+                foreach ($file in Get-ChildItem -LiteralPath $staging -File) { $artifacts[$file.Name] = Sha256 $file.FullName }
+                $runtime = [ordered]@{ Schema = 2; SourceRoot = "release $tag"; NativeHash = $hash; NativeExecutable = (Join-Path $target 'NexusWindows.exe'); Version = $version; NativeArtifacts = $artifacts }
+                Write-Json (Join-Path $staging 'runtime.json') $runtime
+                Move-StagedFolder $staging $target
+            } finally {
+                if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue }
+            }
         }
         $runtime = Get-Content -LiteralPath (Join-Path $target 'runtime.json') -Raw | ConvertFrom-Json
         $installedCode = @(Get-NexusWindowsCodeFiles @($runtime.NativeArtifacts.PSObject.Properties | ForEach-Object Name))
