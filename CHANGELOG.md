@@ -11,6 +11,10 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+### Fixed
+- Tests: no test can show a Windows error box. The test process sets the error mode (no critical-error, crash or
+  missing-file box) when it loads, and every process it starts inherits it; a test checks it in a child process.
+
 ## [3.17.5] - 2026-11-07
 
 ### Fixed
