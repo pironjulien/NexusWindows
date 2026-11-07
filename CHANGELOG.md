@@ -8,6 +8,21 @@ Releases up to 30 October 2026 were made in separate repositories for each profi
 Antigravity 3.6.0), since removed; those versions remain on PyPI (`nexus-windows-claude`, `nexus-windows-antigravity`)
 and npm (`nexus-windows-codex`).
 
+## [3.17.2] - 2026-11-07
+
+### Fixed
+- The cleanup of earlier versions (`--prune-installed`, run by every installation and update) could move away the
+  version folder of a running engine it failed to see: it found running engines through `Process.MainModule`, which
+  fails on an elevated process, a SYSTEM process or one of another session, and Windows does not refuse renaming the
+  folder of a running program. Such an engine then lost its own files (`garde-fous.json`, its helper executable).
+  Two guards now protect it:
+  - the scan reads the image path of every process with `QueryFullProcessImageNameW`
+    (`PROCESS_QUERY_LIMITED_INFORMATION`, granted on elevated processes); a process named like the engine whose path
+    cannot be read at all keeps every earlier version and launcher until the next installation;
+  - every engine started from a version folder holds that folder's `engine.lock` open for its whole life without
+    delete sharing, so Windows refuses to move the folder whatever the scan saw; the cleanup reports it "in use" and
+    leaves it whole. A folder already set aside by an interrupted cleanup gets the same check before its deletion.
+
 ## [3.17.1] - 2026-11-07
 
 ### Fixed

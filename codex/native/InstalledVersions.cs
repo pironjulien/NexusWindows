@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -12,11 +13,41 @@ using System.Text.RegularExpressions;
 //     has ended, and an interrupted get.ps1 staging folder (stage-*);
 //   - removes the disposable browser profiles of launch(devtools:true) (state\<agent>\devtools-profiles) whose browser
 //     has closed: the engine removes one only when it closes the browser itself.
-// A folder still in use is renamed away before deletion, so it is never left half deleted: Windows refuses the rename
-// while a program runs from it or holds one of its files open.
-static class InstalledVersions
+// A running engine is protected twice, since either guard alone can miss:
+//   1. the scan: the image path of every process (QueryFullProcessImageNameW with PROCESS_QUERY_LIMITED_INFORMATION,
+//      which also answers for an elevated process); a process named like the engine that cannot be queried at all
+//      (another account, SYSTEM) keeps every version, since where it runs from is unknown;
+//   2. the lock: every engine holds its version folder's engine.lock open for its whole life without delete sharing.
+// A folder is renamed away before deletion, so it is never left half deleted. Windows does NOT refuse renaming the folder
+// of a running program (its image is mapped with delete sharing): it refuses it only while a file inside is held open
+// without delete sharing, which engine.lock guarantees; that refusal is reported as "in use" and the folder kept whole.
+static partial class InstalledVersions
 {
     internal sealed record Outcome(List<string> Removed, List<string> Kept, long Bytes);
+    internal sealed record Scan(List<string> Paths, int Unidentified);
+    internal const string LockName = "engine.lock";
+    const string EngineName = "NexusWindows";
+    static FileStream? ownVersion;
+
+    // Held from the first line of Main until the process ends (closed by Windows): an engine started from a version
+    // folder (native\<sha-256>) keeps that folder from being moved or removed under it, whatever the scan sees.
+    internal static void HoldOwnVersion() => ownVersion ??= Hold(Environment.ProcessPath);
+
+    internal static FileStream? Hold(string? executable)
+    {
+        if (string.IsNullOrEmpty(executable)) return null;
+        var folder = Path.GetDirectoryName(Path.GetFullPath(executable));
+        if (folder is null || !Hash.IsMatch(Path.GetFileName(folder)) ||
+            !string.Equals(Path.GetFileName(Path.GetDirectoryName(folder)), "native", StringComparison.OrdinalIgnoreCase)) return null;
+        try { return new FileStream(Path.Combine(folder, LockName), FileMode.OpenOrCreate, FileAccess.Read, FileShare.ReadWrite); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            // A folder this account cannot add a file to (written by another account): the engine file itself, held the
+            // same way (its image mapping does not conflict with a read-shared handle).
+            try { return new FileStream(executable, FileMode.Open, FileAccess.Read, FileShare.Read); }
+            catch (Exception again) when (again is IOException or UnauthorizedAccessException) { return null; }
+        }
+    }
 
     static readonly Regex Hash = new("^[a-f0-9]{64}$", RegexOptions.CultureInvariant);
     static readonly Regex Named = new(@"nexus-windows(?:\\\\|\\|/)+native(?:\\\\|\\|/)+([a-f0-9]{64})", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -27,7 +58,8 @@ static class InstalledVersions
     {
         try
         {
-            var outcome = Prune(Registration.Profile.Current(), RunningExecutables(), DateTimeOffset.UtcNow);
+            var scan = RunningExecutables();
+            var outcome = Prune(Registration.Profile.Current(), scan.Paths, DateTimeOffset.UtcNow, scan.Unidentified);
             Console.WriteLine($"Earlier files removed: {outcome.Removed.Count} ({outcome.Bytes / (1024 * 1024)} MB); kept: {(outcome.Kept.Count == 0 ? "none" : string.Join(", ", outcome.Kept))}.");
             return 0;
         }
@@ -39,22 +71,49 @@ static class InstalledVersions
         }
     }
 
-    // Paths of the NexusWindows programs running now (the engines and the launchers of every session).
-    internal static List<string> RunningExecutables()
+    [LibraryImport("kernel32.dll", SetLastError = true)] private static partial nint OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, int pid);
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseHandle(nint handle);
+    [LibraryImport("kernel32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool QueryFullProcessImageNameW(nint process, uint flags, [Out] char[] name, ref uint size);
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetExitCodeProcess(nint process, out uint code);
+
+    // Image paths of every process running now, whatever its name (engines, launchers, a renamed copy), read with
+    // PROCESS_QUERY_LIMITED_INFORMATION: granted on elevated processes of this account, where Process.MainModule (module
+    // enumeration, PROCESS_VM_READ) fails. Unidentified: processes named like the engine whose path cannot be read.
+    internal static Scan RunningExecutables()
     {
-        var paths = new List<string>();
-        foreach (var process in Process.GetProcessesByName("NexusWindows"))
+        var paths = new List<string>(); var unidentified = 0;
+        var buffer = new char[32768];
+        foreach (var process in Process.GetProcesses())
         {
             using (process)
             {
-                try { if (process.MainModule?.FileName is { } path) paths.Add(Path.GetFullPath(path)); }
-                catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException) { }
+                var named = string.Equals(process.ProcessName, EngineName, StringComparison.OrdinalIgnoreCase);
+                var handle = OpenProcess(0x1000 /* PROCESS_QUERY_LIMITED_INFORMATION */, false, process.Id);
+                if (handle == 0)
+                {
+                    // ERROR_INVALID_PARAMETER: the process ended since the snapshot.
+                    if (named && Marshal.GetLastPInvokeError() != 87) unidentified++;
+                    continue;
+                }
+                try
+                {
+                    var size = (uint)buffer.Length;
+                    if (QueryFullProcessImageNameW(handle, 0, buffer, ref size)) paths.Add(Path.GetFullPath(new string(buffer, 0, (int)size)));
+                    else if (named && (!GetExitCodeProcess(handle, out var code) || code == 259 /* STILL_ACTIVE */)) unidentified++;
+                }
+                finally { CloseHandle(handle); }
             }
         }
-        return paths;
+        return new Scan(paths, unidentified);
     }
 
-    internal static Outcome Prune(Registration.Profile profile, IEnumerable<string> running, DateTimeOffset now)
+    internal static Outcome Prune(Registration.Profile profile, IEnumerable<string> running, DateTimeOffset now, int unidentified = 0)
     {
         var home = Path.GetDirectoryName(profile.NativeRoot)!;
         var removed = new List<string>(); var kept = new List<string>(); long bytes = 0;
@@ -72,24 +131,28 @@ static class InstalledVersions
             if (TryDelete(path)) { removed.Add(label); bytes += size; } else kept.Add(label + " (in use)");
         }
 
-        if (Directory.Exists(profile.NativeRoot))
+        // An engine or launcher runs from a place the scan could not read: no version or launcher is known to be unused.
+        if (unidentified > 0) kept.Add($"every earlier version and launcher ({unidentified} engine process(es) not identified)");
+        if (Directory.Exists(profile.NativeRoot) && unidentified == 0)
         {
             foreach (var folder in Directory.GetDirectories(profile.NativeRoot))
             {
                 var name = Path.GetFileName(folder);
-                if (name.StartsWith(".prune-", StringComparison.Ordinal)) { Remove(folder, "interrupted removal"); continue; }
-                if (!Hash.IsMatch(name) || IsLink(folder)) continue; // not an engine version this product wrote
+                var interrupted = name.StartsWith(".prune-", StringComparison.Ordinal);
+                if ((!interrupted && !Hash.IsMatch(name)) || IsLink(folder)) continue; // not an engine version this product wrote
                 if (name == installed) continue;
+                var label = interrupted ? "interrupted removal" : name[..12];
                 var prefix = Path.GetFullPath(folder) + Path.DirectorySeparatorChar;
-                if (runningPaths.Any(p => p.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))) { kept.Add(name[..12] + " (running)"); continue; }
-                if (declared.Contains(name)) { kept.Add(name[..12] + " (declared)"); continue; }
-                Remove(folder, name[..12]);
+                if (runningPaths.Any(p => p.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))) { kept.Add(label + " (running)"); continue; }
+                if (!interrupted && declared.Contains(name)) { kept.Add(label + " (declared)"); continue; }
+                Remove(folder, label);
             }
         }
         if (Directory.Exists(home))
         {
             foreach (var aside in Directory.GetFiles(home, "NexusWindows.exe.old-*"))
             {
+                if (unidentified > 0) continue;
                 if (runningPaths.Contains(Path.GetFullPath(aside), StringComparer.OrdinalIgnoreCase)) { kept.Add(Path.GetFileName(aside) + " (running)"); continue; }
                 var size = new FileInfo(aside).Length;
                 try { File.Delete(aside); removed.Add(Path.GetFileName(aside)); bytes += size; }
@@ -185,16 +248,13 @@ static class InstalledVersions
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return 0; }
     }
 
-    // Renamed away first (refused by Windows while it is in use), then deleted: never half removed.
+    // Renamed away first, then deleted: never half removed. Windows refuses the rename only while a file inside is open
+    // without delete sharing (an engine's engine.lock, a browser's profile files), not merely because a program runs from
+    // the folder. A folder already set aside is renamed again, the same check before its deletion.
     static bool TryDelete(string folder)
     {
-        var parent = Path.GetDirectoryName(folder)!;
-        var name = Path.GetFileName(folder);
-        var aside = name.StartsWith(".prune-", StringComparison.Ordinal) ? folder : Path.Combine(parent, ".prune-" + Guid.NewGuid().ToString("N"));
-        try
-        {
-            if (aside != folder) Directory.Move(folder, aside);
-        }
+        var aside = Path.Combine(Path.GetDirectoryName(folder)!, ".prune-" + Guid.NewGuid().ToString("N"));
+        try { Directory.Move(folder, aside); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return false; }
         try { Directory.Delete(aside, recursive: true); return true; }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return true; } // left aside: removed at the next pass

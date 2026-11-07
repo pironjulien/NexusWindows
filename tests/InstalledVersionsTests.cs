@@ -111,8 +111,101 @@ public sealed class InstalledVersionsTests : IDisposable
         Assert.False(Directory.Exists(open));
     }
 
-    readonly record struct Report(InstalledVersions.Outcome Value)
+    [Fact]
+    public void An_engine_process_the_scan_cannot_identify_keeps_every_earlier_version_and_launcher()
+    {
+        var installed = Version('a'); var earlier = Version('b');
+        var interrupted = Path.Combine(Home, "native", ".prune-0123"); Directory.CreateDirectory(interrupted);
+        var aside = Path.Combine(Home, "NexusWindows.exe.old-1"); File.WriteAllText(aside, "old launcher");
+        Write(@".nexus\nexus-windows\installation.json", $$"""{"Schema":2,"NativeHash":"{{H('a')}}"}""");
+        var outcome = new Report(InstalledVersions.Prune(Profile, [], DateTimeOffset.UtcNow, unidentified: 1));
+        Assert.Empty(outcome.Value.Removed);
+        foreach (var kept in new[] { installed, earlier, interrupted }) Assert.True(Directory.Exists(kept), outcome.Text);
+        Assert.True(File.Exists(aside), outcome.Text);
+        // Once every engine process is identified, the next pass removes them.
+        InstalledVersions.Prune(Profile, [], DateTimeOffset.UtcNow);
+        Assert.False(Directory.Exists(earlier) || Directory.Exists(interrupted) || File.Exists(aside));
+    }
+
+    internal readonly record struct Report(InstalledVersions.Outcome Value)
     {
         public string Text => "removed: " + string.Join(", ", Value.Removed) + "; kept: " + string.Join(", ", Value.Kept);
+    }
+}
+
+// A real engine running from an earlier version folder: found by the process scan, and kept whole by its own
+// engine.lock even when the scan is blinded (an elevated, SYSTEM or other-session engine the scan could miss). The
+// framework-dependent test engine also keeps its folder through the runtime's handle on its .dll; the Native AOT engine
+// releases ship has no such handle, so test.ps1 -Engine <AOT engine> checks the lock alone (an engine without it fails
+// the blinded pass: its folder is moved away).
+[Collection("Engine")]
+public sealed class RunningEngineVersionTests : IDisposable
+{
+    readonly string root = Path.Combine(TestEnvironment.SharedHome, "prune-live-" + Guid.NewGuid().ToString("N"));
+    string Home => Path.Combine(root, ".nexus", "nexus-windows");
+    Registration.Profile Profile => new(root, Path.Combine(root, "AppData", "Roaming"), Path.Combine(root, "AppData", "Local"), Path.Combine(root, ".codex"), null);
+
+    public void Dispose() { try { Directory.Delete(root, true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+
+    // The test engine copied as an installed version (native\<sha-256>\NexusWindows.exe), as get.ps1 lays it out.
+    string Engine(char c)
+    {
+        var folder = Path.Combine(Home, "native", new string(c, 64));
+        Directory.CreateDirectory(folder);
+        File.Copy(SelfTest.Engine, Path.Combine(folder, "NexusWindows.exe"));
+        foreach (var file in new[] { "NexusWindows.Engine.dll", "NexusWindows.Engine.runtimeconfig.json", "NexusWindows.Engine.deps.json" })
+            File.Copy(Path.Combine(AppContext.BaseDirectory, file), Path.Combine(folder, file));
+        File.Copy(Path.Combine(TestEnvironment.RepositoryRoot, "commun", "garde-fous.json"), Path.Combine(folder, "garde-fous.json"));
+        return Path.Combine(folder, "NexusWindows.exe");
+    }
+
+    [Fact]
+    public void A_running_engine_keeps_its_version_folder_whole_even_when_the_scan_misses_it()
+    {
+        Engine('a');
+        File.WriteAllText(Path.Combine(Home, "installation.json"), $$"""{"Schema":2,"NativeHash":"{{new string('a', 64)}}"}""");
+        var running = Engine('b');
+        var folder = Path.GetDirectoryName(running)!;
+        var files = Directory.GetFiles(folder).Select(Path.GetFileName).ToList();
+        using (var session = new McpStdioTests.Server(["--mcp", "--agent", "codex"], executable: running))
+        {
+            var reply = session.Rpc("tools/call", new { name = "windows", arguments = new { } });
+            Assert.True(reply["result"] is not null, reply.ToJsonString());
+            Assert.True(File.Exists(Path.Combine(folder, InstalledVersions.LockName)), "the engine holds its version's lock");
+
+            // The scan reads its path (QueryFullProcessImageNameW), whatever the process name.
+            var scan = InstalledVersions.RunningExecutables();
+            Assert.Contains(Path.GetFullPath(running), scan.Paths, StringComparer.OrdinalIgnoreCase);
+            var seen = new InstalledVersionsTests.Report(InstalledVersions.Prune(Profile, scan.Paths, DateTimeOffset.UtcNow));
+            Assert.Contains(new string('b', 12) + " (running)", seen.Value.Kept);
+
+            // Blinded scan: Windows refuses the move because of the lock, and nothing is touched.
+            var blind = new InstalledVersionsTests.Report(InstalledVersions.Prune(Profile, [], DateTimeOffset.UtcNow));
+            Assert.Contains(new string('b', 12) + " (in use)", blind.Value.Kept);
+            foreach (var name in files) Assert.True(File.Exists(Path.Combine(folder, name!)), name + ": " + blind.Text);
+            Assert.Empty(Directory.GetDirectories(Path.Combine(Home, "native"), ".prune-*"));
+            Assert.True(session.Rpc("tools/call", new { name = "windows", arguments = new { } })["result"] is not null, "still answering after the pass");
+        }
+        // Ended: the next pass removes it.
+        for (var attempt = 0; Directory.Exists(folder) && attempt < 50; attempt++)
+        {
+            InstalledVersions.Prune(Profile, [], DateTimeOffset.UtcNow);
+            if (Directory.Exists(folder)) Thread.Sleep(100);
+        }
+        Assert.False(Directory.Exists(folder));
+    }
+
+    [Fact]
+    public void Only_an_engine_started_from_a_version_folder_takes_the_lock()
+    {
+        Assert.Null(InstalledVersions.Hold(Path.Combine(root, "bin", "NexusWindows.exe")));
+        Assert.Null(InstalledVersions.Hold(Path.Combine(root, "native", "stage-1", "NexusWindows.exe")));
+        var running = Engine('c');
+        using var held = InstalledVersions.Hold(running);
+        Assert.NotNull(held);
+        // A second engine of the same version shares it.
+        using (var second = InstalledVersions.Hold(running)) Assert.NotNull(second);
+        var refused = Record.Exception(() => Directory.Move(Path.GetDirectoryName(running)!, Path.Combine(Home, "native", ".prune-x")));
+        Assert.True(refused is IOException or UnauthorizedAccessException, refused?.ToString() ?? "moved while held");
     }
 }

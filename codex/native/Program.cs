@@ -32,6 +32,8 @@ static partial class Program
     [MTAThread]
     static int Main(string[] args)
     {
+        // Its version folder stays whole while it runs (InstalledVersions.cs): held until the process ends.
+        InstalledVersions.HoldOwnVersion();
         Console.InputEncoding = new UTF8Encoding(false);
         Console.OutputEncoding = new UTF8Encoding(false);
         if (args.Length is 2 or 3 && args[0] == "--foreground-token")
