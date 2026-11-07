@@ -51,7 +51,7 @@ public sealed class NativeRuntimeInstallerTests
             Expect (Test-NexusWindowsRuntime $other) 'other is valid'
             Write-NexusWindowsJson (Join-Path (Split-Path -Parent $current.NativeExecutable) 'runtime.json') $other
             Write-NexusWindowsJson $nexusWindowsManifest $current
-            Throws { Install-NexusWindowsNativeRuntime -CheckOnly } '*différent des sources*'
+            Throws { Install-NexusWindowsNativeRuntime -CheckOnly } '*differs from the sources*'
             Expect ((Get-NexusWindowsNativeRuntime).NativeHash -ceq $a) 'installed unchanged'
             """ },
         { "never publishes a foreign manifest or rebuilds an existing immutable target", """
@@ -59,14 +59,14 @@ public sealed class NativeRuntimeInstallerTests
             Write-NexusWindowsJson (Join-Path (Split-Path -Parent $current.NativeExecutable) 'runtime.json') $other
             Write-NexusWindowsJson $nexusWindowsManifest $current
             $before = [Convert]::ToBase64String([IO.File]::ReadAllBytes($nexusWindowsManifest))
-            Throws { Install-NexusWindowsNativeRuntime } '*immutable incomplet ou altéré*'
+            Throws { Install-NexusWindowsNativeRuntime } '*Immutable runtime incomplete or altered*'
             Expect ([Convert]::ToBase64String([IO.File]::ReadAllBytes($nexusWindowsManifest)) -ceq $before) 'manifest unchanged'
             """ },
         { "rejects a changed artifact despite a matching source version", """
             $runtime = New-RuntimeFixture $a
             [IO.File]::AppendAllText($runtime.NativeExecutable, 'changed')
             Expect (-not (Test-NexusWindowsRuntime $runtime)) 'changed refused'
-            Throws { Install-NexusWindowsNativeRuntime -CheckOnly } '*différent des sources*'
+            Throws { Install-NexusWindowsNativeRuntime -CheckOnly } '*differs from the sources*'
             """ },
         { "rejects a missing required artifact", """
             $runtime = New-RuntimeFixture $a
@@ -97,7 +97,7 @@ public sealed class NativeRuntimeInstallerTests
         { "requires the installed manifest to match the current version", """
             $null = New-RuntimeFixture $a; $other = New-RuntimeFixture $b
             Write-NexusWindowsJson $nexusWindowsManifest $other
-            Throws { Install-NexusWindowsNativeRuntime -CheckOnly } '*Manifest commun non aligné*'
+            Throws { Install-NexusWindowsNativeRuntime -CheckOnly } '*Common manifest not aligned*'
             Expect ((Get-NexusWindowsNativeRuntime).NativeHash -ceq $b) 'installed unchanged'
             """ },
         { "swaps the stable launcher while its old copy runs", """

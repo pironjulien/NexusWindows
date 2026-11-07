@@ -119,7 +119,7 @@ static unsafe partial class BusyIndicator
                         var px = x + (sx + 0.5) / Super; var py = y + (sy + 0.5) / Super;
                         var dist = Math.Sqrt((px - outer) * (px - outer) + (py - outer) * (py - outer));
                         if (dist > outer) continue;
-                        double cr = 1, cg = 1, cb = 1, ca = 0.18; // liseré
+                        double cr = 1, cg = 1, cb = 1, ca = 0.18; // rim
                         if (dist <= radius)
                         {
                             var lx = (int)((px - ring) / diameter * lw); var ly = (int)((py - ring) / diameter * lh);

@@ -19,9 +19,11 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 - The engine's source comments are all in English: the 31 files that still held comments written in French before the
   profiles were merged are translated (comments only, no code change), and the English comments test no longer keeps a
   list of exceptions. It now also reads the comments of every versioned PowerShell and batch script (`commun/native-runtime.ps1`
-  translated).
-- CI: the Tests, Fuzz and Release workflows install the .NET SDK named by `global.json` (`global-json-file`) instead of
-  the latest 10.0.x, so the CI and the local build use the same reference.
+  translated). The errors thrown by `commun/native-runtime.ps1` (installation and check of the common engine and
+  launcher) are in English too, and the last French word left in an engine comment (`BusyIndicator.cs`) is translated.
+- CI: the Tests, Fuzz and Release workflows take the .NET SDK from `global.json` (`global-json-file`) instead of a
+  version written in each workflow. `global.json` names 10.0.402 as a minimum with `rollForward: latestFeature`, so the
+  CI still installs the latest .NET 10 SDK (10.0.403 today), the same rule a local build follows; it is not an exact pin.
 
 ## [3.17.5] - 2026-11-07
 
