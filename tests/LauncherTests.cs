@@ -16,16 +16,23 @@ public sealed class LauncherTests : IDisposable
 
     static string Sha(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
 
-    // A stand-in engine: cmd.exe under the engine's name, with a dummy NexusWindows.dll, recorded like an install.
-    string InstallFakeEngine(char version = 'a')
+    // A stand-in engine: cmd.exe under the engine's name, recorded like an install. Framework-dependent by default (dummy
+    // NexusWindows.dll, .deps.json and .runtimeconfig.json beside it); aot: the executable alone, as Native AOT publishes it.
+    string InstallFakeEngine(char version = 'a', bool aot = false)
     {
         var hash = new string(version, 64);
         var directory = Path.Combine(home, "native", hash);
         Directory.CreateDirectory(directory);
         var exe = Path.Combine(directory, "NexusWindows.exe");
         File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), exe);
-        File.WriteAllText(Path.Combine(directory, "NexusWindows.dll"), "engine " + version);
-        WriteManifest(hash, exe, new() { ["NexusWindows.exe"] = Sha(exe), ["NexusWindows.dll"] = Sha(Path.Combine(directory, "NexusWindows.dll")) });
+        var artifacts = new Dictionary<string, string> { ["NexusWindows.exe"] = Sha(exe) };
+        if (!aot)
+            foreach (var name in new[] { "NexusWindows.dll", "NexusWindows.deps.json", "NexusWindows.runtimeconfig.json" })
+            {
+                File.WriteAllText(Path.Combine(directory, name), $"engine {version} {name}");
+                artifacts[name] = Sha(Path.Combine(directory, name));
+            }
+        WriteManifest(hash, exe, artifacts);
         return exe;
     }
 
@@ -69,6 +76,24 @@ public sealed class LauncherTests : IDisposable
         Assert.Throws<InvalidDataException>(() => StableLauncher.Resolve(home));
         File.Delete(Path.Combine(home, "installation.json"));
         Assert.Throws<FileNotFoundException>(() => StableLauncher.Resolve(home));
+    }
+
+    [Fact]
+    public void Accepts_a_single_file_native_aot_engine_and_refuses_an_incomplete_framework_dependent_one()
+    {
+        // Native AOT: NexusWindows.exe alone holds the code, checked against its hash.
+        var exe = InstallFakeEngine('c', aot: true);
+        Assert.Equal(exe, StableLauncher.Resolve(home), ignoreCase: true);
+        File.AppendAllBytes(exe, [0]);
+        Assert.Throws<InvalidDataException>(() => StableLauncher.Resolve(home));
+        // Framework-dependent: an assembly recorded without its host files (or the reverse) is not an engine.
+        InstallFakeEngine('d');
+        var manifest = Path.Combine(home, "installation.json");
+        File.WriteAllText(manifest, File.ReadAllText(manifest).Replace("\"NexusWindows.deps.json\"", "\"unrelated.json\""));
+        Assert.Throws<InvalidDataException>(() => StableLauncher.Resolve(home));
+        InstallFakeEngine('e');
+        File.WriteAllText(manifest, File.ReadAllText(manifest).Replace("\"NexusWindows.dll\"", "\"unrelated.dll\""));
+        Assert.Throws<InvalidDataException>(() => StableLauncher.Resolve(home));
     }
 
     [Fact]

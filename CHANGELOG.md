@@ -72,6 +72,14 @@ and npm (`nexus-windows-codex`).
 - CodeQL runs from a workflow file (`.github/workflows/codeql.yml`, `actions` and `csharp`, default queries, actions
   pinned by commit) instead of the repository's default setup, so OpenSSF Scorecard credits the SAST check for
   commits pushed without pull requests.
+- `get.ps1`, `commun/native-runtime.ps1` and the stable launcher accept a single-file Native AOT engine
+  (`NexusWindows.exe` alone, checked against its hash) as well as the framework-dependent one, whose
+  `NexusWindows.dll`, `.deps.json` and `.runtimeconfig.json` must now be recorded together (a partial set is refused).
+  Releases do not switch to `PublishAot` yet. The README's Development section says what `test.ps1 -Full` must show
+  before a stable promotion.
+- The Claude and Antigravity READMEs name the server `nexus-windows`, its plugin name in the NexusSystem catalog and
+  its MCP registry name, instead of `nexus-windows-claude` and `nexus-windows-antigravity`; the release file
+  `nexus-windows-claude.mcpb` keeps its name.
 
 ## [3.16.28] - 2026-11-06
 

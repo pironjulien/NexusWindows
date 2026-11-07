@@ -145,7 +145,24 @@ For current MCP requests, native file dialogs, UTF-8 stdio and blank Chromium pa
 
 ```powershell
 ./test.ps1    # dotnet test (xUnit) of the engine, launcher and installers; offline, same command as the CI
+./test.ps1 -Full    # the same, plus the live tests: real Explorer launch, shared foreground token, capture session
 ```
+
+**Before a stable promotion** (see NexusSystem's
+[RELEASING.md](https://github.com/pironjulien/NexusSystem/blob/main/RELEASING.md)), `./test.ps1 -Full` must pass on a
+real interactive Windows session with a GPU, at a moment nobody is using the PC (the live tests take the shared
+foreground token and open real windows). The hosted CI skips those tests, so a green CI alone is not enough to
+promote. The run must also show that the installers accept both engine layouts:
+
+- framework-dependent (today's releases): `NexusWindows.exe` with `NexusWindows.dll`, `.deps.json` and
+  `.runtimeconfig.json`, all three recorded together;
+- Native AOT single file (ready, not yet published: the engine is AOT-clean but `PublishAot` stays off):
+  `NexusWindows.exe` alone holds the code, and a partial set of the three managed files is refused.
+
+These cases live in `LauncherTests`, `NativeRuntimeInstallerTests` and `PublicMaintenanceTests` (`get.ps1`,
+`commun/native-runtime.ps1`, the stable launcher); NexusSystem's `WindowsRuntime`/`RuntimeObservation` follow the same
+rule. Switching releases to `PublishAot` is a separate change, made once a NexusSystem release with that rule is
+stable.
 
 Build and test outputs go to `%USERPROFILE%\.nexus\build\nexuswindows`. The three profiles were separate repositories
 until 30 October 2026; those repositories have since been removed (see [CHANGELOG.md](CHANGELOG.md)).

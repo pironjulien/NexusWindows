@@ -15,11 +15,11 @@ public sealed class NativeRuntimeInstallerTests
         function dotnet { throw 'A fixture test must never build or execute dotnet.' }
         function Get-NexusWindowsNativeHash { 'a' * 64 }
         function Install-NexusWindowsLauncher { 'stub' }
-        function New-RuntimeFixture([string]$Hash) {
+        function New-RuntimeFixture([string]$Hash, [string[]]$Names = @('NexusWindows.exe', 'NexusWindows.dll', 'NexusWindows.deps.json', 'NexusWindows.runtimeconfig.json', 'garde-fous.json')) {
             $directory = Join-Path $nexusWindowsRuntimeHome "native\$Hash"
             [void][IO.Directory]::CreateDirectory($directory)
             $artifacts = [ordered]@{}
-            foreach ($name in 'NexusWindows.exe', 'NexusWindows.dll', 'NexusWindows.deps.json', 'NexusWindows.runtimeconfig.json', 'garde-fous.json') {
+            foreach ($name in $Names) {
                 $file = Join-Path $directory $name
                 [IO.File]::WriteAllText($file, "fixture $Hash $name")
                 $artifacts[$name] = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
@@ -72,6 +72,16 @@ public sealed class NativeRuntimeInstallerTests
             $runtime = New-RuntimeFixture $a
             [IO.File]::Delete((Join-Path (Split-Path -Parent $runtime.NativeExecutable) 'NexusWindows.dll'))
             Expect (-not (Test-NexusWindowsRuntime $runtime)) 'missing refused'
+            """ },
+        { "accepts a single-file Native AOT engine and refuses a partial framework-dependent one", """
+            $aot = New-RuntimeFixture $a @('NexusWindows.exe', 'garde-fous.json', 'logo.png')
+            Expect (Test-NexusWindowsRuntime $aot) 'Native AOT layout accepted'
+            [IO.File]::AppendAllText($aot.NativeExecutable, 'changed')
+            Expect (-not (Test-NexusWindowsRuntime $aot)) 'changed AOT executable refused'
+            $partial = New-RuntimeFixture $b @('NexusWindows.exe', 'NexusWindows.dll', 'garde-fous.json')
+            Expect (-not (Test-NexusWindowsRuntime $partial)) 'assembly without its host files refused'
+            $noGuard = New-RuntimeFixture ('c' * 64) @('NexusWindows.exe')
+            Expect (-not (Test-NexusWindowsRuntime $noGuard)) 'garde-fous.json still required'
             """ },
         { "rejects a manifest executable of another version directory", """
             $runtime = New-RuntimeFixture $a; $other = New-RuntimeFixture $b

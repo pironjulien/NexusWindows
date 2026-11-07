@@ -50,6 +50,17 @@ $Asset = "NexusWindows-win-$Arch.zip"
 function Say([string]$Text, [string]$Color = 'Gray') { if (-not $Pack) { Write-Host $Text -ForegroundColor $Color } }
 function Sha256([string]$Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash }
 
+# The engine files that hold its code, from the names of an engine folder or of its recorded artifacts: the apphost and
+# NexusWindows.dll when it is framework-dependent (with .deps.json and .runtimeconfig.json, all three together), or
+# NexusWindows.exe alone once compiled ahead of time (Native AOT). Nothing for a partial or unknown set.
+function Get-NexusWindowsCodeFiles([string[]]$Names) {
+    if ($Names -notcontains 'NexusWindows.exe') { return @() }
+    $managed = @('NexusWindows.dll', 'NexusWindows.deps.json', 'NexusWindows.runtimeconfig.json' | Where-Object { $Names -contains $_ }).Count
+    if ($managed -eq 3) { return @('NexusWindows.exe', 'NexusWindows.dll') }
+    if ($managed -eq 0) { return @('NexusWindows.exe') }
+    return @()
+}
+
 function Get-LatestTag {
     # NEXUS_RELEASE_TAG (set by NexusSystem for its development channel): that release instead, a stable vX.Y.Z or a
     # development vX.Y.Z-dev.N build, checked against its own SHA256SUMS.txt like any other.
@@ -144,9 +155,13 @@ function Install-NexusWindows {
         [IO.Compression.ZipFile]::ExtractToDirectory($package, $unpacked)
         $launcher = Join-Path $unpacked 'NexusWindows.exe'
         $engine = Join-Path $unpacked 'engine'
-        foreach ($required in $launcher, (Join-Path $engine 'NexusWindows.exe'), (Join-Path $engine 'NexusWindows.dll'), (Join-Path $engine 'garde-fous.json')) {
+        foreach ($required in $launcher, (Join-Path $engine 'NexusWindows.exe'), (Join-Path $engine 'garde-fous.json')) {
             if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw 'Not a NexusWindows package.' }
         }
+        # A framework-dependent engine runs NexusWindows.dll through its apphost; a Native AOT engine is NexusWindows.exe
+        # alone. Host files without the assembly they describe are neither.
+        $codeFiles = @(Get-NexusWindowsCodeFiles @(Get-ChildItem -LiteralPath $engine -File | ForEach-Object Name))
+        if (-not $codeFiles) { throw 'Not a NexusWindows package.' }
         Get-ChildItem -LiteralPath $unpacked -Recurse -File | Unblock-File
 
         # 1. Immutable engine version (never rewritten once in place), with the hashes the launcher checks.
@@ -165,7 +180,9 @@ function Install-NexusWindows {
             [IO.Directory]::Move($staging, $target)
         }
         $runtime = Get-Content -LiteralPath (Join-Path $target 'runtime.json') -Raw | ConvertFrom-Json
-        foreach ($name in 'NexusWindows.exe', 'NexusWindows.dll') {
+        $installedCode = @(Get-NexusWindowsCodeFiles @($runtime.NativeArtifacts.PSObject.Properties | ForEach-Object Name))
+        if (-not $installedCode) { throw "Installed engine $target lists an incomplete set of files: delete it and run this again." }
+        foreach ($name in $installedCode) {
             if ((Sha256 (Join-Path $target $name)) -ne $runtime.NativeArtifacts.$name) { throw "Installed engine file $name was altered: delete $target and run this again." }
         }
         # Profile refresh uses the immutable package's plugin assets. Validate those too against this verified ZIP;

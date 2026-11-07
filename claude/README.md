@@ -1,6 +1,6 @@
 # NexusWindows for Claude
 
-<!-- mcp-name: io.github.pironjulien/nexus-windows-claude -->
+<!-- mcp-name: io.github.pironjulien/nexus-windows -->
 
 <img src="https://raw.githubusercontent.com/pironjulien/NexusWindows/main/claude/mcpb/icon.png" alt="NexusWindows icon" width="96">
 
@@ -15,7 +15,7 @@
 
 ![NexusWindows: an AI agent fills and submits a form in a window that stays behind another one, then reports five verified steps](https://raw.githubusercontent.com/pironjulien/NexusWindows/main/claude/docs/assets/demo.webp)
 
-**Windows computer use for Claude, in the background.** An MCP server (`nexus-windows-claude`) that lets Claude Desktop
+**Windows computer use for Claude, in the background.** An MCP server (`nexus-windows`, its plugin name in the NexusSystem catalog) that lets Claude Desktop
 and Claude Code see and operate Windows desktop applications while the user keeps their mouse, keyboard and
 foreground window.
 

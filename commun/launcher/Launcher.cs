@@ -79,8 +79,13 @@ static partial class Launcher
             throw new InvalidDataException("installation.json names an engine outside its versioned folder.");
         if (!root.TryGetProperty("NativeArtifacts", out var artifacts) || artifacts.ValueKind != JsonValueKind.Object)
             throw new InvalidDataException("installation.json lists no engine files.");
-        // The files that run code are checked against their recorded SHA-256 at every start (a few milliseconds).
-        foreach (var name in new[] { "NexusWindows.exe", "NexusWindows.dll" })
+        // The files that run code are checked against their recorded SHA-256 at every start (a few milliseconds): the
+        // apphost and NexusWindows.dll of a framework-dependent engine (recorded with its .deps.json and
+        // .runtimeconfig.json), or NexusWindows.exe alone once compiled ahead of time (Native AOT).
+        var managed = ManagedFiles.Count(name => artifacts.TryGetProperty(name, out _));
+        if (managed is not (0 or 3))
+            throw new InvalidDataException("installation.json lists an incomplete engine (assembly and host files go together).");
+        foreach (var name in managed == 0 ? new[] { "NexusWindows.exe" } : new[] { "NexusWindows.exe", "NexusWindows.dll" })
         {
             if (!artifacts.TryGetProperty(name, out var expected) || expected.ValueKind != JsonValueKind.String)
                 throw new InvalidDataException($"installation.json has no hash for {name}.");
@@ -109,6 +114,7 @@ static partial class Launcher
         return job;
     }
 
+    static readonly string[] ManagedFiles = ["NexusWindows.dll", "NexusWindows.deps.json", "NexusWindows.runtimeconfig.json"];
     [GeneratedRegex("^[a-f0-9]{64}$")] private static partial Regex Sha256Pattern();
 
     sealed class SafeJobHandle() : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid(true)

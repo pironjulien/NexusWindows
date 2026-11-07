@@ -1,6 +1,6 @@
 # NexusWindows for Antigravity
 
-<!-- mcp-name: io.github.pironjulien/nexus-windows-antigravity -->
+<!-- mcp-name: io.github.pironjulien/nexus-windows -->
 
 <img src="https://raw.githubusercontent.com/pironjulien/NexusWindows/main/plugin/antigravity/logo.png" alt="NexusWindows icon" width="96">
 
@@ -15,7 +15,7 @@
 
 ![NexusWindows for Antigravity: an AI agent fills and submits a form through act in a window that stays behind another one, five steps read back](https://raw.githubusercontent.com/pironjulien/NexusWindows/main/agy/docs/assets/demo.webp)
 
-**Windows computer use for Antigravity, in the background.** An MCP server (`nexus-windows-antigravity`) that lets Google
+**Windows computer use for Antigravity, in the background.** An MCP server (`nexus-windows`, its plugin name in the NexusSystem catalog) that lets Google
 Antigravity (Gemini) see and operate Windows desktop applications while the user keeps their mouse, keyboard and
 foreground window. Built for a fast model: one look, then one batch of steps with label targets, and every reply
 says what to do next.

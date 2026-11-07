@@ -23,7 +23,11 @@ function Test-NexusWindowsRuntime($Manifest) {
     $expected = Join-Path $nexusWindowsRuntimeHome "native\$($Manifest.NativeHash)\NexusWindows.exe"
     if ([IO.Path]::GetFullPath($Manifest.NativeExecutable) -ine [IO.Path]::GetFullPath($expected)) { return $false }
     $artifacts = $Manifest.NativeArtifacts
-    foreach ($required in 'NexusWindows.exe','NexusWindows.dll','NexusWindows.deps.json','NexusWindows.runtimeconfig.json','garde-fous.json') { if ($null -eq $artifacts.$required) { return $false } }
+    # Two engine layouts: framework-dependent (apphost NexusWindows.exe + NexusWindows.dll, .deps.json, .runtimeconfig.json,
+    # all three together) or Native AOT (NexusWindows.exe alone holds the code). A partial set is neither.
+    $managed = @('NexusWindows.dll','NexusWindows.deps.json','NexusWindows.runtimeconfig.json' | Where-Object { $null -ne $artifacts.$_ }).Count
+    if ($managed -notin 0, 3) { return $false }
+    foreach ($required in 'NexusWindows.exe','garde-fous.json') { if ($null -eq $artifacts.$required) { return $false } }
     foreach ($artifact in $artifacts.PSObject.Properties) {
         if ($artifact.Name -in '.','..' -or $artifact.Name.IndexOfAny([char[]]'/\') -ge 0 -or $artifact.Value -cnotmatch '^[A-Fa-f0-9]{64}$') { return $false }
         $path = Join-Path (Split-Path -Parent $expected) $artifact.Name

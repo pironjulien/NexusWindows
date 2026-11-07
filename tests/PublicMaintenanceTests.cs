@@ -8,8 +8,12 @@ namespace NexusWindows.Tests;
 [Collection("Engine")]
 public sealed class PublicMaintenanceTests
 {
-    [Fact]
-    public async Task UpdateOnly_installs_an_engine_and_preserves_all_client_files_byte_for_byte()
+    // Both engine layouts: framework-dependent (NexusWindows.dll with its .deps.json and .runtimeconfig.json) and a
+    // single-file Native AOT NexusWindows.exe. The host here is the test engine (NexusWindows.Engine.*, other names).
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateOnly_installs_an_engine_and_preserves_all_client_files_byte_for_byte(bool nativeAot)
     {
         var root = Path.Combine(TestEnvironment.SharedHome, "maintenance-" + Guid.NewGuid().ToString("N"));
         var profile = Path.Combine(root, "profile");
@@ -41,10 +45,13 @@ public sealed class PublicMaintenanceTests
         Directory.CreateDirectory(Path.Combine(packageRoot, "engine"));
         File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), Path.Combine(packageRoot, "NexusWindows.exe"));
         File.Copy(SelfTest.Engine, Path.Combine(packageRoot, "engine", "NexusWindows.exe"));
-        // The engine host runs its assembly (the update's --prune-installed); the published NexusWindows.dll stays a fixture.
+        // The engine host runs its assembly (the update's --prune-installed); the published NexusWindows.dll and its host
+        // files stay fixtures.
         foreach (var file in new[] { "NexusWindows.Engine.dll", "NexusWindows.Engine.runtimeconfig.json", "NexusWindows.Engine.deps.json" })
             File.Copy(Path.Combine(AppContext.BaseDirectory, file), Path.Combine(packageRoot, "engine", file));
-        File.WriteAllText(Path.Combine(packageRoot, "engine", "NexusWindows.dll"), "fixture dll never executed");
+        if (!nativeAot)
+            foreach (var file in new[] { "NexusWindows.dll", "NexusWindows.deps.json", "NexusWindows.runtimeconfig.json" })
+                File.WriteAllText(Path.Combine(packageRoot, "engine", file), "fixture never executed");
         File.WriteAllText(Path.Combine(packageRoot, "engine", "garde-fous.json"), "{}");
         var zip = Path.Combine(root, "package.zip");
         ZipFile.CreateFromDirectory(packageRoot, zip);
@@ -67,6 +74,7 @@ public sealed class PublicMaintenanceTests
         var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(home, "installation.json")))!;
         Assert.Equal(2, manifest["Schema"].I());
         Assert.True(File.Exists(manifest["NativeExecutable"].S()));
+        Assert.Equal(!nativeAot, manifest["NativeArtifacts"]!.AsObject().ContainsKey("NexusWindows.dll"));
         Assert.False(Directory.Exists(earlier), await output);
         Assert.Empty(Directory.GetFiles(home, "NexusWindows.exe.old-*"));
         Assert.Single(Directory.GetDirectories(Path.Combine(home, "native")));
