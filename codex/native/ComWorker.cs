@@ -27,7 +27,7 @@ static partial class ComWorker
             // Le point d'envoi fait foi, quelle que soit la nature de l'exception : une lecture prealable peut echouer
             // sans entree ; inversement une ancienne marque Data ne doit jamais effacer un appel deja transmis.
             catch (Exception error) { result = Failure(error); }
-            Console.WriteLine(JsonSerializer.Serialize(result));
+            Console.WriteLine(EngineJson.Serialize(result));
             Console.Out.Flush();
         }
         return 0;
@@ -56,7 +56,7 @@ static partial class ComWorker
         if (op == "resumeStore") return ResumeStore(window, request);
         if (op == "scrollAt") return ScrollAt(window, request);
         if (op == "menuPath") return MenuPath(window, request);
-        if (op == "flush") { var publication = ComUia.Shared.Flush(window); return new { ok = true, technique = Uia, mechanism = "ScrollIntoView (document)", effect = publication == "requested" ? "sent" : "none", publication }; }
+        if (op == "flush") { var publication = ComUia.Shared.Flush(window); return new ComWorkerExecuteJson(ok: true, technique: Uia, mechanism: "ScrollIntoView (document)", effect: publication == "requested" ? "sent" : "none", publication: publication); }
         if (op is "takeFocus" or "hasFocus" && request.TryGetProperty("expectedWindowBirth", out _)) RequireBoundChromiumWindow(window, request);
         var runtimeId = request.GetProperty("runtimeId").EnumerateArray().Select(e => e.GetInt32()).ToArray();
         string Text(string key) => request.TryGetProperty(key, out var v) ? v.GetString() ?? "" : "";
@@ -97,7 +97,7 @@ static partial class ComWorker
                 "selectOption" => SelectOption(element, Text("option"), request.TryGetProperty("combo", out var c) && c.GetBoolean()),
                 _ => throw new InvalidOperationException("Unknown COM worker operation"),
             };
-            return new { ok = true, technique = outcome.Technique, mechanism = outcome.Mechanism, effect = outcome.Effect };
+            return new ProgramKeyActionJson(ok: true, technique: outcome.Technique, mechanism: outcome.Mechanism, effect: outcome.Effect);
         }
         finally { ComUia.Release(element); }
     }
@@ -140,7 +140,7 @@ static partial class ComWorker
     // exposes est deplie (ExpandCollapse) ; la commande finale par UIA Invoke. Element absent, homonyme, lecture
     // incomplete ou sans Invoke : non applicable, rien n'est invoque, et les sous-menus deplies par nous sont replies et
     // leur fermeture RELUE ; une fermeture non prouvee est une issue inconnue (relecture de Codex du 22/10).
-    static object MenuPath(nint window, JsonElement request)
+    static ProgramKeyActionJson MenuPath(nint window, JsonElement request)
     {
         var segments = request.GetProperty("path").EnumerateArray()
             .Select(p => (Name: p.GetProperty("name").GetString() ?? "", AutomationId: p.TryGetProperty("automationId", out var a) ? a.GetString() : null)).ToArray();
@@ -177,7 +177,7 @@ static partial class ComWorker
             }
             var outcome = WithPattern(scope, ComUia.InvokePatternId, p => { BeforeAct(); invoked = true; ComUia.CallSlot(p, 3); return new Outcome(Uia, "Invoke (menu path)", "sent"); },
                 () => throw new BackgroundNotApplicableException("No background technique applies: the menu command has no Invoke"));
-            return new { ok = true, technique = outcome.Technique, mechanism = outcome.Mechanism, effect = outcome.Effect };
+            return new ProgramKeyActionJson(ok: true, technique: outcome.Technique, mechanism: outcome.Mechanism, effect: outcome.Effect);
         }
         finally
         {
@@ -222,7 +222,7 @@ static partial class ComWorker
             }
             catch (InvalidOperationException error) { results.Add(error.Message); }
         }
-        Console.WriteLine(JsonSerializer.Serialize(results));
+        Console.WriteLine(EngineJson.Serialize(results));
         return 0;
     }
 
@@ -232,7 +232,7 @@ static partial class ComWorker
     // 1 s : changee = « applied », inchangee = « sent » (jamais une seconde technique). Deja a l'extremite REELLE (0 ou
     // 100 %) : rien n'est envoye (« none »). Tout echec a partir du premier pas : issue inconnue. Ce n'est pas un
     // evenement de molette : un canevas sans ScrollPattern reste non applicable.
-    static object ScrollAt(nint window, JsonElement request)
+    static ProgramKeyActionJson ScrollAt(nint window, JsonElement request)
     {
         int Int(string key) => request.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
         var (x, y, deltaY, deltaX) = (Int("x"), Int("y"), Int("deltaY"), Int("deltaX"));
@@ -246,7 +246,7 @@ static partial class ComWorker
             var slot = plan.Vertical ? 6 : 5; // get_CurrentVertical/HorizontalScrollPercent
             var before = ComUia.ReadDouble(pattern, slot);
             if (plan.AtEnd(before))
-                return new { ok = true, technique = Uia, mechanism = $"ScrollPattern: already at the end ({before} %)", effect = "none" };
+                return new ProgramKeyActionJson(ok: true, technique: Uia, mechanism: $"ScrollPattern: already at the end ({before} %)", effect: "none");
             EmergencyStop.ThrowIfStopped();
             try
             {
@@ -263,7 +263,7 @@ static partial class ComWorker
                     if (after != before) break;
                     Thread.Sleep(50);
                 }
-                return new { ok = true, technique = Uia, mechanism = $"ScrollPattern {plan.Notches}x ({before:0.##} % -> {after:0.##} %)", effect = after != before ? "applied" : "sent" };
+                return new ProgramKeyActionJson(ok: true, technique: Uia, mechanism: $"ScrollPattern {plan.Notches}x ({before:0.##} % -> {after:0.##} %)", effect: after != before ? "applied" : "sent");
             }
             catch (Exception error)
             {
@@ -341,9 +341,9 @@ static partial class ComWorker
                 if (state == "lost") throw new COMException("Provider response lost after input");
                 return new Outcome(Uia, name, state);
             });
-            return new { order, calls, sent, effect = outcome.Effect, beforeInput = !Acted };
+            return new ComWorkerClickSelfTestJson(order: order, calls: calls, sent: sent, effect: outcome.Effect, beforeInput: !Acted);
         }
-        catch (Exception e) { var failure = Failure(e); return new { order, calls, sent, error = failure.error, beforeInput = failure.beforeInput }; }
+        catch (Exception e) { var failure = Failure(e); return new ComWorkerClickSelfTestJson2(order: order, calls: calls, sent: sent, error: failure.error, beforeInput: failure.beforeInput); }
     }
     static Outcome SetValue(nint element, string value) => WithPattern(element, ComUia.ValuePatternId, pattern =>
     {
@@ -424,8 +424,8 @@ static partial class ComWorker
                     catch (Exception preparation) { mapped = preparation; }
                 }
                 else mapped = ComBridge.ReplyError(reply.error, reply.message, reply.beforeInput);
-                results.Add(new { workerBeforeInput = reply.beforeInput, error = mapped.GetType().Name,
-                    beforeInput = mapped.Data["beforeInput"] is true });
+                results.Add(new ComWorkerExpandSelfTestJson(workerBeforeInput: reply.beforeInput, error: mapped.GetType().Name,
+                    beforeInput: mapped.Data["beforeInput"] is true));
                 continue;
             }
             if (c.TryGetProperty("hresult", out var hr)) { results.Add(IsRefusal(unchecked((int)hr.GetUInt32())) ? "refusal" : "unknown"); continue; }
@@ -464,18 +464,18 @@ static partial class ComWorker
                             Acted = true; invoked++;
                             return new Outcome(Uia, "Invoke", "sent");
                         });
-                    results.Add(new { effect = outcome.Effect, expandCalls = expanded, invokeCalls = invoked });
+                    results.Add(new ComWorkerExpandSelfTestJson2(effect: outcome.Effect, expandCalls: expanded, invokeCalls: invoked));
                 }
                 catch (Exception error)
                 {
-                    results.Add(new { error = error.GetType().Name, beforeInput = error.Data["beforeInput"] is true,
-                        expandCalls = expanded, invokeCalls = invoked });
+                    results.Add(new ComWorkerExpandSelfTestJson3(error: error.GetType().Name, beforeInput: error.Data["beforeInput"] is true,
+                        expandCalls: expanded, invokeCalls: invoked));
                 }
                 continue;
             }
             results.Add(EffectAfterCall(c.GetProperty("reached").GetBoolean()));
         }
-        Console.WriteLine(JsonSerializer.Serialize(results));
+        Console.WriteLine(EngineJson.Serialize(results));
         return 0;
     }
 
@@ -618,7 +618,7 @@ static partial class ComBridge
         // Demarrage, Job Object et serialisation precedent toute ecriture de requete : leurs echecs ne consomment
         // aucune entree. Une erreur de WriteLine/Flush, en revanche, peut suivre un envoi partiel : jamais reclassee.
         var process = BeforeRequest(() => child is { HasExited: false } ? child : Start());
-        var requestLine = BeforeRequest(() => JsonSerializer.Serialize(request));
+        var requestLine = BeforeRequest(() => EngineJson.Serialize(request));
         string? line;
         try
         {

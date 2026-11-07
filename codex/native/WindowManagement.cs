@@ -94,7 +94,7 @@ static partial class WindowManagement
         try { return ActInPixels(hwnd, request, started); }
         finally { if (previousDpi != 0) Win32.SetThreadDpiAwarenessContext(previousDpi); }
     }
-    static object ActInPixels(nint hwnd, JsonElement request, Action started)
+    static WindowManagementResultJson ActInPixels(nint hwnd, JsonElement request, Action started)
     {
         var plan = Prepare(request);
         var before = Read(hwnd);
@@ -136,15 +136,14 @@ static partial class WindowManagement
         }
         return Result(plan, before, now, Reached(plan, before, now), false);
     }
-    static object Result(Plan plan, State before, State now, bool reached, bool already) => new
-    {
-        ok = true, action = plan.Action, status = already ? "already-satisfied" : reached ? "verified" : "sent-unconfirmed",
-        verified = reached, performed = !already, state = now.Minimized ? "minimized" : now.Maximized ? "maximized" : now.Visible ? "open" : "hidden",
-        bounds = new { left = now.Left, top = now.Top, width = now.Width, height = now.Height },
-        visible = now.Visible, minimized = now.Minimized, maximized = now.Maximized, foreground = now.Foreground, bottom = now.Bottom,
-        technique = "background:win32", mechanism = plan.Action == "front" ? "SetForegroundWindow" : "window placement",
-        foregroundTaken = !before.Foreground && now.Foreground,
-    };
+    static WindowManagementResultJson Result(Plan plan, State before, State now, bool reached, bool already) => new WindowManagementResultJson(
+        ok: true, action: plan.Action, status: already ? "already-satisfied" : reached ? "verified" : "sent-unconfirmed",
+        verified: reached, performed: !already, state: now.Minimized ? "minimized" : now.Maximized ? "maximized" : now.Visible ? "open" : "hidden",
+        bounds: new CaptureWindowJson2(left: now.Left, top: now.Top, width: now.Width, height: now.Height),
+        visible: now.Visible, minimized: now.Minimized, maximized: now.Maximized, foreground: now.Foreground, bottom: now.Bottom,
+        technique: "background:win32", mechanism: plan.Action == "front" ? "SetForegroundWindow" : "window placement",
+        foregroundTaken: !before.Foreground && now.Foreground
+    );
 
     public static int SelfTest()
     {
@@ -157,18 +156,18 @@ static partial class WindowManagement
                 if (item.TryGetProperty("chain", out var chain))
                 {
                     var links = chain.EnumerateObject().ToDictionary(e => (nint)long.Parse(e.Name, System.Globalization.CultureInfo.InvariantCulture), e => (nint)e.Value.GetInt64());
-                    answers.Add(new { bottom = AtApplicationBottom((nint)item.GetProperty("target").GetInt64(),
+                    answers.Add(new WindowManagementSelfTestJson(bottom: AtApplicationBottom((nint)item.GetProperty("target").GetInt64(),
                         h => links.TryGetValue(h, out var next) ? next : 0,
-                        (nint)item.GetProperty("shell").GetInt64(), (nint)item.GetProperty("desktop").GetInt64()) });
+                        (nint)item.GetProperty("shell").GetInt64(), (nint)item.GetProperty("desktop").GetInt64())));
                     continue;
                 }
                 var plan = Prepare(item.GetProperty("request"));
-                State StateOf(string key) => JsonSerializer.Deserialize<State>(item.GetProperty(key), CaseInsensitive);
-                answers.Add(new { reached = Reached(plan, StateOf("before"), StateOf("after")) });
+                State StateOf(string key) => EngineJson.Deserialize<State>(item.GetProperty(key), CaseInsensitive);
+                answers.Add(new WindowManagementSelfTestJson2(reached: Reached(plan, StateOf("before"), StateOf("after"))));
             }
-            catch (Exception error) { answers.Add(new { error = error.Message }); }
+            catch (Exception error) { answers.Add(new CdpSurfaceSelfTestJson2(error: error.Message)); }
         }
-        Console.WriteLine(JsonSerializer.Serialize(answers));
+        Console.WriteLine(EngineJson.Serialize(answers));
         return 0;
     }
 }

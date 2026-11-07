@@ -90,7 +90,7 @@ static unsafe partial class StorePackages
         Assert(!HiddenKind("Windows.UI.Core.CoreWindow", true, true, "DesktopWindowXamlSource", "App"), "Xaml island excluded");
         Assert(!HiddenKind("Chrome_WidgetWin_1", true, true, "App", "App"), "Other cloaked windows excluded");
         Assert(!HiddenKind("Windows.UI.Core.CoreWindow", false, true, "App", "App"), "Unshown transient windows excluded");
-        Console.WriteLine(JsonSerializer.Serialize(new { ok = true, checks })); return 0;
+        Console.WriteLine(EngineJson.Serialize(new ComWorkerVirtualizationSelfTestJson(ok: true, checks: checks))); return 0;
     }
 }
 
@@ -117,7 +117,7 @@ static partial class Program
         }, 0);
         return candidates.Count == 1 ? candidates.Single() : 0;
     }
-    sealed record StoreResume(bool Requested, string Status, int? StateAfter = null);
+    internal sealed record StoreResume(bool Requested, string Status, int? StateAfter = null);
     static StoreResume ResumeStoreIfNeeded(nint window, int contentPid, string expectedApp)
     {
         var package = StorePackages.FullName(contentPid);
@@ -132,8 +132,8 @@ static partial class Program
         InputStarted = true; // A transport loss can follow Resume; never pretend it was only a query.
         try
         {
-            var result = ComBridge.CallData(new { op = "resumeStore", windowId = (long)window, expectedWindowPid = pid,
-                expectedWindowBirth = birth, contentPid, expectedContentBirth = contentBirth, expectedApp, package });
+            var result = ComBridge.CallData(new ProgramResumeStoreIfNeededJson(op: "resumeStore", windowId: (long)window, expectedWindowPid: pid,
+                expectedWindowBirth: birth, contentPid: contentPid, expectedContentBirth: contentBirth, expectedApp: expectedApp, package: package));
             InputStarted = result.GetProperty("inputSent").GetBoolean();
             return new(result.GetProperty("requested").GetBoolean(), "queried", result.GetProperty("stateAfter").GetInt32());
         }
@@ -158,7 +158,7 @@ static partial class Program
 
 static partial class ComWorker
 {
-    static object ResumeStore(nint window, JsonElement request)
+    static ComWorkerResumeStoreJson ResumeStore(nint window, JsonElement request)
     {
         var content = request.GetProperty("contentPid").GetInt32();
         var package = request.GetProperty("package").GetString() ?? "";
@@ -172,7 +172,7 @@ static partial class ComWorker
         }
         using var settings = new StorePackages.Settings();
         var result = StorePackages.ResumeSuspended(() => settings.State(package), () => { BeforeAct(); settings.Resume(package); }, Validate);
-        return new { ok = true, requested = result.Requested, stateBefore = result.Before, stateAfter = result.After,
-            inputSent = Acted, technique = "background:package", mechanism = "IPackageDebugSettings.Resume", effect = Acted ? "sent" : "none" };
+        return new ComWorkerResumeStoreJson(ok: true, requested: result.Requested, stateBefore: result.Before, stateAfter: result.After,
+            inputSent: Acted, technique: "background:package", mechanism: "IPackageDebugSettings.Resume", effect: Acted ? "sent" : "none");
     }
 }

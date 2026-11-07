@@ -54,6 +54,21 @@ and npm (`nexus-windows-codex`).
   binder and runtime callable wrappers, and enumerates windows through an `UnmanagedCallersOnly` callback instead of
   a marshalled delegate (an exception in the callback stops the enumeration and is rethrown, as before). Both are
   trimming and Native AOT compatible; xUnit reads the real AppsFolder, shell windows and desktop broker.
+- The engine's JSON is source-generated (`EngineJsonContext`, metadata mode) instead of reflection-based: its 165
+  anonymous objects are named records (`JsonShapes.cs`) with the same property names, order and types, and every
+  `JsonSerializer` call and `JsonArray` element goes through `EngineJson`, which keeps each caller's options (naming,
+  encoder, indentation, case-insensitive reading). The serialized documents are unchanged.
+- The last four runtime-marshalled Win32 calls (window class registration of the activity indicator and of the
+  presence window, process snapshot) are blittable and source-generated: `UnmanagedCallersOnly` window procedures
+  and an inline character buffer instead of a delegate and a `ByValTStr` string. `RuntimeReceipt` finds the engine's
+  code file without `Assembly.Location`.
+- The engine builds with `IsAotCompatible`: the trimming, single-file and Native AOT analyzers run in every build
+  (warnings as errors) and report nothing. Measured on win-x64: the self-contained engine is 78.2 MB in 193 files
+  and answers `initialize` and `tools/list` in about 125 ms; trimmed with ReadyToRun, 36 MB in 63 files and about
+  160 ms; Native AOT, 13.5 MB in one executable and about 50 to 60 ms, with the MCP stdio, launcher, process and
+  table tests passing against it. Releases still publish the self-contained engine: `get.ps1`,
+  `commun/native-runtime.ps1` and NexusSystem's runtime checks require `NexusWindows.dll`, its `deps.json` and
+  `runtimeconfig.json`, and the desktop tests (`test.ps1 -Full`) have not run on it yet.
 - CodeQL runs from a workflow file (`.github/workflows/codeql.yml`, `actions` and `csharp`, default queries, actions
   pinned by commit) instead of the repository's default setup, so OpenSSF Scorecard credits the SAST check for
   commits pushed without pull requests.

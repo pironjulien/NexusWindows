@@ -36,7 +36,7 @@ static partial class McpServer
                 if (action == "double_click") step["count"] = 2;
                 if (action == "right_click") step["button"] = "right";
                 if (kind == "scroll") { step["scrollY"] ??= -Number(step, "delta_y"); step["scrollX"] ??= Number(step, "delta_x"); step.Remove("delta_y"); step.Remove("delta_x"); }
-                steps.Add(step);
+                steps.Add(EngineJson.Node(step));
             }
             steps = Routines.PrepareRoutineSteps(steps);
             if (!DateTimeOffset.TryParse(Str(old, "saved"), out _)) throw new InvalidDataException("Invalid legacy saved date");
@@ -76,7 +76,7 @@ static partial class McpServer
                     imported += memory.Import(data, fromMirror: candidate.Mirror); memory.Sync();
                 }
             }
-            report.Add(new JsonObject { ["agent"] = agent, ["imported"] = imported, ["checkedLocations"] = new JsonArray(candidates.Select(s => (JsonNode)JsonValue.Create(s.Directory)!).ToArray()) });
+            report.Add(EngineJson.Node(new JsonObject { ["agent"] = agent, ["imported"] = imported, ["checkedLocations"] = new JsonArray(candidates.Select(s => (JsonNode)JsonValue.Create(s.Directory)!).ToArray()) }));
         }
         Console.WriteLine(report.ToJsonString()); return 0;
     }

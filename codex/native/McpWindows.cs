@@ -86,7 +86,7 @@ static partial class McpServer
         {
             request["action"] = action;
             foreach (var key in new[] { "x", "y", "width", "height", "foreground" }) if (args[key] != null) request[key] = args[key]!.DeepClone();
-            WindowManagement.Prepare(JsonSerializer.SerializeToElement(request)); // Reject malformed commands before waiting or taking a token.
+            WindowManagement.Prepare(EngineJson.SerializeToElement(request)); // Reject malformed commands before waiting or taking a token.
         }
         void CheckIdentity()
         {
@@ -121,7 +121,7 @@ static partial class McpServer
                 : ForegroundReturn.GiveBack(noted, (nint)target.Id);
         }
         outcome["foregroundReturned"] = returned;
-        return JsonSerializer.SerializeToElement(outcome);
+        return EngineJson.SerializeToElement(outcome);
     }
     static int WindowToolCompatibilitySelfTest()
     {

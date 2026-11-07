@@ -26,7 +26,7 @@ static partial class Program
     static readonly HashSet<string> EditClasses = new(StringComparer.Ordinal) { "edit", "richedit", "richedit20a", "richedit20w", "richedit50w", "richeditd2dpt" };
     const string Messages = "background:messages", Uia = "background:uia";
 
-    static object RunAction(string op, string mode, Node target, List<Node> nodes, nint window, JsonElement request)
+    static ProgramRunActionJson RunAction(string op, string mode, Node target, List<Node> nodes, nint window, JsonElement request)
     {
         InputStarted = true; // au-dela, toute erreur peut suivre une entree : resultat inconnu
         var before = Win32.Probe();
@@ -45,15 +45,14 @@ static partial class Program
         var targetPid = Win32.ProcessOf(window);
         var taken = takenUnderToken ?? (after.Foreground != before.Foreground && after.Foreground != 0 && Win32.ProcessOf(after.Foreground) == targetPid);
         if (mode != "foreground" && op == "click" && ChromiumInput.IsChromium(window)) WatchOpenedDialog(window, before.Foreground, before.LastInput);
-        return new
-        {
-            ok = true, technique = outcome.Technique, mechanism = outcome.Mechanism, effect = outcome.Effect,
-            foregroundTaken = taken, foregroundReturned = giveBack,
-            cursorMoved = before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
+        return new ProgramRunActionJson(
+            ok: true, technique: outcome.Technique, mechanism: outcome.Mechanism, effect: outcome.Effect,
+            foregroundTaken: taken, foregroundReturned: giveBack,
+            cursorMoved: before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
             // Toute entree (de Julien ou injectee) pendant l'action : les techniques d'arriere-plan n'en injectent aucune.
-            inputDuringAction = before.LastInput != after.LastInput,
-            foreground = new { before = (long)before.Foreground, after = (long)after.Foreground },
-        };
+            inputDuringAction: before.LastInput != after.LastInput,
+            foreground: new ProgramRunActionJson2(before: (long)before.Foreground, after: (long)after.Foreground)
+        );
     }
 
     // A click in a Chromium page that opens a window of its own (the Windows Open dialog of a file field, 05/11): Chrome's
@@ -115,7 +114,7 @@ static partial class Program
         InputStarted = true; // l'appel UIA peut agir
         try
         {
-            return FirstCall(() => ComBridge.Call(new { op = call, windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow })) with { Technique = "foreground:uia" };
+            return FirstCall(() => ComBridge.Call(new ProgramForegroundActionJson(op: call, windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow))) with { Technique = "foreground:uia" };
         }
         finally
         {
@@ -220,7 +219,7 @@ static partial class Program
                 if (target.Role == "listitem" && AncestorNode(target, nodes, "combobox") is { } container)
                 {
                     // Option d'une liste deroulante UIA ouverte : choisie, puis la liste refermee.
-                    return FirstCall(() => ComBridge.Call(new { op = "selectItem", windowId = (long)window, runtimeId = target.RuntimeId, containerRuntimeId = container.RuntimeId }));
+                    return FirstCall(() => ComBridge.Call(new ProgramBackgroundActionJson(op: "selectItem", windowId: (long)window, runtimeId: target.RuntimeId, containerRuntimeId: container.RuntimeId)));
                 }
                 return UiaClick(window, target, invoke: true, select: framework != "WinForm");
             case "setValue":
@@ -239,11 +238,11 @@ static partial class Program
                     return replaceText ? UiaSetValue(window, target, Text(request, "text")) : UiaAppendValue(window, target, nodes, Text(request, "text"));
                 throw NothingSent("Background typing needs a native Edit control");
             case "focus":
-                return FirstCall(() => ComBridge.Call(new { op = "takeFocus", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow }));
+                return FirstCall(() => ComBridge.Call(new ProgramForegroundActionJson(op: "takeFocus", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow)));
             case "secondary":
             {
                 var action = Text(request, "action");
-                if (action == "ScrollIntoView") return FirstCall(() => ComBridge.Call(new { op = "scrollIntoView", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow }));
+                if (action == "ScrollIntoView") return FirstCall(() => ComBridge.Call(new ProgramForegroundActionJson(op: "scrollIntoView", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow)));
                 if (classic && cls == "combobox") return ComboDropDown(own, action);
                 return UiaExpandCollapse(window, target, action);
             }
@@ -253,7 +252,7 @@ static partial class Program
                 if (classic && cls == "combobox") return ComboSelect(own, option);
                 if (classic && cls == "listbox") return ListBoxSelect(own, option);
                 if (classic) throw NothingSent("Classic list without a message technique: UIA Select would be silent");
-                return FirstCall(() => ComBridge.Call(new { op = "selectOption", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow, option, combo = target.Role == "combobox" }));
+                return FirstCall(() => ComBridge.Call(new ProgramBackgroundActionJson2(op: "selectOption", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow, option: option, combo: target.Role == "combobox")));
             }
             default: throw new InvalidOperationException("Unknown native operation");
         }
@@ -455,28 +454,27 @@ static partial class Program
     // Menu Win32 (HMENU) de la fenetre : la commande est postee comme un choix de menu (WM_COMMAND).
     // Element de menu WinForms designe par son chemin (elements de menu ancetres puis lui, noms et identifiants
     // d'automatisation observes), dans la fenetre liee (barre de menus ou menu contextuel ouvert), invoque par UIA.
-    static object MenuItemByPath(nint window, (string Name, string? AutomationId)[] path) => MenuByNames(window, path);
+    static ProgramMenuByNamesJson4 MenuItemByPath(nint window, (string Name, string? AutomationId)[] path) => MenuByNames(window, path);
 
     // Menu WinForms (MenuStrip, ContextMenuStrip) par les noms de son chemin, commande par UIA Invoke (ComWorker.MenuPath).
-    static object MenuByNames(nint window, (string Name, string? AutomationId)[] segments)
+    static ProgramMenuByNamesJson4 MenuByNames(nint window, (string Name, string? AutomationId)[] segments)
     {
-        var names = segments.Select(s => s.AutomationId is { Length: > 0 } id ? (object)new { name = s.Name, automationId = id } : new { name = s.Name }).ToArray();
+        var names = segments.Select(s => s.AutomationId is { Length: > 0 } id ? (object)new ProgramMenuByNamesJson(name: s.Name, automationId: id) : new ProgramMenuByNamesJson2(name: s.Name)).ToArray();
         var before = Win32.Probe();
         InputStarted = true;
-        var outcome = ComBridge.Call(new { op = "menuPath", windowId = (long)window, runtimeId = Array.Empty<int>(), path = names });
+        var outcome = ComBridge.Call(new ProgramMenuByNamesJson3(op: "menuPath", windowId: (long)window, runtimeId: Array.Empty<int>(), path: names));
         Thread.Sleep(30);
         var after = Win32.Probe();
-        return new
-        {
-            ok = true, technique = outcome.Technique, mechanism = outcome.Mechanism, effect = outcome.Effect,
-            foregroundTaken = after.Foreground != before.Foreground && after.Foreground != 0 && Win32.ProcessOf(after.Foreground) == Win32.ProcessOf(window),
-            cursorMoved = before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
-            inputDuringAction = before.LastInput != after.LastInput,
-            foreground = new { before = (long)before.Foreground, after = (long)after.Foreground },
-        };
+        return new ProgramMenuByNamesJson4(
+            ok: true, technique: outcome.Technique, mechanism: outcome.Mechanism, effect: outcome.Effect,
+            foregroundTaken: after.Foreground != before.Foreground && after.Foreground != 0 && Win32.ProcessOf(after.Foreground) == Win32.ProcessOf(window),
+            cursorMoved: before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
+            inputDuringAction: before.LastInput != after.LastInput,
+            foreground: new ProgramRunActionJson2(before: (long)before.Foreground, after: (long)after.Foreground)
+        );
     }
 
-    static object MenuCommand(nint window, string path)
+    static ProgramMenuByNamesJson4 MenuCommand(nint window, string path)
     {
         // Une fenetre desactivee (dialogue modal ouvert) n'accepte pas de commande : la poster contournerait la modalite.
         if (!Win32.IsWindowEnabled(window)) throw new ActionRefusedException("Window is disabled (a modal dialog may be open)");
@@ -555,14 +553,13 @@ static partial class Program
         Win32.Post(window, Win32.WM_COMMAND, (nint)(item.Id & 0xFFFF), 0);
         Thread.Sleep(30);
         var after = Win32.Probe();
-        return new
-        {
-            ok = true, technique = Messages, mechanism = "WM_COMMAND", effect = "sent",
-            foregroundTaken = after.Foreground != before.Foreground && after.Foreground != 0 && Win32.ProcessOf(after.Foreground) == Win32.ProcessOf(window),
-            cursorMoved = before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
-            inputDuringAction = before.LastInput != after.LastInput,
-            foreground = new { before = (long)before.Foreground, after = (long)after.Foreground },
-        };
+        return new ProgramMenuByNamesJson4(
+            ok: true, technique: Messages, mechanism: "WM_COMMAND", effect: "sent",
+            foregroundTaken: after.Foreground != before.Foreground && after.Foreground != 0 && Win32.ProcessOf(after.Foreground) == Win32.ProcessOf(window),
+            cursorMoved: before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
+            inputDuringAction: before.LastInput != after.LastInput,
+            foreground: new ProgramRunActionJson2(before: (long)before.Foreground, after: (long)after.Foreground)
+        );
     }
 
     // Apres un geste poste : une application peut s'activer elle-meme en le traitant (Electron sur un clic, WinForms sur
@@ -611,7 +608,7 @@ static partial class Program
     }
 
     // Clic ou molette a un point d'une capture native (Pointer.cs) : meme compte rendu que les autres actions.
-    static object PointAction(nint window, JsonElement request)
+    static ProgramPointActionJson PointAction(nint window, JsonElement request)
     {
         int Int(string key) => request.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
         var frame = request.TryGetProperty("frame", out var f) && f.ValueKind == JsonValueKind.Array ? f.EnumerateArray().Select(e => e.GetInt32()).ToArray() : [];
@@ -626,15 +623,14 @@ static partial class Program
                 Pointer.Act(window, action, Int("x"), Int("y"), frame, button,
                     Math.Max(1, Int("count")), Int("deltaY"), Int("deltaX"), () => InputStarted = true, Int("toX"), Int("toY")));
         var after = Win32.Probe();
-        return new
-        {
-            ok = true, technique = outcome.Technique, mechanism = outcome.Mechanism, effect = outcome.Effect,
-            foregroundTaken = taken, foregroundReturned = giveBack, trace = Pointer.LastTrace,
-            contextMenu = rightClick ? OpenedMenu(window, menusBefore) : null,
-            cursorMoved = before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
-            inputDuringAction = before.LastInput != after.LastInput,
-            foreground = new { before = (long)before.Foreground, after = (long)after.Foreground },
-        };
+        return new ProgramPointActionJson(
+            ok: true, technique: outcome.Technique, mechanism: outcome.Mechanism, effect: outcome.Effect,
+            foregroundTaken: taken, foregroundReturned: giveBack, trace: Pointer.LastTrace,
+            contextMenu: rightClick ? OpenedMenu(window, menusBefore) : null,
+            cursorMoved: before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
+            inputDuringAction: before.LastInput != after.LastInput,
+            foreground: new ProgramRunActionJson2(before: (long)before.Foreground, after: (long)after.Foreground)
+        );
     }
 
     // Menu contextuel ouvert par UN clic droit : surgissante WinForms liee a la fenetre (meme processus, role menu, meme
@@ -649,9 +645,9 @@ static partial class Program
             if (opened.Count == 1)
             {
                 var popup = opened[0];
-                return new { id = (long)popup, pid = Win32.ProcessOf(popup), owner = (long)Win32.GetWindow(popup, Win32.GW_OWNER), className = Win32.ClassName(popup) };
+                return new ProgramOpenedMenuJson(id: (long)popup, pid: Win32.ProcessOf(popup), owner: (long)Win32.GetWindow(popup, Win32.GW_OWNER), className: Win32.ClassName(popup));
             }
-            if (opened.Count > 1) return new { ambiguous = opened.Select(h => (long)h).ToArray() };
+            if (opened.Count > 1) return new ProgramOpenedMenuJson2(ambiguous: opened.Select(h => (long)h).ToArray());
             if (clock.ElapsedMilliseconds >= 1000) return null;
             Thread.Sleep(20);
         }
@@ -666,7 +662,7 @@ static partial class Program
             InputStarted = false;
             if (!McpServer.TryClaudeDevtoolsInput(window, "key", null, request, () => InputStarted = true, out var dom))
                 throw new ActionRefusedException("Registered DevTools key transport unavailable; no input sent");
-            return new { ok = true, technique = dom.Technique, mechanism = dom.Mechanism, effect = dom.Effect };
+            return new ProgramKeyActionJson(ok: true, technique: dom.Technique, mechanism: dom.Mechanism, effect: dom.Effect);
         }
         (Outcome, bool, string?, (nint Foreground, Win32.Point Cursor, uint LastInput)) Posted()
         {
@@ -681,14 +677,13 @@ static partial class Program
         }
         var (outcome, taken, giveBack, before) = Posted();
         var after = Win32.Probe();
-        return new
-        {
-            ok = true, technique = outcome.Technique, mechanism = outcome.Mechanism, effect = outcome.Effect,
-            foregroundTaken = taken, foregroundReturned = giveBack,
-            cursorMoved = before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
-            inputDuringAction = before.LastInput != after.LastInput,
-            foreground = new { before = (long)before.Foreground, after = (long)after.Foreground },
-        };
+        return new ProgramRunActionJson(
+            ok: true, technique: outcome.Technique, mechanism: outcome.Mechanism, effect: outcome.Effect,
+            foregroundTaken: taken, foregroundReturned: giveBack,
+            cursorMoved: before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
+            inputDuringAction: before.LastInput != after.LastInput,
+            foreground: new ProgramRunActionJson2(before: (long)before.Foreground, after: (long)after.Foreground)
+        );
     }
 
     // ---- UI Automation COM, AutoSetFocus = FALSE, dans le processus enfant --com-worker ----
@@ -700,7 +695,7 @@ static partial class Program
     {
         var cef = target.FrameworkId == "Chrome" && ChromiumInput.IsCefHost(window);
         var order = ClickOrder(target.Role, invoke, select, cef);
-        return FirstCall(() => ComBridge.Call(new { op = "click", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow, order }));
+        return FirstCall(() => ComBridge.Call(new ProgramUiaClickJson(op: "click", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow, order: order)));
     }
     internal static string[] ClickOrder(string role, bool invoke, bool select, bool cef)
     {
@@ -714,13 +709,13 @@ static partial class Program
         return order.Where(p => (p != "invoke" || invoke) && (p != "select" || select)).ToArray();
     }
     static Outcome UiaSetValue(nint window, Node target, string value) =>
-        FirstCall(() => ComBridge.Call(new { op = "setValue", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow, value }));
+        FirstCall(() => ComBridge.Call(new ProgramUiaSetValueJson(op: "setValue", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow, value: value)));
     static Outcome UiaExpandCollapse(nint window, Node target, string action)
     {
         if (action is not ("Expand" or "Collapse")) throw NothingSent("Only Expand and Collapse are background secondary actions");
         // Repli par Invoke d'un Expand refuse : fournisseur UI Automation propre seulement (jamais le proxy MSAA Win32/WinForms).
         var invokeFallback = target.FrameworkId is not ("Win32" or "WinForm");
-        return FirstCall(() => ComBridge.Call(new { op = "expandCollapse", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow, action, invokeFallback }));
+        return FirstCall(() => ComBridge.Call(new ProgramUiaExpandCollapseJson(op: "expandCollapse", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow, action: action, invokeFallback: invokeFallback)));
     }
     // Double clic d'un element de liste ou d'arbre (dossier ou fichier de l'Explorateur, passe 2 du 28/10 : vrai double clic
     // jusque-la) : son action par defaut, UIA Invoke (ouvrir), sans souris ni premier plan, comme NexusWindows for Claude.
@@ -731,7 +726,7 @@ static partial class Program
         if (target.FrameworkId is "Win32" or "WinForm" || ComUia.IsSynthetic(target.RuntimeId) || ChromiumInput.HasChromiumContent(window) ||
             target.Role is not ("listitem" or "treeitem" or "dataitem") || !target.HasInvoke)
             throw NothingSent("Double click: no background technique for this control (only a list or tree item with UI Automation Invoke)");
-        return FirstCall(() => ComBridge.Call(new { op = "click", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow, order = new[] { "invoke" } }))
+        return FirstCall(() => ComBridge.Call(new ProgramUiaClickJson(op: "click", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow, order: new[] { "invoke" })))
             with { Mechanism = "Invoke (double click: open)" };
     }
 }

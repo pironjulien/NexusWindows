@@ -68,11 +68,11 @@ static class MenuSearch
         try
         {
             if (root.TryGetProperty("scopeOf", out var scopeOf))
-                result = new { scope = Scope(scopeOf.GetInt64(), root.GetProperty("ancestry").EnumerateArray().ToList()) };
+                result = new MenuSearchSelfTestJson(scope: Scope(scopeOf.GetInt64(), root.GetProperty("ancestry").EnumerateArray().ToList()));
             else if (root.TryGetProperty("selector", out var selector))
             {
                 var segments = Segments(root.GetProperty("ancestry").EnumerateArray().ToList(), selector);
-                result = new { segments = segments.Select(s => new { name = s.Name, automationId = s.AutomationId }).ToArray() };
+                result = new MenuSearchSelfTestJson2(segments: segments.Select(s => new ProgramMenuByNamesJson(name: s.Name, automationId: s.AutomationId)).ToArray());
             }
             else
             {
@@ -91,11 +91,11 @@ static class MenuSearch
                     if (!found) throw new BackgroundNotApplicableException($"Menu item « {segment.GetProperty("name").GetString()} » not found at this level");
                     scope = item;
                 }
-                result = new { id = scope };
+                result = new MenuSearchSelfTestJson3(id: scope);
             }
         }
-        catch (Exception error) when (error is BackgroundNotApplicableException or ActionRefusedException) { result = new { error = error.Message }; }
-        Console.WriteLine(JsonSerializer.Serialize(result));
+        catch (Exception error) when (error is BackgroundNotApplicableException or ActionRefusedException) { result = new CdpSurfaceSelfTestJson2(error: error.Message); }
+        Console.WriteLine(EngineJson.Serialize(result));
         return 0;
     }
 }

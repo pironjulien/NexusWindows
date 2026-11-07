@@ -152,21 +152,21 @@ static partial class Program
                 var automationId = observed is { } aid ? Text(aid, "automationId") : "";
                 if (observed != null && fresh != null && role == fresh.Role && name == fresh.Name &&
                     automationId == fresh.AutomationId && runtime.SequenceEqual(fresh.RuntimeId)) continue;
-                changes.Add(new {
-                    position = i, expectedPresent = observed != null, actualPresent = fresh != null,
-                    expectedIndex = observed is { } index && index.TryGetProperty("index", out var n) && n.TryGetInt32(out var value) ? value : (int?)null,
-                    actualIndex = fresh?.Index, expectedRole = role, actualRole = fresh?.Role,
-                    expectedNameCategory = Category(name), actualNameCategory = fresh != null ? Category(fresh.Name) : null,
-                    expectedNameLength = name.Length, actualNameLength = fresh?.Name.Length, nameEqual = fresh?.Name == name,
-                    expectedRuntimeLength = runtime.Length, actualRuntimeLength = fresh?.RuntimeId.Length,
-                    runtimeEqual = fresh != null && runtime.SequenceEqual(fresh.RuntimeId), automationIdEqual = fresh?.AutomationId == automationId,
-                });
+                changes.Add(new ProgramClaudeAncestryFixtureDiagnosticJson(
+                    position: i, expectedPresent: observed != null, actualPresent: fresh != null,
+                    expectedIndex: observed is { } index && index.TryGetProperty("index", out var n) && n.TryGetInt32(out var value) ? value : (int?)null,
+                    actualIndex: fresh?.Index, expectedRole: role, actualRole: fresh?.Role,
+                    expectedNameCategory: Category(name), actualNameCategory: fresh != null ? Category(fresh.Name) : null,
+                    expectedNameLength: name.Length, actualNameLength: fresh?.Name.Length, nameEqual: fresh?.Name == name,
+                    expectedRuntimeLength: runtime.Length, actualRuntimeLength: fresh?.RuntimeId.Length,
+                    runtimeEqual: fresh != null && runtime.SequenceEqual(fresh.RuntimeId), automationIdEqual: fresh?.AutomationId == automationId
+                ));
             }
-            return new { expectedCount = expected.Count, actualCount = actual.Ancestors.Length, differences = changes };
+            return new ProgramClaudeAncestryFixtureDiagnosticJson2(expectedCount: expected.Count, actualCount: actual.Ancestors.Length, differences: changes);
         }
-        object full = fullTarget == null ? new { targetFound = false } : (object)new { targetFound = true,
-            match = SameAncestry(fullNodes, fullTarget, expected), comparison = Differences(fullNodes, fullTarget) };
+        object full = fullTarget == null ? new ProgramClaudeAncestryFixtureDiagnosticJson3(targetFound: false) : (object)new ProgramClaudeAncestryFixtureDiagnosticJson4(targetFound: true,
+            match: SameAncestry(fullNodes, fullTarget, expected), comparison: Differences(fullNodes, fullTarget));
         // Metadata only. No name, title, value, profile or complete runtime identity is printed.
-        Console.Error.WriteLine(JsonSerializer.Serialize(new { fixture = "claude-cdp-ancestry-diff", limited = Differences(limited, target), full }));
+        Console.Error.WriteLine(EngineJson.Serialize(new ProgramClaudeAncestryFixtureDiagnosticJson5(fixture: "claude-cdp-ancestry-diff", limited: Differences(limited, target), full: full)));
     }
 }

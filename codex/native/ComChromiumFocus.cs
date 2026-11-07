@@ -94,6 +94,6 @@ static partial class ComWorker
         try { WaitPublishedFocus(() => { takes++; throw new IOException("lost accSelect reply"); }, () => { reads++; return true; }, () => waits < 3, () => waits++); }
         catch (IOException error) { Check(takes == 1 && reads == 0 && waits == 0, "a lost accSelect reply is terminal without retry"); Check(!Failure(error).beforeInput, "lost reply retains its after-input classification"); }
         Acted = false;
-        return new { ok = true, checks, gui = false, inputSent = false };
+        return new ComWorkerChromiumFocusSelfTestJson(ok: true, checks: checks, gui: false, inputSent: false);
     }
 }

@@ -216,7 +216,7 @@ static class Routines
                     }
                 }
             }
-            result.Add(step);
+            result.Add(EngineJson.Node(step));
         }
         return result;
     }
@@ -318,7 +318,7 @@ static class Routines
         catch (InvalidOperationException ex) when (ex.Message.Contains("missing nom", StringComparison.Ordinal)) { caught = true; }
         Assert(caught, "missing parameter rejected");
 
-        Console.WriteLine(JsonSerializer.Serialize(new { ok = true }));
+        Console.WriteLine(EngineJson.Serialize(new JournalSelfTestJson(ok: true)));
         return 0;
     }
 }

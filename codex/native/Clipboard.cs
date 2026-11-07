@@ -85,7 +85,7 @@ static partial class Clipboard
                 for (uint i = 0, count = DragQueryFileW(drop, 0xFFFFFFFF, null, 0); i < count; i++)
                 {
                     var buffer = new char[DragQueryFileW(drop, i, null, 0) + 1];
-                    DragQueryFileW(drop, i, buffer, (uint)buffer.Length); files.Add(new string(buffer).TrimEnd('\0'));
+                    DragQueryFileW(drop, i, buffer, (uint)buffer.Length); files.Add(EngineJson.Node(new string(buffer).TrimEnd('\0')));
                 }
                 result["files"] = files;
             }

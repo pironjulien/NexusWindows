@@ -85,7 +85,7 @@ static partial class McpServer
         {
             var line = new JsonArray();
             foreach (var key in new[] { "role", "name", "automationId", "value", "checked", "selected", "expanded", "disabled", "toggled" }) line.Add(e[key]?.DeepClone());
-            if (e["bounds"] is JsonArray { Count: 4 } b) line.Add(new JsonArray(Coordinate(b[0]) - left, Coordinate(b[1]) - top, Coordinate(b[2]), Coordinate(b[3])));
+            if (e["bounds"] is JsonArray { Count: 4 } b) line.Add(EngineJson.Node(new JsonArray(Coordinate(b[0]) - left, Coordinate(b[1]) - top, Coordinate(b[2]), Coordinate(b[3]))));
             text.Append(line.ToJsonString()).Append('\n');
         }
         if (elements.Count < 6 && pixels != null) text.Append("pixels:").Append(pixels());

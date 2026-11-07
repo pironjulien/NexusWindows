@@ -315,7 +315,7 @@ static partial class Win32
         var results = input.RootElement.EnumerateArray()
             .Select(c => IsTransientPopupStyle(c.GetProperty("style").GetUInt32(), c.GetProperty("ex").GetUInt32(), c.GetProperty("cls").GetString() ?? "",
                 c.TryGetProperty("menu", out var m) && m.GetBoolean(), c.TryGetProperty("linked", out var l) && l.GetBoolean())).ToList();
-        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(results));
+        Console.WriteLine(EngineJson.Serialize(results));
         return 0;
     }
     public static uint ProcessOf(nint hwnd) { GetWindowThreadProcessId(hwnd, out var pid); return pid; }

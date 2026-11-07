@@ -139,14 +139,13 @@ static partial class Capture
                 File.WriteAllBytes(file, encoded.Bytes);
                 lock (LastGate) Last = (file, pixels, crop); // pleine resolution, sans marques : lue par Recognize
             }
-            return new
-            {
-                ok = true, method, wgcError, path = file, width = imageWidth, height = imageHeight, scale, blank, encoding, mimeType,
-                deviation = Math.Round(deviation, 2), uniformity = Math.Round(uniformity, 3), ms = timer.ElapsedMilliseconds,
-                frame = new { left = crop.Left, top = crop.Top, width = crop.Width, height = crop.Height },
-                windowFrame = new { left = windowArea.Left, top = windowArea.Top, width = windowArea.Width, height = windowArea.Height },
-                marks = report == null ? null : blank ? new MarkReport { Reason = "blank capture: no numbers" }.Json() : report.Json(),
-            };
+            return new CaptureWindowJson(
+                ok: true, method: method, wgcError: wgcError, path: file, width: imageWidth, height: imageHeight, scale: scale, blank: blank, encoding: encoding, mimeType: mimeType,
+                deviation: Math.Round(deviation, 2), uniformity: Math.Round(uniformity, 3), ms: timer.ElapsedMilliseconds,
+                frame: new CaptureWindowJson2(left: crop.Left, top: crop.Top, width: crop.Width, height: crop.Height),
+                windowFrame: new CaptureWindowJson2(left: windowArea.Left, top: windowArea.Top, width: windowArea.Width, height: windowArea.Height),
+                marks: report == null ? null : blank ? new MarkReport { Reason = "blank capture: no numbers" }.Json() : report.Json()
+            );
         }
         finally { Win32.SetThreadDpiAwarenessContext(previous); }
     }
@@ -163,15 +162,14 @@ static partial class Capture
         lock (LastGate)
         {
             if (Last is not { } l || !string.Equals(l.Path, path, StringComparison.OrdinalIgnoreCase))
-                return new { ok = true, lines = Array.Empty<object>(), unavailable = "image no longer in the helper's memory", missing = false };
+                return new CaptureRecognizeJson(ok: true, lines: Array.Empty<object>(), unavailable: "image no longer in the helper's memory", missing: false);
             last = l;
         }
         var (lines, unavailable, ms) = Ocr.Read(last.Pixels, last.Area.Width, last.Area.Height);
-        return new
-        {
-            ok = true, ms, unavailable, missing = unavailable != null && Ocr.Missing,
-            lines = lines.Select(x => new { text = x.Text, left = last.Area.Left + x.Left, top = last.Area.Top + x.Top, width = x.Width, height = x.Height }).ToArray(),
-        };
+        return new CaptureRecognizeJson2(
+            ok: true, ms: ms, unavailable: unavailable, missing: unavailable != null && Ocr.Missing,
+            lines: lines.Select(x => new CaptureRecognizeJson3(text: x.Text, left: last.Area.Left + x.Left, top: last.Area.Top + x.Top, width: x.Width, height: x.Height)).ToArray()
+        );
     }
 
     // Facteur entre la taille affichee (physique) et la taille dessinee par l'application.

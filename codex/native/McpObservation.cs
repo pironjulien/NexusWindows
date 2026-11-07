@@ -68,7 +68,7 @@ static partial class McpServer
             // selection and local command structure belong to its context and must still agree with the look.
             foreach (var key in new[] { "depth", "role", "name", "automationId", "value", "valueTruncated", "checked", "selected", "expanded", "disabled", "password" })
                 node[key] = element[key]?.DeepClone();
-            nodes.Add(node);
+            nodes.Add(EngineJson.Node(node));
         }
         return Routines.Digest(nodes.ToJsonString(JsonOut));
     }

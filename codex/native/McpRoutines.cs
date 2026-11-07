@@ -29,8 +29,8 @@ static partial class McpServer
                 name = Regex.Replace(name, @"\s+-\s+(?:Utilisation (?:élevée )?de la mémoire|(?:High )?memory usage)\s+-\s+[0-9]+(?:[.,][0-9]+)?\s*(?:[KMGTPE](?:o|B))\z", "",
                     RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             }
-            a.Add(new JsonArray(e["depth"]?.DeepClone(), e["role"]?.DeepClone(), e["automationId"]?.DeepClone(),
-                JsonValue.Create(role is "button" or "tab" or "menuitem" or "checkbox" or "radio" or "combobox" ? name : "")));
+            a.Add(EngineJson.Node(new JsonArray(e["depth"]?.DeepClone(), e["role"]?.DeepClone(), e["automationId"]?.DeepClone(),
+                JsonValue.Create(role is "button" or "tab" or "menuitem" or "checkbox" or "radio" or "combobox" ? name : ""))));
         }
         return Routines.Digest(a.ToJsonString(JsonOut));
     }
@@ -41,7 +41,7 @@ static partial class McpServer
         {
             var state = new JsonObject();
             foreach (var key in new[] { "index", "role", "automationId", "value", "valueTruncated", "checked", "selected", "expanded", "focused", "disabled" }) state[key] = e[key]?.DeepClone();
-            states.Add(state);
+            states.Add(EngineJson.Node(state));
         }
         return Routines.Digest(new JsonArray(JsonValue.Create(StructureNative(snapshot)), states).ToJsonString(JsonOut));
     }
@@ -58,7 +58,7 @@ static partial class McpServer
         JsonArray Shape(JsonObject node) => new(JsonValue.Create(Str(node, "role")), JsonValue.Create(Str(node, "automationId")),
             JsonValue.Create(Str(node, "role") is "button" or "tab" or "menuitem" or "checkbox" or "radio" or "combobox" or "link" or "treeitem" or "listitem" ? Str(node, "name") : ""));
         var chain = new JsonArray();
-        foreach (var i in e["ancestors"] as JsonArray ?? new JsonArray()) chain.Add(Shape(Elements(snapshot).OfType<JsonObject>().First(n => Number(n, "index", -1) == i!.GetValue<int>())));
+        foreach (var i in e["ancestors"] as JsonArray ?? new JsonArray()) chain.Add(EngineJson.Node(Shape(Elements(snapshot).OfType<JsonObject>().First(n => Number(n, "index", -1) == i!.GetValue<int>()))));
         return Routines.Digest(new JsonArray(Shape(e), chain).ToJsonString(JsonOut));
     }
     static JsonObject RoutineStepSnapshot(JsonObject start, JsonObject step, string operation, string? routine, string? remember,
@@ -84,7 +84,7 @@ static partial class McpServer
         var observed = ObjectOf(state.CurrentObservation.Value);
         var steps = new JsonArray();
         if (args["routine"] == null && args["steps"] is JsonArray raw)
-            foreach (var step in raw) steps.Add(NormalizeStep(state, observed, step!.AsObject(), allowFutureTarget: true));
+            foreach (var step in raw) steps.Add(EngineJson.Node(NormalizeStep(state, observed, step!.AsObject(), allowFutureTarget: true)));
         ValidateNativeObservation(observed, InspectNative(state), args, steps);
     }
     static JsonObject ActNative(SessionState state, JsonObject args, bool modern, bool structureCheckedBeforeLease = false)
@@ -167,7 +167,7 @@ static partial class McpServer
                 if (args["steps"] is not JsonArray raw || raw.Count == 0) throw new InvalidOperationException("act needs a nonempty steps array");
                 // Normalize/validate the entire definition before any input.
                 steps = new JsonArray();
-                foreach (var n in raw) steps.Add(NormalizeStep(state, observed, n as JsonObject ?? throw new InvalidOperationException("Invalid step"), allowFutureTarget: true));
+                foreach (var n in raw) steps.Add(EngineJson.Node(NormalizeStep(state, observed, n as JsonObject ?? throw new InvalidOperationException("Invalid step"), allowFutureTarget: true)));
                 if (remember != null)
                 {
                     if (!RoutineLearningAllowed(args)) throw new ActionRefusedException("Saving a routine requires staticUI:true");
@@ -243,7 +243,7 @@ static partial class McpServer
                 }
                 var anchor = AnchorNative(before, step);
                 if (entryForRun != null && !Bool(entryForRun["migration"], "requiresAnchors") && (entryForRun["anchors"] as JsonArray)?[i]?.GetValue<string>() != anchor) throw new ActionRefusedException("Routine target/context changed; look and inspect before an explicit new run");
-                if (anchors.Count <= i) anchors.Add(anchor);
+                if (anchors.Count <= i) anchors.Add(EngineJson.Node(anchor));
                 // foreground on a step allows its physical fallback like foreground on the batch (05/11: it was ignored
                 // without a word); fallback:false still forbids it.
                 var stepPhysical = physicalAllowed || RoutineBoolean(step, "foreground", false) && RoutineBoolean(args, "fallback", true);
@@ -267,7 +267,7 @@ static partial class McpServer
                 }
                 catch (Exception e) { stepResult = RoutineFailure(e, Program.InputStarted); }
             }
-            stepResult["index"] = i; stepResult["action"] = Str(step, "kind"); results.Add(stepResult);
+            stepResult["index"] = i; stepResult["action"] = Str(step, "kind"); results.Add(EngineJson.Node(stepResult));
             Journal.WriteEntry(state.Agent, Version, state.SessionId, named.App, Str(step, "kind"), Str(stepResult, "status"), Str(stepResult, "technique"), actionTimer.ElapsedMilliseconds, Bool(stepResult, "foregroundTaken"), Str(stepResult, "message"));
             if (Str(stepResult, "status") == "verified") transitions++;
             // A step delivered without a postcondition (sent-unconfirmed) no longer ends a one-off batch when the next step
@@ -313,7 +313,7 @@ static partial class McpServer
         }
         var unconfirmed = results.OfType<JsonObject>().Any(r => Str(r, "status") == "sent-unconfirmed");
         var response = BatchResponse(state, results, steps.Count, steps.Count, unconfirmed ? "unverified" : "success", null);
-        if (persistenceError != null) { response["structuredContent"]!["persistenceError"] = persistenceError; response["content"]!.AsArray().Add(TextBlock(persistenceError)); }
+        if (persistenceError != null) { response["structuredContent"]!["persistenceError"] = persistenceError; response["content"]!.AsArray().Add(EngineJson.Node(TextBlock(persistenceError))); }
         return response;
     }
     static string ReviewKey(string app, string routine) => Routines.ApplicationKey(app) + "|" + routine;
@@ -336,7 +336,7 @@ static partial class McpServer
         var response = BatchResponse(state, results, total, next, "unverified", null);
         var message = "Pause boundary could not be verified (" + error.GetType().Name + "); completed steps are retained, no continuation issued";
         response["structuredContent"]!["continuationError"] = message;
-        response["content"]!.AsArray().Add(TextBlock(message));
+        response["content"]!.AsArray().Add(EngineJson.Node(TextBlock(message)));
         return response;
     }
 
@@ -454,13 +454,13 @@ static partial class McpServer
         Check(Bool(satisfied["preparation"], "inputAttempted") && !Str(satisfied, "message").Contains("no input sent"), "preparation is reported truthfully even if the primary action was unnecessary");
         Check(Str(RoutinePreparedResult(RoutineFailure(new InvalidOperationException("fixture"), false), true), "mark") == "~", "preparation forbids a false pre-input refusal");
         var native = Args("{\"elements\":[{\"index\":0,\"depth\":0,\"role\":\"edit\",\"automationId\":\"field\",\"name\":\"Field\",\"value\":\"fixture\"}]}");
-        var withOcr = native.DeepClone().AsObject(); withOcr["elements"]!.AsArray().Add(Args("{\"index\":1,\"depth\":0,\"role\":\"text\",\"name\":\"OCR fixture\",\"ocr\":true}"));
+        var withOcr = native.DeepClone().AsObject(); withOcr["elements"]!.AsArray().Add(EngineJson.Node(Args("{\"index\":1,\"depth\":0,\"role\":\"text\",\"name\":\"OCR fixture\",\"ocr\":true}")));
         Check(StructureNative(native) == StructureNative(withOcr), "OCR presentation does not invalidate native structure");
         Check(BoundaryNative(native) == BoundaryNative(withOcr), "OCR presentation does not invalidate a continuation boundary");
         Check(Bindings(Args("{\"params\":{\"field\":\"fixture\"}}"))["field"] == "fixture", "text bindings remain available");
         Refused(() => Bindings(Args("{\"params\":[]}")));
         var session = new SessionState("claude") { Pending = new PendingNativeBatch("fixture", DateTimeOffset.UtcNow, 1, 2, "start", "revision", "boundary", new(), 1, new(), null, null, null, null, new(), 0) };
-        var completed = new JsonArray { StepResult("verified", "✓", true, true, null) };
+        var completed = new JsonArray(StepResult("verified", "✓", true, true, null));
         var pauseFailure = RoutinePauseFailure(session, completed, 2, 1, new JsonException("fixture"))["structuredContent"]!.AsObject();
         Check(session.Pending == null && pauseFailure["continuation"] == null && !Bool(pauseFailure, "paused"), "a failed pause read invalidates its token without replay");
         Check(Number(pauseFailure["progress"], "completed") == 1 && Number(pauseFailure["progress"], "nextStep") == 1 && pauseFailure["steps"]!.AsArray().Count == 1 && Str(pauseFailure, "status") == "unverified", "a failed pause read retains verified progress without inventing a step");
@@ -474,7 +474,7 @@ static partial class McpServer
         var normalized = NormalizeStep(wpfState, wpf, Args("{\"action\":\"set\",\"target\":\"Nom\",\"text\":\"fixture\"}"));
         var beforeWpf = inspections;
         Check(Str(normalized["selector"], "role") == "edit" && ReferenceEquals(RoutineStepSnapshot(wpf, named, "run", null, null, 0, 0, false, Inspect), wpf) && ReferenceEquals(RoutineStepSnapshot(wpf, normalized, "run", null, null, 0, 0, false, Inspect), wpf) && inspections == beforeWpf, "WPF text label plus one edit resolves to the actual control, both before and after legacy normalization");
-        var twoEdits = wpf.DeepClone().AsObject(); var secondEdit = twoEdits["elements"]![1]!.DeepClone().AsObject(); secondEdit["index"] = 2; secondEdit["runtimeId"] = new JsonArray(7, 3); secondEdit["automationId"] = "SecondNom"; twoEdits["elements"]!.AsArray().Add(secondEdit);
+        var twoEdits = wpf.DeepClone().AsObject(); var secondEdit = twoEdits["elements"]![1]!.DeepClone().AsObject(); secondEdit["index"] = 2; secondEdit["runtimeId"] = new JsonArray(7, 3); secondEdit["automationId"] = "SecondNom"; twoEdits["elements"]!.AsArray().Add(EngineJson.Node(secondEdit));
         var beforeAmbiguity = inspections; RoutineStepSnapshot(twoEdits, named, "run", null, null, 0, 0, false, Inspect);
         Check(inspections == beforeAmbiguity + 1, "two genuinely distinct same-name edits retain a fresh provider read");
         var indexed = named.DeepClone().AsObject(); indexed["observedIdentity"] = ElementIdentity(wpf, wpf["elements"]![1]!.AsObject());
@@ -608,7 +608,7 @@ static partial class McpServer
         if (continuation != null) data["continuation"] = continuation;
         return NativeResponse(data);
     }
-    static JsonObject NativeResponse(JsonObject data) => new() { ["content"] = new JsonArray { TextBlock(data) }, ["structuredContent"] = data.DeepClone() };
+    static JsonObject NativeResponse(JsonObject data) => new() { ["content"] = new JsonArray(TextBlock(data)), ["structuredContent"] = data.DeepClone() };
 
     // mirrorReview: a definition received from another PC is inspected once before its first replay here.
     static bool NeedsReview(JsonObject entry) => !Bool(entry, "lastOk", true) || Bool(entry, "mirrorReview") || Bool(entry["migration"], "requiresAnchors");

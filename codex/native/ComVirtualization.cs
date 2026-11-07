@@ -5,7 +5,7 @@ using System.Text.Json;
 static partial class Program
 {
     // Internal navigation only. The facade must re-inspect and re-resolve its exact semantic selector afterwards.
-    static object RealizeVirtualized(nint window, JsonElement request, List<Node> nodes)
+    static ProgramRealizeVirtualizedJson3 RealizeVirtualized(nint window, JsonElement request, List<Node> nodes)
     {
         var selector = request.GetProperty("selector");
         if (selector.ValueKind != JsonValueKind.Object || !selector.TryGetProperty("name", out var nameValue)
@@ -20,20 +20,20 @@ static partial class Program
             .Where(n => !n.Disabled && n.RuntimeId.Length > 0 && !ComUia.IsSynthetic(n.RuntimeId))
             .Where(n => !selector.TryGetProperty("ancestor", out var ancestor) || Matches(n, ancestor)
                 || n.Ancestors.Any(i => Matches(nodes[i], ancestor)))
-            .Select(n => new { runtimeId = n.RuntimeId, nativeWindow = (long)n.NativeWindow,
-                expectedControlPid = n.ProcessId, expectedControlBirth = ProcessStartedUtc((uint)n.ProcessId),
-                expectedName = n.Name, expectedRole = n.Role, expectedAutomationId = n.AutomationId }).ToArray();
+            .Select(n => new ProgramRealizeVirtualizedJson(runtimeId: n.RuntimeId, nativeWindow: (long)n.NativeWindow,
+                expectedControlPid: n.ProcessId, expectedControlBirth: ProcessStartedUtc((uint)n.ProcessId),
+                expectedName: n.Name, expectedRole: n.Role, expectedAutomationId: n.AutomationId)).ToArray();
         if (containers.Any(c => c.expectedControlBirth == null))
             throw new ActionRefusedException("Container birth unavailable for materialization; nothing was sent");
         InputStarted = true; // A lost reply can follow Realize/ScrollIntoView, even when lookup itself is read-only.
         try
         {
-            var result = ComBridge.CallData(new { op = "realizeNamed", windowId = (long)window,
-                expectedWindowPid = pid, expectedWindowBirth = birth, name = nameValue.GetString(), containers });
+            var result = ComBridge.CallData(new ProgramRealizeVirtualizedJson2(op: "realizeNamed", windowId: (long)window,
+                expectedWindowPid: pid, expectedWindowBirth: birth, name: nameValue.GetString(), containers: containers));
             InputStarted = result.GetProperty("inputSent").GetBoolean();
-            return new { ok = true, found = result.GetProperty("found").GetBoolean(), inputSent = InputStarted,
-                requiresFreshInspection = true, technique = "background:uia", mechanism = "ItemContainer/VirtualizedItem",
-                effect = InputStarted ? "sent" : "none" };
+            return new ProgramRealizeVirtualizedJson3(ok: true, found: result.GetProperty("found").GetBoolean(), inputSent: InputStarted,
+                requiresFreshInspection: true, technique: "background:uia", mechanism: "ItemContainer/VirtualizedItem",
+                effect: InputStarted ? "sent" : "none");
         }
         catch (Exception error) when (error.Data["beforeInput"] is true) { InputStarted = false; throw; }
     }
@@ -86,7 +86,7 @@ static partial class ComWorker
         }
         catch { ComUia.Release(element); throw; }
     }
-    static object RealizeNamed(nint window, JsonElement request)
+    static ComWorkerRealizeNamedJson RealizeNamed(nint window, JsonElement request)
     {
         RequireWindowIdentity(window, request);
         var name = request.GetProperty("name").GetString() ?? "";
@@ -118,7 +118,7 @@ static partial class ComWorker
                 finally { ComUia.Release(next); ComUia.Release(found); ComUia.Release(pattern); ComUia.Release(element); }
             }
             if (clock.ElapsedMilliseconds >= 2000) throw Before("Virtualized search incomplete within its budget; nothing was sent");
-            if (chosen == 0) return new { ok = true, found = false, inputSent = false, technique = Uia, mechanism = "ItemContainer.FindItemByProperty", effect = "none" };
+            if (chosen == 0) return new ComWorkerRealizeNamedJson(ok: true, found: false, inputSent: false, technique: Uia, mechanism: "ItemContainer.FindItemByProperty", effect: "none");
             void CheckIdentity()
             {
                 EmergencyStop.ThrowIfStopped(); RequireWindowIdentity(window, request);
@@ -126,8 +126,8 @@ static partial class ComWorker
             }
             MaterializeSafely(CheckIdentity, () => ComUia.VirtualizedItem(chosen), () => ComUia.Pattern(chosen, ComUia.ScrollItemPatternId),
                 p => { BeforeAct(); ComUia.CallSlot(p, 3); }, ComUia.Release);
-            return new { ok = true, found = true, inputSent = Acted, technique = Uia,
-                mechanism = "VirtualizedItem.Realize/ScrollItem.ScrollIntoView", effect = Acted ? "sent" : "none" };
+            return new ComWorkerRealizeNamedJson(ok: true, found: true, inputSent: Acted, technique: Uia,
+                mechanism: "VirtualizedItem.Realize/ScrollItem.ScrollIntoView", effect: Acted ? "sent" : "none");
         }
         finally { ComUia.Release(chosen); }
     }
@@ -164,6 +164,6 @@ static partial class ComWorker
         Assert(releases.SequenceEqual(new long[] { 1 }), "Failed pattern released");
         calls.Clear(); MaterializeSafely(() => { }, () => 0, () => 0, p => calls.Add(p), _ => { });
         Assert(calls.Count == 0, "An unsupported pattern sends nothing");
-        Console.WriteLine(JsonSerializer.Serialize(new { ok = true, checks })); return 0;
+        Console.WriteLine(EngineJson.Serialize(new ComWorkerVirtualizationSelfTestJson(ok: true, checks: checks))); return 0;
     }
 }

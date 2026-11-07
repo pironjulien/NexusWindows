@@ -98,23 +98,22 @@ static class Journal
         var issue = status != null && Issues.TryGetValue(status, out var iss) ? iss : "~";
         var tech = string.IsNullOrEmpty(technique) ? null : (technique.Length > 60 ? technique[..60] : technique);
         var fg = foreground ?? (tech != null && (tech.StartsWith("physical", StringComparison.OrdinalIgnoreCase) || tech.StartsWith("foreground", StringComparison.OrdinalIgnoreCase)));
-        return new
-        {
-            v = 1,
-            ts,
-            agent = agent.ToLowerInvariant(),
-            outil = version,
-            appel = session,
-            app = AppName(app),
-            cadre = (string?)null,
-            action = k,
-            technique = tech,
-            issue,
-            statut = s,
-            ms = Math.Max(0L, durationMs),
-            premier_plan = fg,
-            erreur = CleanError(error),
-        };
+        return new JournalBuildLineJson(
+            v: 1,
+            ts: ts,
+            agent: agent.ToLowerInvariant(),
+            outil: version,
+            appel: session,
+            app: AppName(app),
+            cadre: (string?)null,
+            action: k,
+            technique: tech,
+            issue: issue,
+            statut: s,
+            ms: Math.Max(0L, durationMs),
+            premier_plan: fg,
+            erreur: CleanError(error)
+        );
     }
 
     public static void WriteEntry(
@@ -140,7 +139,7 @@ static class Journal
             var dir = JournalRoot(agent);
             Directory.CreateDirectory(dir);
             var file = Path.Combine(dir, $"{ts:yyyy-MM}.jsonl");
-            File.AppendAllText(file, JsonSerializer.Serialize(line, JsonOptions) + "\n", new UTF8Encoding(false));
+            File.AppendAllText(file, EngineJson.Serialize(line, JsonOptions) + "\n", new UTF8Encoding(false));
         }
         catch
         {
@@ -186,7 +185,7 @@ static class Journal
             try { Directory.Delete(tmp, true); } catch { }
         }
 
-        Console.WriteLine(JsonSerializer.Serialize(new { ok = true }));
+        Console.WriteLine(EngineJson.Serialize(new JournalSelfTestJson(ok: true)));
         return 0;
     }
 }

@@ -126,9 +126,9 @@ static partial class Cdp
             : null;
         var pagePort = root.TryGetProperty("port", out var pp) ? pp.GetInt32() : 9222;
         object result;
-        try { result = new { url = PickPage(root.GetProperty("targets"), root.GetProperty("title").GetString() ?? "", pagePort), port, owned }; }
-        catch (BackgroundNotApplicableException error) { result = new { error = error.Message, port, owned }; }
-        Console.WriteLine(JsonSerializer.Serialize(result));
+        try { result = new CdpSelfTestJson(url: PickPage(root.GetProperty("targets"), root.GetProperty("title").GetString() ?? "", pagePort), port: port, owned: owned); }
+        catch (BackgroundNotApplicableException error) { result = new CdpSelfTestJson2(error: error.Message, port: port, owned: owned); }
+        Console.WriteLine(EngineJson.Serialize(result));
         return 0;
     }
 
@@ -178,10 +178,10 @@ static partial class Cdp
         try
         {
             var (index, gw, gh) = PickSurface(surfaces, point[0], point[1], inner[0], inner[1], root.GetProperty("ratio").GetDouble());
-            result = new { index, gap = new[] { gw, gh } };
+            result = new CdpSurfaceSelfTestJson(index: index, gap: new[] { gw, gh });
         }
-        catch (BackgroundNotApplicableException error) { result = new { error = error.Message }; }
-        Console.WriteLine(JsonSerializer.Serialize(result));
+        catch (BackgroundNotApplicableException error) { result = new CdpSurfaceSelfTestJson2(error: error.Message); }
+        Console.WriteLine(EngineJson.Serialize(result));
         return 0;
     }
 
@@ -201,7 +201,7 @@ static partial class Cdp
         public JsonElement Call(string method, object parameters)
         {
             var mine = ++id;
-            var payload = JsonSerializer.SerializeToUtf8Bytes(new { id = mine, method, @params = parameters });
+            var payload = EngineJson.SerializeToUtf8Bytes(new CdpCallJson(id: mine, method: method, @params: parameters));
             var trace = method == "Input.insertText" && McpServer.ClaudeFixtureDiagnosticsEnabled();
             int? textLength = null;
             if (trace)
@@ -212,7 +212,7 @@ static partial class Cdp
             }
             void Trace(string phase)
             {
-                if (trace) Console.Error.WriteLine(JsonSerializer.Serialize(new { fixture = "claude-cdp-wire", session = fixtureWireSession, id = mine, method, phase, textLength }));
+                if (trace) Console.Error.WriteLine(EngineJson.Serialize(new CdpCallJson2(fixture: "claude-cdp-wire", session: fixtureWireSession, id: mine, method: method, phase: phase, textLength: textLength)));
             }
             using var cancel = new CancellationTokenSource(TimeoutMs);
             socket.SendAsync(payload, WebSocketMessageType.Text, true, cancel.Token).GetAwaiter().GetResult();
@@ -242,7 +242,7 @@ static partial class Cdp
         // Exception JavaScript (exceptionDetails) : jamais un resultat (relecture de Codex du 22/10 11:27).
         public JsonElement Evaluate(string expression)
         {
-            var reply = Call("Runtime.evaluate", new { expression, returnByValue = true });
+            var reply = Call("Runtime.evaluate", new CdpEvaluateJson(expression: expression, returnByValue: true));
             if (reply.TryGetProperty("exceptionDetails", out var details)) throw new InvalidOperationException($"DevTools evaluation raised: {details}");
             return reply.GetProperty("result");
         }
@@ -255,7 +255,7 @@ static partial class Cdp
         var page = Open(window, x, y);
         using (page.Session)
         {
-            var wheel = new { type = "mouseWheel", x = (x - page.Surface.Left) / page.Ratio, y = (y - page.Surface.Top) / page.Ratio, deltaX = cdpX, deltaY = cdpY };
+            var wheel = new CdpWheelJson(type: "mouseWheel", x: (x - page.Surface.Left) / page.Ratio, y: (y - page.Surface.Top) / page.Ratio, deltaX: cdpX, deltaY: cdpY);
             Dispatch(page.Session.Call, wheel, started);
             return new("background:devtools", $"Input.dispatchMouseEvent mouseWheel (port {page.Port}; {page.Measured})", "sent");
         }
@@ -282,25 +282,25 @@ static partial class Cdp
             var mechanism = "mouse drag";
             try
             {
-                s.Call("Input.setInterceptDrags", new { enabled = true });
-                s.Call("Input.dispatchMouseEvent", new { type = "mouseMoved", x = ax, y = ay });
-                s.Call("Input.dispatchMouseEvent", new { type = "mousePressed", x = ax, y = ay, button = "left", buttons = 1, clickCount = 1 });
+                s.Call("Input.setInterceptDrags", new CdpDragJson(enabled: true));
+                s.Call("Input.dispatchMouseEvent", new CdpDragJson2(type: "mouseMoved", x: ax, y: ay));
+                s.Call("Input.dispatchMouseEvent", new CdpDragJson3(type: "mousePressed", x: ax, y: ay, button: "left", buttons: 1, clickCount: 1));
                 const int Steps = 12;
                 for (var i = 1; i <= Steps; i++)
-                    s.Call("Input.dispatchMouseEvent", new { type = "mouseMoved", x = ax + (bx - ax) * i / Steps, y = ay + (by - ay) * i / Steps, button = "left", buttons = 1 });
+                    s.Call("Input.dispatchMouseEvent", new CdpDragJson4(type: "mouseMoved", x: ax + (bx - ax) * i / Steps, y: ay + (by - ay) * i / Steps, button: "left", buttons: 1));
                 s.Evaluate("0"); // un aller-retour de plus : l'interception emise au dernier deplacement est lue
                 var intercepted = s.Events.FirstOrDefault(e => e.Method == "Input.dragIntercepted");
                 if (intercepted.Method is not null)
                 {
                     var data = intercepted.Params.GetProperty("data");
                     foreach (var type in new[] { "dragEnter", "dragOver", "drop" })
-                        s.Call("Input.dispatchDragEvent", new { type, x = bx, y = by, data });
+                        s.Call("Input.dispatchDragEvent", new CdpDragJson5(type: type, x: bx, y: by, data: data));
                     mechanism = "HTML5 drag intercepted, Input.dispatchDragEvent drop";
                 }
-                s.Call("Input.dispatchMouseEvent", new { type = "mouseReleased", x = bx, y = by, button = "left", buttons = 0, clickCount = 1 });
+                s.Call("Input.dispatchMouseEvent", new CdpDragJson3(type: "mouseReleased", x: bx, y: by, button: "left", buttons: 0, clickCount: 1));
             }
             catch (Exception error) { throw new InvalidOperationException("DevTools drag sent without full acknowledgement; outcome unknown, do not replay", error); }
-            finally { try { s.Call("Input.setInterceptDrags", new { enabled = false }); } catch (Exception) { } }
+            finally { try { s.Call("Input.setInterceptDrags", new CdpDragJson(enabled: false)); } catch (Exception) { } }
             return new("background:devtools", $"Input.dispatchMouseEvent {mechanism} (port {page.Port}; {page.Measured})", "sent");
         }
     }
@@ -338,7 +338,7 @@ static partial class Cdp
             Prove(session.Evaluate, FreshEvaluator(url), () => Win32.Title(window));
             var metrics = session.Evaluate("JSON.stringify([window.innerWidth, window.innerHeight, window.devicePixelRatio])");
             var values = metrics.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.String
-                ? JsonSerializer.Deserialize<double[]>(v.GetString()!) : null;
+                ? EngineJson.Deserialize<double[]>(v.GetString()!) : null;
             if (values is not { Length: 3 }) throw new BackgroundNotApplicableException("Page size or devicePixelRatio unreadable: nothing was sent");
             var (index, gapWidth, gapHeight) = PickSurface(surfaces, x, y, values[0], values[1], values[2]);
             var surface = surfaces[index];
@@ -384,7 +384,7 @@ static partial class Cdp
     {
         nonce ??= "nexus-" + Guid.NewGuid().ToString("N");
         var title = Text(evaluate("document.title")) ?? throw new BackgroundNotApplicableException("Page title unreadable: nothing was sent");
-        var (quotedTitle, quotedNonce) = (JsonSerializer.Serialize(title), JsonSerializer.Serialize(nonce));
+        var (quotedTitle, quotedNonce) = (EngineJson.Serialize(title), EngineJson.Serialize(nonce));
         var restore = $"(() => {{ if (document.title === {quotedNonce}) document.title = {quotedTitle}; return true; }})()";
         var seen = false;
         string? dressing = null; // habillage EXACT de la fenetre autour du titre de la page, observe avec le nonce
@@ -488,16 +488,16 @@ static partial class Cdp
         var shown = "Labo";
         var (broken, posedOnce) = (false, false);
         var stuck = scenario is "hwnd-stuck" or "lost-pose-hwnd-stuck";
-        JsonElement Value(object value) => JsonSerializer.SerializeToElement(new { value });
+        JsonElement Value(object value) => EngineJson.SerializeToElement(new CdpProveSelfTestJson(value: value));
         JsonElement Run(string expression, bool primary)
         {
             if (primary && broken || !primary && scenario == "dead") throw new InvalidOperationException("connection lost");
             if (scenario == "restore-error-object" && expression.StartsWith("(() => { if (document.title === ", StringComparison.Ordinal))
-                return JsonSerializer.SerializeToElement(new { type = "object", subtype = "error", description = "TypeError" });
+                return EngineJson.SerializeToElement(new CdpProveSelfTestJson2(type: "object", subtype: "error", description: "TypeError"));
             if (expression == "document.title") return Value(page);
             var m = Regex.Match(expression, "^\\(\\(\\) => \\{ if \\(document.title (!==|===) (\"[^\"]*\")\\) (?:return false; )?document.title = (\"[^\"]*\");");
             if (!m.Success) throw new InvalidOperationException("unexpected expression");
-            var (op, compared, assigned) = (m.Groups[1].Value, JsonSerializer.Deserialize<string>(m.Groups[2].Value)!, JsonSerializer.Deserialize<string>(m.Groups[3].Value)!);
+            var (op, compared, assigned) = (m.Groups[1].Value, EngineJson.Deserialize<string>(m.Groups[2].Value)!, EngineJson.Deserialize<string>(m.Groups[3].Value)!);
             if (op == "!==")
             {
                 if (scenario == "title-changed") shown = page = "Autre";
@@ -519,9 +519,9 @@ static partial class Cdp
             return (scenario == "never-shown" && shown.StartsWith("nexus-", StringComparison.Ordinal) ? "Labo" : shown) + dressing;
         }
         object result;
-        try { Prove(e => Run(e, true), e => Run(e, false), Window, "nexus-test"); result = new { ok = true, pageTitle = page }; }
-        catch (Exception error) { result = new { error = error.Message, kind = error.GetType().Name, wheelKind = BeforeInput(error).GetType().Name, pageTitle = page }; }
-        Console.WriteLine(JsonSerializer.Serialize(result));
+        try { Prove(e => Run(e, true), e => Run(e, false), Window, "nexus-test"); result = new CdpProveSelfTestJson3(ok: true, pageTitle: page); }
+        catch (Exception error) { result = new CdpProveSelfTestJson4(error: error.Message, kind: error.GetType().Name, wheelKind: BeforeInput(error).GetType().Name, pageTitle: page); }
+        Console.WriteLine(EngineJson.Serialize(result));
         return 0;
     }
 
@@ -596,10 +596,10 @@ static partial class Cdp
         if (otherTab is not null) http.GetAsync($"http://127.0.0.1:{port}/json/close/{otherTab}").GetAwaiter().GetResult();
         if (domAfter is not null && domAfter.StartsWith("nexus-", StringComparison.Ordinal))
         {
-            real($"document.title = {JsonSerializer.Serialize(original)}");
+            real($"document.title = {EngineJson.Serialize(original)}");
             restoredByTest = original;
         }
-        Console.WriteLine(JsonSerializer.Serialize(new { scenario, outcome, kind, freshOpened, original, windowBefore, domAfter, windowAfter, restoredByTest, tabOpened = otherTab is not null }));
+        Console.WriteLine(EngineJson.Serialize(new CdpProveLiveSelfTestJson(scenario: scenario, outcome: outcome, kind: kind, freshOpened: freshOpened, original: original, windowBefore: windowBefore, domAfter: domAfter, windowAfter: windowAfter, restoredByTest: restoredByTest, tabOpened: otherTab is not null)));
         return 0;
     }
 
@@ -611,7 +611,7 @@ static partial class Cdp
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
         var scenario = input.RootElement.GetProperty("scenario").GetString();
-        if (!EmergencyStop.TestDirectory) { Console.WriteLine(JsonSerializer.Serialize(new { error = "NEXUS_SHARED_HOME required" })); return 1; }
+        if (!EmergencyStop.TestDirectory) { Console.WriteLine(EngineJson.Serialize(new CdpSurfaceSelfTestJson2(error: "NEXUS_SHARED_HOME required"))); return 1; }
         var (port, dispatched, evaluated, server) = InstrumentedServer();
         var started = 0;
         string outcome;
@@ -620,13 +620,13 @@ static partial class Cdp
             using var session = new Session($"ws://127.0.0.1:{port}/devtools/page/test");
             session.Evaluate("document.title"); // preparation (preuve, mesures)
             if (scenario == "stop-during-prepare") File.WriteAllText(Path.Combine(EmergencyStop.Directory, "stop"), "selftest");
-            Dispatch(session.Call, new { type = "mouseWheel", x = 10, y = 10, deltaX = 0, deltaY = 120 }, () => started++);
+            Dispatch(session.Call, new CdpWheelTraceSelfTestJson(type: "mouseWheel", x: 10, y: 10, deltaX: 0, deltaY: 120), () => started++);
             outcome = "acknowledged";
         }
         catch (EmergencyStopException) { outcome = "stopped"; }
         catch (InvalidOperationException error) when (error.Message.Contains("outcome unknown")) { outcome = "unknown"; }
         server.Join(2000);
-        Console.WriteLine(JsonSerializer.Serialize(new { outcome, started, dispatched = dispatched.Count, evaluated = evaluated.Count }));
+        Console.WriteLine(EngineJson.Serialize(new CdpWheelTraceSelfTestJson2(outcome: outcome, started: started, dispatched: dispatched.Count, evaluated: evaluated.Count)));
         return 0;
     }
 
@@ -650,7 +650,7 @@ static partial class Cdp
                     var method = message.RootElement.GetProperty("method").GetString()!;
                     if (method == "Input.dispatchMouseEvent") { dispatched.Add(method); client.Client.Close(); break; }
                     evaluated.Add(message.RootElement.GetProperty("params").GetProperty("expression").GetString()!);
-                    WriteFrame(stream, JsonSerializer.SerializeToUtf8Bytes(new { id = message.RootElement.GetProperty("id").GetInt32(), result = new { result = new { type = "string", value = "Labo" } } }));
+                    WriteFrame(stream, EngineJson.SerializeToUtf8Bytes(new CdpInstrumentedServerJson(id: message.RootElement.GetProperty("id").GetInt32(), result: new CdpInstrumentedServerJson2(result: new CdpInstrumentedServerJson3(type: "string", value: "Labo")))));
                 }
             }
             catch (Exception) { }
@@ -720,7 +720,7 @@ static partial class Cdp
                     for (var i = 0; i < data.Length; i++) data[i] ^= mask[i % 4];
                     using var message = JsonDocument.Parse(data);
                     received.Add(message.RootElement.GetProperty("params").GetProperty("expression").GetString()!);
-                    var reply = JsonSerializer.SerializeToUtf8Bytes(new { id = message.RootElement.GetProperty("id").GetInt32(), result = new { result = new { type = "boolean", value = true } } });
+                    var reply = EngineJson.SerializeToUtf8Bytes(new CdpSessionSelfTestJson(id: message.RootElement.GetProperty("id").GetInt32(), result: new CdpSessionSelfTestJson2(result: new CdpSessionSelfTestJson3(type: "boolean", value: true))));
                     var frame = new List<byte> { 0x81 };
                     if (reply.Length < 126) frame.Add((byte)reply.Length); else { frame.Add(126); frame.Add((byte)(reply.Length >> 8)); frame.Add((byte)reply.Length); }
                     frame.AddRange(reply);
@@ -734,7 +734,7 @@ static partial class Cdp
         var cleaned = Clean(_ => throw new InvalidOperationException("primary connection lost"), FreshEvaluator($"ws://127.0.0.1:{port}/devtools/page/test"), restore);
         server.Join(2000);
         listener.Stop();
-        Console.WriteLine(JsonSerializer.Serialize(new { cleaned, received }));
+        Console.WriteLine(EngineJson.Serialize(new CdpSessionSelfTestJson4(cleaned: cleaned, received: received)));
         return 0;
     }
 }

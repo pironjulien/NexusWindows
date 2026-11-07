@@ -209,8 +209,8 @@ static partial class ChromiumInput
         Guard();
         var controlBirth = Program.ProcessStartedUtc((uint)target.ProcessId)
             ?? throw new ActionRefusedException("Chromium field process birth unavailable; no text sent");
-        static object FocusIdentity(Node node) => new { runtimeId = node.RuntimeId, processId = node.ProcessId, nativeWindow = (long)node.NativeWindow,
-            name = node.Name, role = node.Role, automationId = node.AutomationId, framework = node.FrameworkId };
+        static object FocusIdentity(Node node) => new ChromiumInputWriteClaudeJson(runtimeId: node.RuntimeId, processId: node.ProcessId, nativeWindow: (long)node.NativeWindow,
+            name: node.Name, role: node.Role, automationId: node.AutomationId, framework: node.FrameworkId);
         object[] focusAncestors; SimulatedTextIdentity[] focusAncestorIdentities;
         using (var identity = ComUia.Shared.ReadIdentity(window, target.RuntimeId, target.NativeWindow, readAncestorText: false))
         {
@@ -220,9 +220,9 @@ static partial class ChromiumInput
             focusAncestorIdentities = current.Ancestors.Select(index => TextIdentity(identity.Nodes[index])).ToArray();
         }
         Guard();
-        object FocusRequest(string op) => new { op, windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow,
-            expectedWindowPid = windowPid, expectedWindowBirth = birth, expectedWindowClass = windowClass, expectedControlPid = target.ProcessId, expectedControlBirth = controlBirth,
-            identity = FocusIdentity(target), ancestors = focusAncestors };
+        object FocusRequest(string op) => new ChromiumInputWriteClaudeJson2(op: op, windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow,
+            expectedWindowPid: windowPid, expectedWindowBirth: birth, expectedWindowClass: windowClass, expectedControlPid: target.ProcessId, expectedControlBirth: controlBirth,
+            identity: FocusIdentity(target), ancestors: focusAncestors);
         void TakeBoundFocus(long deadline)
         {
             Guard();
@@ -236,7 +236,7 @@ static partial class ChromiumInput
                 var entered = Program.InputStarted;
                 try
                 {
-                    Timed("flush", () => Call(new { op = "flush", windowId = (long)window, runtimeId = Array.Empty<int>() }, deadline));
+                    Timed("flush", () => Call(new ChromiumInputReadValueJson(op: "flush", windowId: (long)window, runtimeId: Array.Empty<int>()), deadline));
                     using var identity = Timed("identity", () => ComUia.Shared.ReadIdentity(window, target.RuntimeId, target.NativeWindow, readAncestorText: false));
                     var current = identity.Nodes.SingleOrDefault(n => n.RuntimeId.SequenceEqual(target.RuntimeId));
                     if (current == null || current.Password || current.Disabled || current.ValueTruncated || TextIdentity(current) != TextIdentity(target)
@@ -272,15 +272,15 @@ static partial class ChromiumInput
             }
             var before = WithoutPlaceholder(ReadBoundValue() ?? throw new BackgroundNotApplicableException("Text value unreadable before writing; nothing was typed"), target.Name);
             try { return RunObservedText(before, text, replace, new SimulatedTextIo(CheckPresence, ReadBoundValue,
-                () => { CheckFocus(); if (!replace) Call(new { op = "caretToEnd", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow }, deadline); },
+                () => { CheckFocus(); if (!replace) Call(new ProgramForegroundActionJson(op: "caretToEnd", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow), deadline); },
                 // The field is emptied by its UIA value (one SetValue ""), then typed into: Codex ignores posted keys
                 // (measured), so Ctrl+A then Delete left its text in place and the replacement never started (05/11).
-                () => { CheckFocus(); Program.InputStarted = true; Call(new { op = "setValue", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow, value = "" }, deadline); }, unit => PostObservedCharacters(unit, CheckFocus, CheckPresence, character => Win32.Post(top, WM_CHAR, character, 1)),
+                () => { CheckFocus(); Program.InputStarted = true; Call(new ProgramUiaSetValueJson(op: "setValue", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow, value: ""), deadline); }, unit => PostObservedCharacters(unit, CheckFocus, CheckPresence, character => Win32.Post(top, WM_CHAR, character, 1)),
                 () => Key("enter"), () => Remaining(deadline) > 0, () => { var stamp = Stopwatch.GetTimestamp(); Thread.Sleep(20); RecordTiming("wait", stamp); })); }
             finally
             {
                 if (Environment.GetEnvironmentVariable("NEXUS_WINDOWS_TEXT_TIMING") == "1")
-                    try { Console.Error.WriteLine("[native-text-timing]" + JsonSerializer.Serialize(timing.ToDictionary(pair => pair.Key, pair => new { ms = Math.Round(pair.Value.Milliseconds, 3), calls = pair.Value.Count }))); }
+                    try { Console.Error.WriteLine("[native-text-timing]" + EngineJson.Serialize(timing.ToDictionary(pair => pair.Key, pair => new ChromiumInputWriteClaudeJson3(ms: Math.Round(pair.Value.Milliseconds, 3), calls: pair.Value.Count)))); }
                     catch { /* Optional numeric diagnostics do not change the input outcome. */ }
             }
         }
@@ -316,14 +316,14 @@ static partial class ChromiumInput
         catch (ActionRefusedException) { Check(sent == 0 && quickChecks == 0, "a lost focus proof sends no packet"); }
         try { PostObservedCharacters("abcd", () => { }, () => { if (++quickChecks == 3) throw new JulienActiveException("user resumed"); }, _ => sent++); }
         catch (JulienActiveException) { Check(sent == 2 && quickChecks == 3, "user presence interrupts the packet before the next rune without replay"); }
-        return new { ok = true, checks, packets, packetProofs, presenceChecks, proofDuringRune, utf16Posted = posted, gui = false, inputSent = false };
+        return new ChromiumInputSimulatedPacketGuardSelfTestJson(ok: true, checks: checks, packets: packets, packetProofs: packetProofs, presenceChecks: presenceChecks, proofDuringRune: proofDuringRune, utf16Posted: posted, gui: false, inputSent: false);
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1859", Justification = "Also returns anonymous result objects; only the units branch is a List<string>.")]
     static object SimulatedTextSelfTest(JsonElement test)
     {
         static string S(JsonElement e, string key, string fallback = "") => e.TryGetProperty(key, out var value) ? value.GetString() ?? fallback : fallback;
-        if (test.TryGetProperty("prefix", out var prefix)) return new { confirmed = ConfirmedTextPrefix(S(prefix, "value"), S(prefix, "text"), S(prefix, "before"), prefix.TryGetProperty("append", out var append) && append.GetBoolean()) };
+        if (test.TryGetProperty("prefix", out var prefix)) return new ChromiumInputSimulatedTextSelfTestJson(confirmed: ConfirmedTextPrefix(S(prefix, "value"), S(prefix, "text"), S(prefix, "before"), prefix.TryGetProperty("append", out var append) && append.GetBoolean()));
         if (test.TryGetProperty("units", out var units)) return SimulatedWriteUnits(units.GetString()!);
         var value = S(test, "before"); var text = S(test, "text"); var replace = test.TryGetProperty("replace", out var r) && r.GetBoolean();
         var events = new List<string>(); var checks = 0; var waits = 0; var inputPackets = 0;
@@ -356,8 +356,8 @@ static partial class ChromiumInput
                 events.Add("enter"); inputPackets++; if (!noAck && !changeAfterEnter) value += "\n";
             },
             () => { if (waits < 3) return true; if (pending != null) value = pending; return false; }, () => waits++);
-        try { var result = RunObservedText(value, text, replace, io); return new { ok = true, result, value, events, checks, waits, inputPackets }; }
-        catch (Exception error) { return new { ok = false, error = error.GetType().Name, message = error.Message, value, events, checks, waits, inputPackets }; }
+        try { var result = RunObservedText(value, text, replace, io); return new ChromiumInputSimulatedTextSelfTestJson2(ok: true, result: result, value: value, events: events, checks: checks, waits: waits, inputPackets: inputPackets); }
+        catch (Exception error) { return new ChromiumInputSimulatedTextSelfTestJson3(ok: false, error: error.GetType().Name, message: error.Message, value: value, events: events, checks: checks, waits: waits, inputPackets: inputPackets); }
     }
 }
 

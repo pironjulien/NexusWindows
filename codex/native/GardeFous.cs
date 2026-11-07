@@ -724,7 +724,7 @@ static class GardeFous
         Assert(accords.Check(act, confirm: true, accord: token2) == "", "valid accord passes once");
         Assert(accords.Check(act, confirm: true, accord: token2).Contains("already used", StringComparison.Ordinal), "accord single use");
 
-        Console.WriteLine(JsonSerializer.Serialize(new { ok = true, agents = ValidAgents, lookalikes = ConfusablesUpper.Count + ConfusablesLower.Count }));
+        Console.WriteLine(EngineJson.Serialize(new GardeFousSelfTestJson(ok: true, agents: ValidAgents, lookalikes: ConfusablesUpper.Count + ConfusablesLower.Count)));
         return 0;
     }
 }

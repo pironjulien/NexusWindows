@@ -49,7 +49,7 @@ static partial class Program
                 using var token = ForegroundToken.Acquire(args[1], abandoned);
                 acquired = true;
                 var noted = Win32.GetForegroundWindow();
-                Write(new { ok = true, foreground = (long)noted });
+                Write(new ProgramMainJson(ok: true, foreground: (long)noted));
                 Console.Out.Flush();
                 var said = abandoned.GetAwaiter().GetResult();
                 // Accuse terminal de liberation normale, toujours ecrit (cible ou non) : sans lui, l'appelant tient la
@@ -61,10 +61,10 @@ static partial class Program
                     // les injections de l'agent, que LastInput ne distingue pas) ; son choix est garde.
                     state = said.Contains("keep") ? "kept-by-julien" : ForegroundReturn.GiveBack(noted, target);
                 }
-                try { Write(new { released = true, giveBack = state }); Console.Out.Flush(); } catch (IOException) { } // appelant deja parti
+                try { Write(new ProgramMainJson2(released: true, giveBack: state)); Console.Out.Flush(); } catch (IOException) { } // appelant deja parti
                 return 0;
             }
-            catch (Exception error) when (!acquired) { Write(new { ok = false, error = error.GetType().Name, message = error.Message }); return 1; }
+            catch (Exception error) when (!acquired) { Write(new ProgramMainJson3(ok: false, error: error.GetType().Name, message: error.Message)); return 1; }
         }
         if (args.Length is 3 or 4 && args[0] == "--window-lock") return WindowLock.Hold(args);
         if (args.Length == 2 && args[0] == "--stop-guard") return EmergencyStop.Guard(args[1]);
@@ -139,10 +139,10 @@ static partial class Program
         {
             // inputStarted : une entree a pu partir avant l'erreur (relecture de Codex du 24/10) ; le client la rend
             // terminale (issue inconnue, accord consomme, aucun repli), quel que soit le type de l'exception.
-            result = new { ok = false, error = error.GetType().Name, message = error.Message, inputStarted = InputStarted };
+            result = new ProgramProcessRequestJson(ok: false, error: error.GetType().Name, message: error.Message, inputStarted: InputStarted);
             code = 1;
         }
-        if (server) Write(new { requestId, result }); else Write(result);
+        if (server) Write(new ProgramProcessRequestJson2(requestId: requestId, result: result)); else Write(result);
         Console.Out.Flush();
         return code;
     }
@@ -170,8 +170,8 @@ static partial class Program
         if (op == "probe")
         {
             var probe = Win32.Probe();
-            return new { ok = true, foreground = (long)probe.Foreground, foregroundPid = probe.Foreground == 0 ? 0 : Win32.ProcessOf(probe.Foreground),
-                cursor = new { x = probe.Cursor.X, y = probe.Cursor.Y }, idleMs = unchecked(Win32.GetTickCount() - probe.LastInput) };
+            return new ProgramExecuteRequestJson(ok: true, foreground: (long)probe.Foreground, foregroundPid: probe.Foreground == 0 ? 0 : Win32.ProcessOf(probe.Foreground),
+                cursor: new ProgramExecuteRequestJson2(x: probe.Cursor.X, y: probe.Cursor.Y), idleMs: unchecked(Win32.GetTickCount() - probe.LastInput));
         }
         if (op == "windows") return ListWindows(request.GetProperty("processId").GetInt32(), request.TryGetProperty("includeHidden", out var hidden) && hidden.GetBoolean());
         if (op == "launch") return Launch(request.GetProperty("target").GetString() ?? "", Text(request, "args"),
@@ -276,8 +276,8 @@ static partial class Program
                 var hint = request.TryGetProperty("nativeWindow", out var nw) && nw.ValueKind == JsonValueKind.Number ? (nint)nw.GetInt64() : 0;
                 var maxRows = request.TryGetProperty("maxRows", out var mr) && mr.ValueKind == JsonValueKind.Number ? Math.Clamp(mr.GetInt32(), 1, 600) : 100;
                 var read = ComUia.Shared.ReadTable(hwnd, runtimeId, hint, maxRows);
-                return read == null ? new { ok = true, grid = false } :
-                    new { ok = true, grid = true, headers = read.Headers, rows = read.Rows, rowCount = read.RowCount, columnCount = read.ColumnCount };
+                return read == null ? new ProgramExecuteRequestJson3(ok: true, grid: false) :
+                    new ProgramExecuteRequestJson4(ok: true, grid: true, headers: read.Headers, rows: read.Rows, rowCount: read.RowCount, columnCount: read.ColumnCount);
             }
             if (op == "menu") return MenuCommand(hwnd, Text(request, "path"));
             if (op == "key" && !request.TryGetProperty("selector", out _)) return KeyAction(hwnd, Text(request, "key"), request);
@@ -540,9 +540,9 @@ static partial class Program
         try { ReadInspection(() => { captures++; return area; }, () => fresh, () => { }, _ => { if (captures == 2) throw new ActionRefusedException("content replaced"); }); }
         catch (ActionRefusedException) { refused = true; }
         Assert(refused && captures == 2, "Content changed during the final measurement is rejected even with stable geometry");
-        return new { ok = true, checks };
+        return new ComWorkerVirtualizationSelfTestJson(ok: true, checks: checks);
     }
-    static object Inspect(List<Node> nodes, int contentPid, string actualApp, uint pid, long treeMs, Win32.Rect? frame = null,
+    static ProgramInspectJson Inspect(List<Node> nodes, int contentPid, string actualApp, uint pid, long treeMs, Win32.Rect? frame = null,
         StoreResume? storeResume = null, bool? storeContentReady = null)
     {
         ClassicCombos(nodes);
@@ -576,16 +576,16 @@ static partial class Program
         }
         var executable = ImagePath(contentPid) ?? throw new InvalidOperationException("Application binary unavailable");
         var revision = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(executable + ":" + File.GetLastWriteTimeUtc(executable).Ticks + ":" + new FileInfo(executable).Length))).ToLowerInvariant();
-        return new { ok = true, processId = pid, processStartedUtc = ProcessStartedUtc(pid), contentProcessId = contentPid,
-            contentProcessStartedUtc = ProcessStartedUtc((uint)contentPid), app = actualApp, revision, treeMs, publication = ComUia.Shared.LastPublication,
-            storeResume, storeContentReady,
-            frame = frame is { } r ? new { left = r.Left, top = r.Top, width = r.Width, height = r.Height } : null,
-            accessibility = new { tree = tree.ToString(), focused_element = focused == null ? null : $"{focused.Index} {focused.Role} {focused.Name}", document_text = document, document_truncated = documentTruncated },
-            elements = nodes.Select(n => new { index = n.Index, depth = n.Depth * 2, role = n.Role, name = n.Name, automationId = n.AutomationId,
-                value = n.Value, valueTruncated = n.ValueTruncated, description = n.Description, disabled = n.Disabled, selected = n.Selected, @checked = n.Checked,
-                expanded = n.Expanded, focused = n.Focused, visible = !n.Offscreen && n.Bounds.Length == 4 && n.Bounds[2] > 0 && n.Bounds[3] > 0, password = n.Password, actions = n.Actions, ancestors = n.Ancestors, runtimeId = n.RuntimeId,
-                nativeWindow = (long)n.NativeWindow, bounds = n.Bounds,
-                accessKey = n.AccessKey, isDefault = n.IsDefault, invoke = n.HasInvoke, flags = Flags(n) }).ToList() }; // avant la liberation de l'arbre
+        return new ProgramInspectJson(ok: true, processId: pid, processStartedUtc: ProcessStartedUtc(pid), contentProcessId: contentPid,
+            contentProcessStartedUtc: ProcessStartedUtc((uint)contentPid), app: actualApp, revision: revision, treeMs: treeMs, publication: ComUia.Shared.LastPublication,
+            storeResume: storeResume, storeContentReady: storeContentReady,
+            frame: frame is { } r ? new CaptureWindowJson2(left: r.Left, top: r.Top, width: r.Width, height: r.Height) : null,
+            accessibility: new ProgramInspectJson2(tree: tree.ToString(), focused_element: focused == null ? null : $"{focused.Index} {focused.Role} {focused.Name}", document_text: document, document_truncated: documentTruncated),
+            elements: nodes.Select(n => new ProgramInspectJson3(index: n.Index, depth: n.Depth * 2, role: n.Role, name: n.Name, automationId: n.AutomationId,
+                value: n.Value, valueTruncated: n.ValueTruncated, description: n.Description, disabled: n.Disabled, selected: n.Selected, @checked: n.Checked,
+                expanded: n.Expanded, focused: n.Focused, visible: !n.Offscreen && n.Bounds.Length == 4 && n.Bounds[2] > 0 && n.Bounds[3] > 0, password: n.Password, actions: n.Actions, ancestors: n.Ancestors, runtimeId: n.RuntimeId,
+                nativeWindow: (long)n.NativeWindow, bounds: n.Bounds,
+                accessKey: n.AccessKey, isDefault: n.IsDefault, invoke: n.HasInvoke, flags: Flags(n))).ToList()); // avant la liberation de l'arbre
     }
 
     internal static string[] Flags(Node n) => (n.Offscreen, n.Unreadable) switch
@@ -696,7 +696,7 @@ static partial class Program
         var results = input.RootElement.EnumerateArray().Select(c => ModalBoxIndex(
             c.GetProperty("chain").EnumerateArray().Select(n => (n.GetProperty("window").GetInt64(), n.GetProperty("disabled").GetBoolean())).ToList(),
             c.GetProperty("box").GetInt64())).ToList();
-        Console.WriteLine(JsonSerializer.Serialize(results));
+        Console.WriteLine(EngineJson.Serialize(results));
         return 0;
     }
     // Centre visible d'une cible dans le rectangle de la fenetre d'action (racine de l'arbre, ou boite modale), hors ligne.
@@ -711,7 +711,7 @@ static partial class Program
             try { var (x, y) = VisibleCenter(Of("target"), Of("root")); results.Add(new[] { x, y }); }
             catch (ActionRefusedException error) { results.Add(error.Message); }
         }
-        Console.WriteLine(JsonSerializer.Serialize(results));
+        Console.WriteLine(EngineJson.Serialize(results));
         return 0;
     }
     static int[] RuntimeIdOf(JsonElement e) =>
@@ -723,7 +723,7 @@ static partial class Program
     // liste d'une liste deroulante Win32 (ComboLBox) : partie transitoire de la fenetre, lue par l'arbre de son
     // proprietaire et jamais suivie comme une nouvelle fenetre.
     static readonly HashSet<string> IgnoredClasses = new(StringComparer.OrdinalIgnoreCase) { "tooltips_class32", "IME", "MSCTFIME UI", "SysShadow", "ForegroundStaging" };
-    static object Related(nint bound, uint boundPid)
+    static ProgramRelatedJson2 Related(nint bound, uint boundPid)
     {
         var windows = new List<object>();
         var z = 0;
@@ -737,10 +737,10 @@ static partial class Program
             if (pid != boundPid && !chain.Contains(bound)) return true;
             var cls = Win32.ClassName(hwnd);
             if (IgnoredClasses.Contains(cls) || ConsoleClasses.Contains(cls) || !Win32.GetWindowRect(hwnd, out var rect) || rect.Empty) return true;
-            windows.Add(new { id = (long)hwnd, pid, ownerChain = chain, className = cls, title = Win32.Title(hwnd), enabled = Win32.IsWindowEnabled(hwnd), popup = Win32.IsTransientPopup(hwnd, cls, bound), z });
+            windows.Add(new ProgramRelatedJson(id: (long)hwnd, pid: pid, ownerChain: chain, className: cls, title: Win32.Title(hwnd), enabled: Win32.IsWindowEnabled(hwnd), popup: Win32.IsTransientPopup(hwnd, cls, bound), z: z));
             return true;
         }, 0);
-        return new { ok = true, boundEnabled = Win32.IsWindowEnabled(bound), boundPid, windows };
+        return new ProgramRelatedJson2(ok: true, boundEnabled: Win32.IsWindowEnabled(bound), boundPid: boundPid, windows: windows);
     }
     // Page des Parametres (ms-settings:...) ouverte comme le ferait Demarrer > Executer, sous le jeton commun de premier
     // plan. Lancee par un processus d'arriere-plan, Windows l'ouvre souvent MASQUEE (CoreWindow jamais montree, mesure
@@ -788,16 +788,16 @@ static partial class Program
         // Identite reattestee juste avant de rendre, et rendue telle qu'attestee : processus lu AVANT l'attestation, relu
         // APRES ; s'il a change (HWND recycle), issue inconnue, jamais le nouveau proprietaire (relecture de Codex). Fenetre
         // non stabilisee 600 ms avant le delai : inconnue aussi.
-        if (!stable || found == 0) return new { ok = true, opened = (bool?)null, window = 0L, foregroundReturned = giveBack };
+        if (!stable || found == 0) return new ProgramOpenSettingsJson(ok: true, opened: (bool?)null, window: 0L, foregroundReturned: giveBack);
         var pid = Win32.ProcessOf(found);
         if (pid == 0 || !IsWindow(found) || !IsSettings(found) || Win32.ProcessOf(found) != pid)
-            return new { ok = true, opened = (bool?)null, window = 0L, foregroundReturned = giveBack };
+            return new ProgramOpenSettingsJson(ok: true, opened: (bool?)null, window: 0L, foregroundReturned: giveBack);
         // Same identity as the window inventory (AppWindows): a shown frame is named after its hosted content (SystemSettings),
         // with the frame's own pid; otherwise the launch result never matched windows and was refused as "identity changed".
         using var process = Process.GetProcessById((int)ContentPid((long)found, pid));
-        if (Win32.ProcessOf(found) != pid) return new { ok = true, opened = (bool?)null, window = 0L, foregroundReturned = giveBack };
-        return new { ok = true, opened = (bool?)true, window = (long)found, title = Win32.Title(found), app = AppId(process), pid,
-            hidden = !Win32.IsWindowVisible(found), foregroundReturned = giveBack };
+        if (Win32.ProcessOf(found) != pid) return new ProgramOpenSettingsJson(ok: true, opened: (bool?)null, window: 0L, foregroundReturned: giveBack);
+        return new ProgramOpenSettingsJson2(ok: true, opened: (bool?)true, window: (long)found, title: Win32.Title(found), app: AppId(process), pid: pid,
+            hidden: !Win32.IsWindowVisible(found), foregroundReturned: giveBack);
     }
     static bool IsSettings(nint hwnd)
     {
@@ -843,21 +843,21 @@ static partial class Program
     }
     static object Alive(nint hwnd, string app, long? expectedPid = null, long? expectedOwner = null, long? expectedAnchor = null)
     {
-        if (!IsWindow(hwnd)) return new { ok = true, state = "gone" };
+        if (!IsWindow(hwnd)) return new ProgramAliveJson(ok: true, state: "gone");
         GetWindowThreadProcessId(hwnd, out var pid);
-        if (pid == 0) return new { ok = true, state = "gone" };
+        if (pid == 0) return new ProgramAliveJson(ok: true, state: "gone");
         // HWND repris par une autre fenetre (autre processus ou autre proprietaire) : l'ancienne n'existe plus.
         if ((expectedPid is { } wantedPid && pid != wantedPid) || (expectedOwner is { } wantedOwner && (long)Win32.GetWindow(hwnd, Win32.GW_OWNER) != wantedOwner)
             || (expectedAnchor is { } wantedAnchor && !OwnedThrough(hwnd, wantedAnchor)))
-            return new { ok = true, state = "other" };
+            return new ProgramAliveJson(ok: true, state: "other");
         try
         {
             using var process = Process.GetProcessById((int)pid);
             var same = string.Equals(AppId(process), app, StringComparison.OrdinalIgnoreCase)
                 || process.ProcessName.Equals("ApplicationFrameHost", StringComparison.OrdinalIgnoreCase);
-            return new { ok = true, state = same ? "alive" : "other", visible = Win32.IsWindowVisible(hwnd) };
+            return new ProgramAliveJson2(ok: true, state: same ? "alive" : "other", visible: Win32.IsWindowVisible(hwnd));
         }
-        catch (ArgumentException) { return new { ok = true, state = "gone" }; }
+        catch (ArgumentException) { return new ProgramAliveJson(ok: true, state: "gone"); }
     }
     // Inventaire du bureau sans Sky (serveur MCP autonome) : fenetres d'application de premier niveau, visibles et non
     // masquees par DWM, comme la barre des taches (pas de fenetre outil sans WS_EX_APPWINDOW, pas de fenetre possedee).
@@ -865,9 +865,9 @@ static partial class Program
     // L'inventaire liste en plus les dialogues : fenetre possedee, visible, titree, non outil (boite « Ouvrir » #32770
     // de Chrome, sans WS_EX_APPWINDOW, vue absente le 25/10 par NexusWindows for Claude), avec son proprietaire.
     // Le lancement compare seulement les fenetres d'application (un dialogue n'est pas une application lancee).
-    static object ListAllWindows(bool includeHidden = false) => new { ok = true, windows = AppWindows(dialogs: true, includeHidden: includeHidden).Select(w => w.Owner == 0
-        ? (object)new { id = w.Id, app = w.App, title = w.Title, pid = w.Pid }
-        : new { id = w.Id, app = w.App, title = w.Title, pid = w.Pid, owner = w.Owner, ownerTitle = Win32.Title((nint)w.Owner) }) };
+    static ProgramListAllWindowsJson ListAllWindows(bool includeHidden = false) => new ProgramListAllWindowsJson(ok: true, windows: AppWindows(dialogs: true, includeHidden: includeHidden).Select(w => w.Owner == 0
+        ? (object)new ProgramListAllWindowsJson2(id: w.Id, app: w.App, title: w.Title, pid: w.Pid)
+        : new ProgramListAllWindowsJson3(id: w.Id, app: w.App, title: w.Title, pid: w.Pid, owner: w.Owner, ownerTitle: Win32.Title((nint)w.Owner))));
     static List<(long Id, string App, string Title, long Pid, long Owner)> AppWindows(bool dialogs = false, bool includeHidden = false)
     {
         const int GWL_EXSTYLE = -20, WS_EX_TOOLWINDOW = 0x80, WS_EX_APPWINDOW = 0x40000;
@@ -1081,11 +1081,11 @@ static partial class Program
             {
                 var plan = PlanLaunch(Text(c, "target"), Text(c, "args"));
                 var info = LaunchInfo(plan.Start, plan.ExePath, plan.Args);
-                results.Add(new { target = plan.Target, args = plan.Args, isExe = plan.IsExe, exePath = plan.ExePath, start = info.FileName, arguments = info.Arguments });
+                results.Add(new ProgramLaunchSelfTestJson(target: plan.Target, args: plan.Args, isExe: plan.IsExe, exePath: plan.ExePath, start: info.FileName, arguments: info.Arguments));
             }
-            catch (ActionRefusedException error) { results.Add(new { refused = error.Message }); }
+            catch (ActionRefusedException error) { results.Add(new ProgramLaunchSelfTestJson2(refused: error.Message)); }
         }
-        Console.WriteLine(JsonSerializer.Serialize(results));
+        Console.WriteLine(EngineJson.Serialize(results));
         return 0;
     }
 
@@ -1191,13 +1191,13 @@ static partial class Program
         var proofs = stable ? found.Select(w => (Window: w, Proof: Proof(w))).Where(p => p.Proof != null).ToDictionary(p => p.Window.Id, p => p.Proof) : new();
         var mine = found.Where(w => proofs.ContainsKey(w.Id)).ToList();
         var candidates = found.Where(w => !mine.Contains(w)).ToList();
-        object Shape((long Id, string App, string Title, long Pid, long Owner) w) => new { id = w.Id, app = w.App, title = w.Title, pid = w.Pid,
+        object Shape((long Id, string App, string Title, long Pid, long Owner) w) => new ProgramLaunchJson(id: w.Id, app: w.App, title: w.Title, pid: w.Pid,
             // Preuve de l'attribution : « process » (processus rendu par le shell), « folder » (fenetre de l'Explorateur qui
             // affiche le dossier demande) ou « application » (application visee, nee apres la demande : une autre instance
             // lancee au meme moment pourrait etre prise pour elle).
-            proof = proofs.TryGetValue(w.Id, out var proof) ? proof : null };
-        return new { ok = true, opened = mine.Count > 0 ? (bool?)true : null,
-            windows = mine.Select(Shape), candidates = candidates.Select(Shape), foregroundReturned = giveBack };
+            proof: proofs.TryGetValue(w.Id, out var proof) ? proof : null);
+        return new ProgramLaunchJson2(ok: true, opened: mine.Count > 0 ? (bool?)true : null,
+            windows: mine.Select(Shape), candidates: candidates.Select(Shape), foregroundReturned: giveBack);
     }
     // Fermeture : WM_CLOSE poste une seule fois (jamais rejoue), puis relu 3 s : fermee, masquee, ou encore ouverte avec
     // la fenetre qu'elle a ouverte (enregistrer ?) a regarder.
@@ -1208,17 +1208,17 @@ static partial class Program
         var clock = Stopwatch.StartNew();
         while (clock.ElapsedMilliseconds < 3000)
         {
-            if (!IsWindow(hwnd)) return new { ok = true, state = "closed" };
+            if (!IsWindow(hwnd)) return new ProgramAliveJson(ok: true, state: "closed");
             Thread.Sleep(50);
         }
-        if (!Win32.IsWindowVisible(hwnd)) return new { ok = true, state = "hidden" };
+        if (!Win32.IsWindowVisible(hwnd)) return new ProgramAliveJson(ok: true, state: "hidden");
         var prompts = new List<object>();
         Win32.EnumWindows((h, _) =>
         {
-            if (Win32.IsWindowVisible(h) && Win32.GetWindow(h, Win32.GW_OWNER) == hwnd) prompts.Add(new { id = (long)h, title = Win32.Title(h) });
+            if (Win32.IsWindowVisible(h) && Win32.GetWindow(h, Win32.GW_OWNER) == hwnd) prompts.Add(new ProgramCloseWindowJson(id: (long)h, title: Win32.Title(h)));
             return true;
         }, 0);
-        return new { ok = true, state = "open", prompts };
+        return new ProgramCloseWindowJson2(ok: true, state: "open", prompts: prompts);
     }
     static object ListWindows(int processId, bool includeHidden = false)
     {
@@ -1231,13 +1231,13 @@ static partial class Program
             if (Win32.IsWindowVisible(hwnd) && Win32.ProcessOf(hwnd) == processId)
             {
                 var cls = Win32.ClassName(hwnd);
-                if (!IgnoredClasses.Contains(cls) && GardeFous.BlockReason(process.ProcessName, cls) == null) windows.Add(new { id = (long)hwnd, app, title = Win32.Title(hwnd) });
+                if (!IgnoredClasses.Contains(cls) && GardeFous.BlockReason(process.ProcessName, cls) == null) windows.Add(new ProgramListWindowsJson(id: (long)hwnd, app: app, title: Win32.Title(hwnd)));
             }
             return true;
         }, 0);
-        return new { ok = true, windows };
+        return new ProgramListWindowsJson2(ok: true, windows: windows);
     }
-    static void Write(object value) => Console.WriteLine(JsonSerializer.Serialize(value, Json));
+    static void Write(object value) => Console.WriteLine(EngineJson.Serialize(value, Json));
     static string Clean(string value) => value.Replace('\r', ' ').Replace('\n', ' ');
     internal static string AppId(Process process)
     {

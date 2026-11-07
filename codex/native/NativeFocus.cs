@@ -4,7 +4,7 @@ static partial class Program
 {
     // Focus is deliberately separate from click: a button must never be invoked merely to focus it.
     // UIA SetFocus may activate an application, hence the real foreground lease, fresh identity and give-back.
-    static object NativeFocus(nint window, JsonElement request, Func<Node> resolveFresh)
+    static ProgramRunActionJson NativeFocus(nint window, JsonElement request, Func<Node> resolveFresh)
     {
         InputStarted = false;
         if (Text(request, "mode", "background") != "foreground")
@@ -27,10 +27,10 @@ static partial class Program
             InputStarted = true;
             try
             {
-                outcome = ComBridge.Call(new { op = "setFocus", windowId = (long)window, runtimeId = target.RuntimeId,
-                    nativeWindow = (long)target.NativeWindow, expectedWindowPid = pid, expectedWindowBirth = birth,
-                    expectedControlPid = target.ProcessId, expectedControlBirth = controlBirth,
-                    expectedName = target.Name, expectedRole = target.Role, expectedAutomationId = target.AutomationId });
+                outcome = ComBridge.Call(new ProgramNativeFocusJson(op: "setFocus", windowId: (long)window, runtimeId: target.RuntimeId,
+                    nativeWindow: (long)target.NativeWindow, expectedWindowPid: pid, expectedWindowBirth: birth,
+                    expectedControlPid: target.ProcessId, expectedControlBirth: controlBirth,
+                    expectedName: target.Name, expectedRole: target.Role, expectedAutomationId: target.AutomationId));
             }
             catch (Exception error) when (error.Data["beforeInput"] is true) { InputStarted = false; throw; }
             Thread.Sleep(30); // A provider can post its activation after SetFocus returns.
@@ -43,11 +43,11 @@ static partial class Program
                 ? ForegroundReturn.GiveBack(before.Foreground, window, before.LastInput) : "target-changed";
         }
         var after = Win32.Probe();
-        return new { ok = true, technique = "foreground:uia", mechanism = outcome.Mechanism, effect = outcome.Effect,
-            foregroundTaken = taken,
-            foregroundReturned = returned, cursorMoved = before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
-            inputDuringAction = before.LastInput != after.LastInput,
-            foreground = new { before = (long)before.Foreground, after = (long)after.Foreground } };
+        return new ProgramRunActionJson(ok: true, technique: "foreground:uia", mechanism: outcome.Mechanism, effect: outcome.Effect,
+            foregroundTaken: taken,
+            foregroundReturned: returned, cursorMoved: before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
+            inputDuringAction: before.LastInput != after.LastInput,
+            foreground: new ProgramRunActionJson2(before: (long)before.Foreground, after: (long)after.Foreground));
     }
 }
 

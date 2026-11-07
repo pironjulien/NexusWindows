@@ -20,7 +20,7 @@ static partial class Explorer
         {
             // Rattachement relu APRES les lectures : le succes concerne bien la fenetre liee (relecture de Codex).
             if (!Attached(tab, hwnd)) throw new ActionRefusedException("The Explorer view changed while reading it; nothing was sent");
-            return new { ok = true, technique = "background:shell", mechanism = "Navigate2", effect = "already", path = (string?)before, note = (string?)null };
+            return new ExplorerNavigateJson(ok: true, technique: "background:shell", mechanism: "Navigate2", effect: "already", path: (string?)before, note: (string?)null);
         }
         // Rattachement relu juste avant l'envoi : meme vue, toujours seule vue de CETTE fenetre ; puis STOP relu en
         // DERNIER, l'inventaire COM pouvant attendre (relecture de Codex).
@@ -38,12 +38,12 @@ static partial class Explorer
             var arrived = shown is not null && Identity(shown) == wanted;
             // Rattachement relu APRES les lectures qui fondent le succes : perdu, issue inconnue, jamais rejouee.
             if (!Attached(tab, hwnd))
-                return new { ok = true, technique = "background:shell", mechanism = "Navigate2", effect = "sent", path = (string?)null, note = (string?)"view no longer attached to the bound window" };
+                return new ExplorerNavigateJson(ok: true, technique: "background:shell", mechanism: "Navigate2", effect: "sent", path: (string?)null, note: (string?)"view no longer attached to the bound window");
             if (arrived)
-                return new { ok = true, technique = "background:shell", mechanism = "Navigate2", effect = "verified", path = shown, note = (string?)null };
+                return new ExplorerNavigateJson(ok: true, technique: "background:shell", mechanism: "Navigate2", effect: "verified", path: shown, note: (string?)null);
             Thread.Sleep(50);
         }
-        return new { ok = true, technique = "background:shell", mechanism = "Navigate2", effect = "sent", path = Current(tab), note = (string?)null };
+        return new ExplorerNavigateJson(ok: true, technique: "background:shell", mechanism: "Navigate2", effect: "sent", path: Current(tab), note: (string?)null);
     }
 
     // La fenetre (un seul onglet, rattache a elle) affiche-t-elle ce dossier ? Preuve d'un lancement de dossier (Program.Launch),

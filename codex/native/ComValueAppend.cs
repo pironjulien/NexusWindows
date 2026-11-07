@@ -12,13 +12,13 @@ static partial class Program
         var pid = Win32.ProcessOf(window);
         var birth = ProcessStartedUtc(pid) ?? throw new ActionRefusedException("Window process birth unavailable; no text sent");
         var controlBirth = ProcessStartedUtc((uint)target.ProcessId) ?? throw new ActionRefusedException("Field process birth unavailable; no text sent");
-        static object Identity(Node node) => new { runtimeId = node.RuntimeId, processId = node.ProcessId, nativeWindow = (long)node.NativeWindow,
-            name = node.Name, role = node.Role, automationId = node.AutomationId, framework = node.FrameworkId };
+        static object Identity(Node node) => new ChromiumInputWriteClaudeJson(runtimeId: node.RuntimeId, processId: node.ProcessId, nativeWindow: (long)node.NativeWindow,
+            name: node.Name, role: node.Role, automationId: node.AutomationId, framework: node.FrameworkId);
         var ancestors = target.Ancestors.Select(i => Identity(nodes[i])).ToArray();
         InputStarted = true; // A lost worker reply can follow its single SetValue; only its beforeInput proof resets this.
-        return FirstCall(() => ComBridge.Call(new { op = "appendValue", windowId = (long)window, runtimeId = target.RuntimeId,
-            nativeWindow = (long)target.NativeWindow, expectedWindowPid = pid, expectedWindowBirth = birth,
-            expectedControlPid = target.ProcessId, expectedControlBirth = controlBirth, identity = Identity(target), ancestors, text }));
+        return FirstCall(() => ComBridge.Call(new ProgramUiaAppendValueJson(op: "appendValue", windowId: (long)window, runtimeId: target.RuntimeId,
+            nativeWindow: (long)target.NativeWindow, expectedWindowPid: pid, expectedWindowBirth: birth,
+            expectedControlPid: target.ProcessId, expectedControlBirth: controlBirth, identity: Identity(target), ancestors: ancestors, text: text)));
     }
 }
 
@@ -111,6 +111,6 @@ static partial class ComWorker
         result = AppendValueOnce("x", () => "base", () => { }, () => Acted = true, _ => writes++, () => "base");
         Check(result.Effect == "sent" && writes == 1, "late UIA publication is not absence of input and never retries");
         Acted = false;
-        return new { ok = true, checks, gui = false };
+        return new ComWorkerAppendValueSelfTestJson(ok: true, checks: checks, gui: false);
     }
 }

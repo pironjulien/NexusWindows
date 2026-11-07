@@ -466,12 +466,12 @@ static partial class McpServer
         try
         {
             var outcome = fallback();
-            attempts.Add(new JsonObject { ["method"] = "physical", ["status"] = "returned" });
+            attempts.Add(EngineJson.Node(new JsonObject { ["method"] = "physical", ["status"] = "returned" }));
             outcome["attempts"] = attempts; return outcome;
         }
         catch (Exception error)
         {
-            attempts.Add(new JsonObject { ["method"] = "physical", ["status"] = inputAttempted() || error is AfterInputException ? "input-uncertain" : "refused-before-input", ["error_type"] = NativeAttemptError(error) });
+            attempts.Add(EngineJson.Node(new JsonObject { ["method"] = "physical", ["status"] = inputAttempted() || error is AfterInputException ? "input-uncertain" : "refused-before-input", ["error_type"] = NativeAttemptError(error) }));
             error.Data[NativeAttemptsKey] = attempts;
             throw;
         }

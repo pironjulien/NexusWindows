@@ -214,6 +214,6 @@ sealed class ChromiumContentWarmup
         using (policy.Read(Tree("app again"), true, identity, () => actual, () => { reads++; return Tree("toolbar"); }, () => false, () => now, advance, () => { reveals++; return false; }))
             Require(reveals == 1 && reads == before, "A window that cannot be revealed keeps the cooldown: no wait, no new reveal");
         checks += ChromiumReveal.SelfTest();
-        return new { ok = true, checks, gui = false, waitBudgetMs = BudgetMs, pollMs = PollMs, failureCooldownMs = MissingCooldownMs };
+        return new ChromiumContentWarmupSelfTestJson(ok: true, checks: checks, gui: false, waitBudgetMs: BudgetMs, pollMs: PollMs, failureCooldownMs: MissingCooldownMs);
     }
 }

@@ -12,7 +12,7 @@ sealed class MarkReport
     public int Outside { get; set; } // hors de la zone capturee (zoom, defilement)
     public List<int> Foreign { get; } = []; // element d'une autre fenetre (menu surgissant absent du PrintWindow)
     public string? Reason { get; set; } // aucune marque, et pourquoi
-    public object Json() => new { drawn = Drawn, omitted = Omitted, outside = Outside, foreign = Foreign, reason = Reason };
+    public object Json() => new MarkReportJsonJson(drawn: Drawn, omitted: Omitted, outside: Outside, foreign: Foreign, reason: Reason);
 }
 
 static partial class Marks

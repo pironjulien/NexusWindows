@@ -27,16 +27,16 @@ static partial class McpServer
                 c["exists"] = true;
                 if (field == "exists") c["exists"] = check[field]!.DeepClone();
                 else { c["field"] = field == "enabled" ? "disabled" : field == "contains" ? "value" : field; c[field == "contains" ? "includes" : "equals"] = field == "enabled" ? JsonValue.Create(!check[field]!.GetValue<bool>()) : check[field]!.DeepClone(); }
-                conditions.Add(c);
+                conditions.Add(EngineJson.Node(c));
             }
             step.Remove("check");
         }
         if (step["expect"] is JsonObject oldExpect && oldExpect["element"] != null)
         {
-            conditions.Add(LegacyElementExpectation(oldExpect)); step.Remove("expect");
+            conditions.Add(EngineJson.Node(LegacyElementExpectation(oldExpect))); step.Remove("expect");
         }
-        if (step["expect"] is JsonValue ev && ev.TryGetValue<string>(out var text)) conditions.Add(new JsonObject { ["text"] = text, ["gone"] = false });
-        if (action == "wait" && step["text"] != null) { conditions.Add(new JsonObject { ["text"] = step["text"]!.DeepClone(), ["gone"] = Bool(step, "gone") }); step.Remove("text"); }
+        if (step["expect"] is JsonValue ev && ev.TryGetValue<string>(out var text)) conditions.Add(EngineJson.Node(new JsonObject { ["text"] = text, ["gone"] = false }));
+        if (action == "wait" && step["text"] != null) { conditions.Add(EngineJson.Node(new JsonObject { ["text"] = step["text"]!.DeepClone(), ["gone"] = Bool(step, "gone") })); step.Remove("text"); }
         step.Remove("gone");
         if (conditions.Count > 0) step["expect"] = conditions.Count == 1 ? conditions[0]!.DeepClone() : new JsonObject { ["all"] = conditions };
         if (action == "scroll")
@@ -60,10 +60,10 @@ static partial class McpServer
         var target = original["element"] ?? throw new InvalidOperationException("Postcondition needs element");
         var conditions = new JsonArray();
         JsonObject Condition() => new() { [IsLegacyIndex(target) ? "element" : "selector"] = IsLegacyIndex(target) ? target.DeepClone() : LegacySelector(target) };
-        if (original["exists"] != null) { var c = Condition(); c["exists"] = original["exists"]!.DeepClone(); conditions.Add(c); }
+        if (original["exists"] != null) { var c = Condition(); c["exists"] = original["exists"]!.DeepClone(); conditions.Add(EngineJson.Node(c)); }
         foreach (var field in new[] { "value", "checked", "selected", "expanded", "focused", "disabled", "name", "description", "enabled" })
-            if (original[field] != null) { var c = Condition(); c["field"] = field == "enabled" ? "disabled" : field; c["equals"] = field == "enabled" ? JsonValue.Create(!original[field]!.GetValue<bool>()) : original[field]!.DeepClone(); conditions.Add(c); }
-        if (original["contains"] != null) { var c = Condition(); c["field"] = original["field"]?.DeepClone() ?? JsonValue.Create("value"); c["includes"] = original["contains"]!.DeepClone(); conditions.Add(c); }
+            if (original[field] != null) { var c = Condition(); c["field"] = field == "enabled" ? "disabled" : field; c["equals"] = field == "enabled" ? JsonValue.Create(!original[field]!.GetValue<bool>()) : original[field]!.DeepClone(); conditions.Add(EngineJson.Node(c)); }
+        if (original["contains"] != null) { var c = Condition(); c["field"] = original["field"]?.DeepClone() ?? JsonValue.Create("value"); c["includes"] = original["contains"]!.DeepClone(); conditions.Add(EngineJson.Node(c)); }
         if (conditions.Count == 0) { var c = Condition(); c["exists"] = true; return c; }
         return conditions.Count == 1 ? conditions[0]!.DeepClone().AsObject() : new JsonObject { ["all"] = conditions };
     }

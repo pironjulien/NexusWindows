@@ -48,7 +48,7 @@ static partial class Physical
     public static int TargetSelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
-        Console.WriteLine(JsonSerializer.Serialize(input.RootElement.EnumerateArray().Select(e => SupportsRelocation(e.GetString() ?? "")).ToArray()));
+        Console.WriteLine(EngineJson.Serialize(input.RootElement.EnumerateArray().Select(e => SupportsRelocation(e.GetString() ?? "")).ToArray()));
         return 0;
     }
 
@@ -74,7 +74,7 @@ static partial class Physical
         if (!Win32.IsWindowEnabled(window)) throw new ActionRefusedException("Window is disabled (a modal dialog may be open)");
         started();
         BringToFront(window);
-        return new { ok = true, technique = "physical:native", mechanism = "SetForegroundWindow", effect = "applied", foregroundTaken = true };
+        return new PhysicalActivateJson(ok: true, technique: "physical:native", mechanism: "SetForegroundWindow", effect: "applied", foregroundTaken: true);
     }
 
     static void BringToFront(nint window)
@@ -332,7 +332,7 @@ static partial class Physical
                 Math.Abs(now.Y - (action == "drag" ? Int("toY") : y)) <= 1)
                 SetCursorPos(cursor.X, cursor.Y);
         }
-        return new { ok = true, technique = "physical:native", mechanism, effect = "sent", foregroundTaken = true,
-            contextMenu = rightClick ? Program.OpenedMenu(window, menusBefore) : null };
+        return new PhysicalActJson(ok: true, technique: "physical:native", mechanism: mechanism, effect: "sent", foregroundTaken: true,
+            contextMenu: rightClick ? Program.OpenedMenu(window, menusBefore) : null);
     }
 }

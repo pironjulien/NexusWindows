@@ -84,8 +84,8 @@ static partial class McpServer
             var text = Str(line, "text"); if (text.Length == 0) continue;
             var key = "ocr|" + text + "|" + Number(line, "left") + "|" + Number(line, "top");
             if (!memory.Ids.TryGetValue(key, out var id)) memory.Ids[key] = id = ++memory.Next;
-            Elements(snapshot).Add(new JsonObject { ["index"] = id, ["role"] = "text", ["name"] = text, ["ocr"] = true,
-                ["bounds"] = new JsonArray(Number(line, "left"), Number(line, "top"), Number(line, "width"), Number(line, "height")), ["ocrFrame"] = frame.DeepClone(), ["ancestors"] = new JsonArray() });
+            Elements(snapshot).Add(EngineJson.Node(new JsonObject { ["index"] = id, ["role"] = "text", ["name"] = text, ["ocr"] = true,
+                ["bounds"] = new JsonArray(Number(line, "left"), Number(line, "top"), Number(line, "width"), Number(line, "height")), ["ocrFrame"] = frame.DeepClone(), ["ancestors"] = new JsonArray() }));
         }
     }
     static string NativeLine(JsonObject element, JsonObject? reference)
@@ -232,7 +232,7 @@ static partial class McpServer
         if (expected is { } known && (target.Id != known.Id || target.Pid != known.Pid || !target.App.Equals(known.App, StringComparison.OrdinalIgnoreCase) || Program.ProcessStartedUtc((uint)target.Pid) != expectedBirth))
             throw new ActionRefusedException("The launched window/process was replaced before observation; no screen returned");
         if (prior?.Id != target.Id) { state.RetainedFocus = null; state.Image = null; state.RegionImage = null; state.Pending = null; state.CurrentObservation = null; state.CurrentObservationId = null; }
-        if (show == "none" && args["routine_info"] == null) return new JsonObject { ["content"] = new JsonArray { TextBlock("No observation requested; previous displayed indices retained.") } };
+        if (show == "none" && args["routine_info"] == null) return new JsonObject { ["content"] = new JsonArray(TextBlock("No observation requested; previous displayed indices retained.")) };
         state.CurrentObservation = null; state.CurrentObservationId = null;
         var snapshot = InspectNative(state); var memory = LookMemory(state, target.Id, snapshot);
         PublishNativeIndices(state, snapshot, memory);
@@ -342,7 +342,7 @@ static partial class McpServer
         if (show is not ("none" or "image" or "text")) text += "\n" + Str(data, "summary");
         if (minimized) text += "\nWindow minimized: list only; restore explicitly before requesting an image.";
         var note = state.Accords.Read($"window {target.Id} \"{target.Title}\"", text); if (note.Length > 0) text += "\n" + note;
-        var content = new JsonArray { Str(args, "format") == "json" ? TextBlock(data) : TextBlock(text) };
+        var content = new JsonArray(Str(args, "format") == "json" ? TextBlock(data) : TextBlock(text));
         if (shot != null && wantsImage)
         {
             var bytes = File.ReadAllBytes(Str(shot, "path"));
@@ -350,10 +350,10 @@ static partial class McpServer
             var areaKey = (args["region"] ?? args["zoom"])?.ToJsonString() ?? "full";
             var print = Routines.Digest(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)) + shot["frame"]!.ToJsonString());
             data["image"] = shotId; data["capture"] = shot.DeepClone();
-            if (show != "image" && memory.Sent.TryGetValue(areaKey, out var oldPrint) && oldPrint == print) content.Add(TextBlock("Image unchanged: same pixels and frame; show=image resends it."));
-            else { content.Add(TextBlock($"image {shotId}; {shot.ToJsonString(JsonOut)}")); content.Add(new JsonObject { ["type"] = "image", ["data"] = Convert.ToBase64String(bytes), ["mimeType"] = Str(shot, "mimeType") }); memory.Sent[areaKey] = print; }
+            if (show != "image" && memory.Sent.TryGetValue(areaKey, out var oldPrint) && oldPrint == print) content.Add(EngineJson.Node(TextBlock("Image unchanged: same pixels and frame; show=image resends it.")));
+            else { content.Add(EngineJson.Node(TextBlock($"image {shotId}; {shot.ToJsonString(JsonOut)}"))); content.Add(EngineJson.Node(new JsonObject { ["type"] = "image", ["data"] = Convert.ToBase64String(bytes), ["mimeType"] = Str(shot, "mimeType") })); memory.Sent[areaKey] = print; }
         }
-        state.CurrentObservation = JsonSerializer.SerializeToElement(snapshot); state.CurrentObservationId = id; state.ObservedAt = DateTimeOffset.UtcNow;
+        state.CurrentObservation = EngineJson.SerializeToElement(snapshot); state.CurrentObservationId = id; state.ObservedAt = DateTimeOffset.UtcNow;
         return new JsonObject { ["content"] = content, ["structuredContent"] = data };
     }
     static bool SameFrameSize(JsonObject a, JsonObject b) => Number(a, "width") == Number(b, "width") && Number(a, "height") == Number(b, "height");
@@ -437,7 +437,7 @@ static partial class McpServer
             foreach (var block in observed["content"]!.AsArray()) result["content"]!.AsArray().Add(block!.DeepClone());
             result["structuredContent"]!["observation"] = observed["structuredContent"]?.DeepClone();
         }
-        catch (Exception error) { result["content"]!.AsArray().Add(TextBlock("Actions were not replayed. Final observation unavailable: " + error.Message)); result["structuredContent"]!["observationError"] = error.Message; }
+        catch (Exception error) { result["content"]!.AsArray().Add(EngineJson.Node(TextBlock("Actions were not replayed. Final observation unavailable: " + error.Message))); result["structuredContent"]!["observationError"] = error.Message; }
         return result;
     }
     static JsonObject RunClaudeCompatibleAct(SessionState state, JsonObject args, bool modern)
@@ -460,7 +460,7 @@ static partial class McpServer
                 // indices shown by the previous look stay usable when they are still present (05/11: after an act with
                 // then="none", the next act was refused, « This index was not displayed in the previous look »).
                 memory.Shown.IntersectWith(Elements(snapshot).OfType<JsonObject>().Select(e => (int)Number(e, "index")));
-                state.CurrentObservation = JsonSerializer.SerializeToElement(snapshot); state.CurrentObservationId = state.NextObservationId(); state.ObservedAt = DateTimeOffset.UtcNow;
+                state.CurrentObservation = EngineJson.SerializeToElement(snapshot); state.CurrentObservationId = state.NextObservationId(); state.ObservedAt = DateTimeOffset.UtcNow;
             }
             // A run of steps or of a routine: the same batch resent blind is refused (McpRepeatGuard.cs).
             if (args["steps"] is JsonArray { Count: > 0 } || controls["routine"] is JsonValue)
@@ -549,7 +549,7 @@ static partial class McpServer
         Check(Refused(() => CheckShownExpectationIndices(state, numeric["expect"]!.AsObject())), "numeric postcondition also requires a displayed index");
         // Skeleton: a layout wrapper is hidden, a named list with many items is a region, a leaf is never a wrapper (31/10).
         var dense = JsonNode.Parse("""{"elements":[{"index":0,"role":"window","name":"Chat","ancestors":[]},{"index":1,"role":"pane","name":"","automationId":"","ancestors":[0]},{"index":2,"role":"list","name":"Messages","ancestors":[0,1]},{"index":3,"role":"group","name":"","ancestors":[0]}]}""")!.AsObject();
-        for (var i = 0; i < 10; i++) dense["elements"]!.AsArray().Add(new JsonObject { ["index"] = 10 + i, ["role"] = "listitem", ["name"] = $"m{i}", ["ancestors"] = new JsonArray(0, 1, 2) });
+        for (var i = 0; i < 10; i++) dense["elements"]!.AsArray().Add(EngineJson.Node(new JsonObject { ["index"] = 10 + i, ["role"] = "listitem", ["name"] = $"m{i}", ["ancestors"] = new JsonArray(0, 1, 2) }));
         var counts = ParentCounts(dense); var items = Elements(dense).OfType<JsonObject>().ToList();
         Check(EmptyContainer(items[1], counts) && !EmptyContainer(items[2], counts) && !EmptyContainer(items[3], counts), "only an unnamed container holding elements is a layout wrapper");
         Check(Regions(dense, counts).SequenceEqual(new[] { "[2] list \"Messages\" (10)" }), "a named container with most items is the region to look within");

@@ -59,7 +59,7 @@ static partial class Pointer
         var contexts = new Stack<nint>();
         InRecipientContext(() => 1, () => InRecipientContext(() => 2, () => contexts.Push(3), previous => contexts.Push(previous)), previous => contexts.Push(previous));
         Check(contexts.SequenceEqual(new nint[] { 1, 2, 3 }));
-        return new { ok = true, checks, gui = false, inputSent = false };
+        return new ComWorkerChromiumFocusSelfTestJson(ok: true, checks: checks, gui: false, inputSent: false);
     }
 
     const uint WM_MOUSEMOVE = 0x0200, WM_MOUSEWHEEL = 0x020A, WM_MOUSEHWHEEL = 0x020E;
@@ -87,10 +87,10 @@ static partial class Pointer
         return current;
     }
 
-    static object? ThreadState(uint thread)
+    static PointerThreadStateJson? ThreadState(uint thread)
     {
         var info = new GuiThreadInfo { Size = Marshal.SizeOf<GuiThreadInfo>() };
-        return GetGUIThreadInfo(thread, ref info) ? new { capture = (long)info.Capture, focus = (long)info.Focus, active = (long)info.Active } : null;
+        return GetGUIThreadInfo(thread, ref info) ? new PointerThreadStateJson(capture: (long)info.Capture, focus: (long)info.Focus, active: (long)info.Active) : null;
     }
 
     // Interfaces where a posted click has no effect (WPF, UWP/WinUI, Firefox; measured): a click at a point there is either
@@ -148,7 +148,7 @@ static partial class Pointer
             // la surveillance du premier plan sous jeton s'applique (relecture de Codex, 21/10). Le processus COM ne leve
             // « non applicable » qu'avant le premier pas.
             started();
-            return ComBridge.Call(new { op = "scrollAt", windowId = (long)window, runtimeId = Array.Empty<int>(), x, y, deltaY, deltaX });
+            return ComBridge.Call(new PointerActPhysicalPixelsJson(op: "scrollAt", windowId: (long)window, runtimeId: Array.Empty<int>(), x: x, y: y, deltaY: deltaY, deltaX: deltaX));
         }
         // CEF heberge (Steam SDL) : meme preuve CDP stricte que Chromium. Sans port/PID/page/surface attribuables,
         // Cdp refuse AVANT envoi ; jamais de molette postee silencieusement a la place. Clic/hover gardent leur voie.
@@ -207,12 +207,11 @@ static partial class Pointer
         var hit = WindowFromPoint(new Win32.Point { X = x, Y = y });
         var thread = Win32.GetWindowThreadProcessId(target, out _);
         var posted = new List<string>();
-        void Trace(string state) => LastTrace = new
-        {
-            target = (long)target, className = ClassOf(target), thread, client = new[] { client.X, client.Y }, screen = new[] { x, y },
-            posted = posted.ToArray(), state, hitWindow = (long)hit, hitClass = hit == 0 ? "" : ClassOf(hit), hitIsTarget = hit == target,
-            threadAfter = ThreadState(thread),
-        };
+        void Trace(string state) => LastTrace = new PointerActPhysicalPixelsJson2(
+            target: (long)target, className: ClassOf(target), thread: thread, client: new[] { client.X, client.Y }, screen: new[] { x, y },
+            posted: posted.ToArray(), state: state, hitWindow: (long)hit, hitClass: hit == 0 ? "" : ClassOf(hit), hitIsTarget: hit == target,
+            threadAfter: ThreadState(thread)
+        );
         try
         {
             var recipientContext = Win32.GetWindowDpiAwarenessContext(target);

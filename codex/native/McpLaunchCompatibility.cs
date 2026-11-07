@@ -342,7 +342,7 @@ static partial class McpServer
         if (window.Title.Contains(name, StringComparison.OrdinalIgnoreCase)) return true;
         try
         {
-            var snapshot = ObjectOf(ExecuteInternal(new { operation = "inspect", windowId = window.Id, app = window.App, expectedPid = window.Pid }));
+            var snapshot = ObjectOf(ExecuteInternal(new McpServerClaudeDocumentShownJson(operation: "inspect", windowId: window.Id, app: window.App, expectedPid: window.Pid)));
             return Elements(snapshot).OfType<JsonObject>().Any(e => !Bool(e, "password") && Str(e, "name").Contains(name, StringComparison.OrdinalIgnoreCase));
         }
         catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { return false; }
@@ -352,7 +352,7 @@ static partial class McpServer
         var root = Path.Combine(NativeStateRoot(GardeFous.CurrentAgent), "devtools-profiles"); Directory.CreateDirectory(root);
         if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0) throw new ActionRefusedException("DevTools profile root may not be a reparse point");
         var path = Path.Combine(root, DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-", System.Globalization.CultureInfo.InvariantCulture) + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(path);
-        File.WriteAllText(Path.Combine(path, ".nexus-profile"), JsonSerializer.Serialize(new { created = DateTimeOffset.UtcNow, owner = "nexus-windows-" + GardeFous.CurrentAgent, id = Path.GetFileName(path) }));
+        File.WriteAllText(Path.Combine(path, ".nexus-profile"), EngineJson.Serialize(new McpServerClaudeNewProfileJson(created: DateTimeOffset.UtcNow, owner: "nexus-windows-" + GardeFous.CurrentAgent, id: Path.GetFileName(path))));
         return path;
     }
     static JsonObject LaunchClaudeNative(SessionState state, JsonObject args, bool modern)
@@ -516,7 +516,7 @@ static partial class McpServer
         var windows = data["windows"] as JsonArray; var rows = windows?.OfType<JsonObject>().ToList() ?? [];
         if (rows.Count == 0 && data["window"] is JsonValue windowValue && windowValue.TryGetValue<long>(out var id) && id != 0)
             rows.Add(new JsonObject { ["id"] = id, ["app"] = data["app"]?.DeepClone(), ["pid"] = data["pid"]?.DeepClone(), ["title"] = data["title"]?.DeepClone(), ["processStartedUtc"] = data["processStartedUtc"]?.DeepClone() });
-        var content = new JsonArray { TextBlock(data) };
+        var content = new JsonArray(TextBlock(data));
         if (rows.Count == 1)
         {
             var row = rows[0]; var expected = ((long)Number(row, "id"), Str(row, "app"), Str(row, "title"), (long)Number(row, "pid"));
@@ -534,7 +534,7 @@ static partial class McpServer
                     foreach (var block in observed["content"]!.AsArray()) content.Add(block!.DeepClone());
                     data["observation"] = observed["structuredContent"]?.DeepClone();
                 }
-                catch (Exception error) when (error is not ActionRefusedException && error is (InvalidOperationException or System.ComponentModel.Win32Exception)) { content.Add(TextBlock("Application launched, observation unavailable: " + error.Message)); }
+                catch (Exception error) when (error is not ActionRefusedException && error is (InvalidOperationException or System.ComponentModel.Win32Exception)) { content.Add(EngineJson.Node(TextBlock("Application launched, observation unavailable: " + error.Message))); }
             }
         }
         data["status"] = Bool(data, "opened") ? "opened" : "unknown";
@@ -757,7 +757,7 @@ static partial class McpServer
                 {
                     var helpers = steam["helpers"]!.AsArray().Select(p => checked((uint)p!.GetValue<long>())).ToHashSet();
                     var listeners = steam["listeners"]!.AsArray().OfType<JsonObject>().Select(l => (Str(l, "address"), checked((uint)Number(l, "pid"))));
-                    results.Add(new JsonObject { ["steamOwner"] = ClaudeSteamPortOwner(listeners, helpers), ["sessionKind"] = "genuine-steam-session" }); continue;
+                    results.Add(EngineJson.Node(new JsonObject { ["steamOwner"] = ClaudeSteamPortOwner(listeners, helpers), ["sessionKind"] = "genuine-steam-session" })); continue;
                 }
                 var plan = PlanClaudeLaunch(Str(value, "app"), Str(value, "args"), Bool(value, "devtools"), Bool(value, "restart"), apps);
                 var data = new JsonObject { ["kind"] = plan.Kind, ["target"] = plan.Target, ["args"] = plan.Arguments, ["executable"] = plan.Executable, ["appId"] = plan.AppId, ["name"] = plan.Name,
@@ -765,9 +765,9 @@ static partial class McpServer
                 data["parsedArguments"] = new JsonArray(Program.SplitArgs(Str(data, "commandArguments")).Select(s => (JsonNode)JsonValue.Create(s)!).ToArray());
                 if (value["profileFixture"] is JsonValue) data["accountMarker"] = ClaudeProfileAccount(Str(value, "profileFixture"));
                 if (value["activationHResult"] != null) data["fileContractFallbackAllowed"] = ClaudeFileContractRejected(checked((int)Number(value, "activationHResult")));
-                results.Add(data);
+                results.Add(EngineJson.Node(data));
             }
-            catch (Exception error) when (error is ActionRefusedException or InvalidOperationException or InvalidDataException or ArgumentException) { results.Add(new JsonObject { ["refused"] = error.Message }); }
+            catch (Exception error) when (error is ActionRefusedException or InvalidOperationException or InvalidDataException or ArgumentException) { results.Add(EngineJson.Node(new JsonObject { ["refused"] = error.Message })); }
         }
         Console.WriteLine(results.ToJsonString()); return 0;
     }

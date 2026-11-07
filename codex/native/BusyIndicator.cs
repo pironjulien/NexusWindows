@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 // clics, jamais activee, absente de la barre des taches (fenetre d'outil) et des captures (WDA_EXCLUDEFROMCAPTURE).
 // Rendu analytique (ombre, piece) a partir de logo.png decode par GDI+ : aucune dependance ajoutee.
 // NEXUS_WINDOWS_INDICATOR=0 le coupe.
-static partial class BusyIndicator
+static unsafe partial class BusyIndicator
 {
     public const int LingerMs = 1618, PeriodMs = 1618, Frames = 48, FadeMs = 300, Size = 72, Margin = 28;
     const double Canvas = 2.0;
@@ -237,14 +237,16 @@ static partial class BusyIndicator
     }
 
     // ---- Fenetre ----
-    delegate nint WndProc(nint hwnd, uint msg, nint wparam, nint lparam);
-    static WndProc? proc; // garde le delegue en vie
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    // WNDCLASSEXW, blittable: the window procedure is a static UnmanagedCallersOnly function (no marshalled delegate to
+    // keep alive) and the names are character pointers, so the registration is source-generated (trimming, Native AOT).
+    [StructLayout(LayoutKind.Sequential)]
     struct WndClassEx
     {
-        public uint Size, Style; public WndProc Proc; public int ClassExtra, WindowExtra; public nint Instance, Icon, Cursor, Background;
-        public string? MenuName; public string ClassName; public nint SmallIcon;
+        public uint Size, Style; public delegate* unmanaged[Stdcall]<nint, uint, nint, nint, nint> Proc; public int ClassExtra, WindowExtra;
+        public nint Instance, Icon, Cursor, Background; public char* MenuName; public char* ClassName; public nint SmallIcon;
     }
+    [UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvStdcall)])]
+    static nint WindowProcedure(nint hwnd, uint msg, nint wparam, nint lparam) => DefWindowProcW(hwnd, msg, wparam, lparam);
     [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
     [StructLayout(LayoutKind.Sequential)] struct SizeS { public int Cx, Cy; }
     [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left, Top, Right, Bottom; }
@@ -257,8 +259,7 @@ static partial class BusyIndicator
     [StructLayout(LayoutKind.Sequential)] struct GpRect { public int X, Y, Width, Height; }
     [StructLayout(LayoutKind.Sequential)] struct BitmapData { public uint Width, Height; public int Stride, PixelFormat; public nint Scan0; public nuint Reserved; }
 
-    // WndClassEx carries a delegate and strings: runtime marshalling (DllImport), not source-generated.
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern ushort RegisterClassExW(ref WndClassEx wc);
+    [LibraryImport("user32.dll", SetLastError = true)] private static partial ushort RegisterClassExW(in WndClassEx wc);
     [LibraryImport("user32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     private static partial nint CreateWindowExW(uint exStyle, string cls, string? title, uint style, int x, int y, int w, int h, nint parent, nint menu, nint instance, nint param);
     [LibraryImport("user32.dll")] private static partial nint DefWindowProcW(nint hwnd, uint msg, nint wparam, nint lparam);
@@ -336,16 +337,18 @@ static partial class BusyIndicator
     static void Run()
     {
         try { Loop(); }
-        catch (Exception error) { ShownAt = null; EmergencyStop.Emit(new { @event = "indicator", error = error.GetType().Name + ": " + error.Message }); }
+        catch (Exception error) { ShownAt = null; EmergencyStop.Emit(new BusyIndicatorRunJson(@event: "indicator", error: error.GetType().Name + ": " + error.Message)); }
     }
 
     static void Loop()
     {
         SetThreadDpiAwarenessContext(-4); // PER_MONITOR_AWARE_V2 : position et taille en pixels reels de chaque ecran
-        proc = (h, m, w, l) => DefWindowProcW(h, m, w, l);
         var instance = GetModuleHandleW(null);
-        var cls = new WndClassEx { Size = (uint)Marshal.SizeOf<WndClassEx>(), Proc = proc, Instance = instance, ClassName = ClassName };
-        RegisterClassExW(ref cls); // deja enregistree apres une relance du fil : sans effet
+        fixed (char* name = ClassName)
+        {
+            var cls = new WndClassEx { Size = (uint)sizeof(WndClassEx), Proc = &WindowProcedure, Instance = instance, ClassName = name };
+            RegisterClassExW(in cls); // deja enregistree apres une relance du fil : sans effet
+        }
         Window = CreateWindowExW(WsEx, ClassName, "NexusCodex", WsPopup, 0, 0, 1, 1, 0, 0, instance, 0);
         if (Window == 0) throw new InvalidOperationException("CreateWindowExW failed: " + Marshal.GetLastWin32Error());
         SetWindowDisplayAffinity(Window, ExcludeFromCapture);

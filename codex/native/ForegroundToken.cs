@@ -51,7 +51,7 @@ sealed class ForegroundToken : IDisposable
         var token = new ForegroundToken(stream);
         try
         {
-            var data = JsonSerializer.SerializeToUtf8Bytes(new { owner = "NexusCodex", pid = Environment.ProcessId, since = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), purpose });
+            var data = EngineJson.SerializeToUtf8Bytes(new ForegroundTokenAcquireJson(owner: "NexusCodex", pid: Environment.ProcessId, since: DateTimeOffset.UtcNow.ToUnixTimeSeconds(), purpose: purpose));
             stream.SetLength(0);
             stream.Write(data);
             stream.Flush();

@@ -44,7 +44,7 @@ sealed class WindowLock : IDisposable
         var token = new WindowLock(stream, window);
         try
         {
-            var data = JsonSerializer.SerializeToUtf8Bytes(new { agent, pid = Environment.ProcessId, since = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
+            var data = EngineJson.SerializeToUtf8Bytes(new WindowLockAcquireJson(agent: agent, pid: Environment.ProcessId, since: DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
             stream.SetLength(0); stream.Write(data); stream.Flush();
             held[window] = token;
             return token;
@@ -85,11 +85,11 @@ sealed class WindowLock : IDisposable
         try
         {
             using var token = Acquire(window, args[2], wait);
-            Console.WriteLine(JsonSerializer.Serialize(new { ok = true }));
+            Console.WriteLine(EngineJson.Serialize(new JournalSelfTestJson(ok: true)));
             Console.Out.Flush();
             Console.In.ReadToEnd();
             return 0;
         }
-        catch (WindowBusyException error) { Console.WriteLine(JsonSerializer.Serialize(new { ok = false, message = error.Message })); return 1; }
+        catch (WindowBusyException error) { Console.WriteLine(EngineJson.Serialize(new WindowLockHoldJson(ok: false, message: error.Message))); return 1; }
     }
 }

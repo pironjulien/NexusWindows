@@ -6,7 +6,7 @@ static partial class McpServer
 {
     static JsonObject FullScreenNative(SessionState state, JsonObject args)
     {
-        var capture = ObjectOf(JsonSerializer.SerializeToElement(Capture.Screen(Path.Combine(NativeStateRoot(state.Agent), "captures"))));
+        var capture = ObjectOf(EngineJson.SerializeToElement(Capture.Screen(Path.Combine(NativeStateRoot(state.Agent), "captures"))));
         var path = Str(capture, "path");
         if (args["output_path"] is JsonValue)
         {
@@ -14,7 +14,7 @@ static partial class McpServer
             File.Copy(path, destination, true); capture["output_path"] = destination;
         }
         else capture["output_path"] = path;
-        return new JsonObject { ["content"] = new JsonArray { TextBlock(capture), new JsonObject { ["type"] = "image", ["data"] = Convert.ToBase64String(File.ReadAllBytes(path)), ["mimeType"] = Str(capture, "mimeType") } }, ["structuredContent"] = capture.DeepClone() };
+        return new JsonObject { ["content"] = new JsonArray(TextBlock(capture), new JsonObject { ["type"] = "image", ["data"] = Convert.ToBase64String(File.ReadAllBytes(path)), ["mimeType"] = Str(capture, "mimeType") }), ["structuredContent"] = capture.DeepClone() };
     }
 
     // An exported capture keeps the requested folder and name, with the extension of the format actually sent (WebP, or

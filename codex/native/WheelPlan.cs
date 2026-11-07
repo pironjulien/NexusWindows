@@ -35,11 +35,11 @@ readonly record struct ScrollPlan(bool Vertical, bool Forward, int Notches)
             {
                 var plan = Of(dy, dx);
                 var (cx, cy) = DevTools(dy, dx);
-                results.Add(new { vertical = plan.Vertical, forward = plan.Forward, amount = plan.Amount, notches = plan.Notches, atEnd = plan.AtEnd(percent), cdpX = cx, cdpY = cy });
+                results.Add(new ScrollPlanSelfTestJson(vertical: plan.Vertical, forward: plan.Forward, amount: plan.Amount, notches: plan.Notches, atEnd: plan.AtEnd(percent), cdpX: cx, cdpY: cy));
             }
-            catch (BackgroundNotApplicableException error) { results.Add(new { error = error.Message }); }
+            catch (BackgroundNotApplicableException error) { results.Add(new CdpSurfaceSelfTestJson2(error: error.Message)); }
         }
-        Console.WriteLine(JsonSerializer.Serialize(results));
+        Console.WriteLine(EngineJson.Serialize(results));
         return 0;
     }
 }
@@ -82,10 +82,10 @@ static class ScrollChoice
         try
         {
             CheckCount(root.GetProperty("count").GetInt32());
-            result = new { index = Pick(root.GetProperty("areas").EnumerateArray().Select(a => a.GetInt64()).ToList(), Descends) };
+            result = new CdpClaudeInputSelfTestJson(index: Pick(root.GetProperty("areas").EnumerateArray().Select(a => a.GetInt64()).ToList(), Descends));
         }
-        catch (BackgroundNotApplicableException error) { result = new { error = error.Message }; }
-        Console.WriteLine(JsonSerializer.Serialize(result));
+        catch (BackgroundNotApplicableException error) { result = new CdpSurfaceSelfTestJson2(error: error.Message); }
+        Console.WriteLine(EngineJson.Serialize(result));
         return 0;
     }
 }

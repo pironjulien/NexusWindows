@@ -12,7 +12,10 @@ internal sealed class RuntimeReceipt : IDisposable
     static readonly Lazy<JsonObject> ProcessIdentity = new(() =>
     {
         using var process = Process.GetCurrentProcess();
-        var assembly = typeof(McpServer).Assembly.Location;
+        // The file holding the engine's code: its assembly next to the executable, or the executable itself once
+        // compiled ahead of time (Native AOT has no assembly file; Assembly.Location would be empty).
+        var dll = Path.Combine(AppContext.BaseDirectory, typeof(McpServer).Assembly.GetName().Name + ".dll");
+        var assembly = File.Exists(dll) ? dll : Environment.ProcessPath!;
         using var stream = new FileStream(assembly, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
         return new JsonObject
         {

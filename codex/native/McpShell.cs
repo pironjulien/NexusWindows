@@ -103,7 +103,7 @@ static partial class McpServer
         // Fresh semantic names may be resolved by the first act. No index or image is silently marked as shown.
         var snapshot = InspectNative(state); var memory = LookMemory(state, window, snapshot);
         PublishNativeIndices(state, snapshot, memory);
-        state.CurrentObservation = JsonSerializer.SerializeToElement(snapshot, JsonOut);
+        state.CurrentObservation = EngineJson.SerializeToElement(snapshot, JsonOut);
         state.CurrentObservationId = state.NextObservationId(); state.ObservedAt = DateTimeOffset.UtcNow;
         if (state.Image?.Window != window || memory.Image == null) { state.Image = null; state.RegionImage = null; }
     }

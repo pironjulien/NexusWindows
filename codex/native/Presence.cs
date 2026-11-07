@@ -6,20 +6,23 @@ using System.Runtime.InteropServices;
 // chaine d'entree, ni contenu de touche lu ou garde ; seulement l'instant. Evenements limites a un par 100 ms.
 // Repli : GetLastInputInfo (entrees injectees comprises), interroge toutes les 100 ms ; la session ecarte alors les
 // evenements qui tombent pendant ses propres injections.
-static partial class Presence
+static unsafe partial class Presence
 {
-    delegate nint WndProc(nint hwnd, uint msg, nint wparam, nint lparam);
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    // WNDCLASSW, blittable: a static UnmanagedCallersOnly window procedure and character pointers, so the registration
+    // is source-generated (trimming, Native AOT) and no delegate has to be kept alive.
+    [StructLayout(LayoutKind.Sequential)]
     struct WndClass
     {
-        public uint Style; public WndProc Proc; public int ClassExtra, WindowExtra; public nint Instance, Icon, Cursor, Background;
-        public string? MenuName; public string ClassName;
+        public uint Style; public delegate* unmanaged[Stdcall]<nint, uint, nint, nint, nint> Proc; public int ClassExtra, WindowExtra;
+        public nint Instance, Icon, Cursor, Background; public char* MenuName; public char* ClassName;
     }
+    const string ClassName = "NexusCodexPresence";
+    [UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvStdcall)])]
+    static nint WindowProcedure(nint hwnd, uint msg, nint wparam, nint lparam) => Handle(hwnd, msg, wparam, lparam);
     [StructLayout(LayoutKind.Sequential)] struct RawInputDevice { public ushort UsagePage, Usage; public uint Flags; public nint Target; }
     [StructLayout(LayoutKind.Sequential)] struct Msg { public nint Hwnd; public uint Message; public nuint WParam; public nint LParam; public uint Time; public int X, Y; }
 
-    // WndClass carries a delegate and a string: runtime marshalling (DllImport), not source-generated.
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern ushort RegisterClassW(ref WndClass wc);
+    [LibraryImport("user32.dll", SetLastError = true)] private static partial ushort RegisterClassW(in WndClass wc);
     [LibraryImport("user32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     private static partial nint CreateWindowExW(uint exStyle, string cls, string? title, uint style, int x, int y, int w, int h, nint parent, nint menu, nint instance, nint param);
     [LibraryImport("user32.dll")] private static partial nint DefWindowProcW(nint hwnd, uint msg, nint wparam, nint lparam);
@@ -34,7 +37,6 @@ static partial class Presence
     const uint WM_INPUT = 0x00FF, RID_INPUT = 0x10000003, RIDEV_INPUTSINK = 0x100;
     const uint RIM_TYPEMOUSE = 0, RIM_TYPEKEYBOARD = 1;
     static readonly nint HWND_MESSAGE = -3;
-    static WndProc? proc; // garde le delegue en vie pour la duree du processus
     static Action<object>? emit;
     static long lastEmit = -1;
     static readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
@@ -52,7 +54,7 @@ static partial class Presence
         var now = Clock.ElapsedMilliseconds;
         if (lastEmit >= 0 && now - lastEmit < 100) return;
         lastEmit = now;
-        emit?.Invoke(new { @event = "input", device });
+        emit?.Invoke(new PresenceSignalJson(@event: "input", device: device));
     }
 
     static void Loop()
@@ -60,11 +62,13 @@ static partial class Presence
         var registered = false;
         try
         {
-            proc = Handle;
             var instance = GetModuleHandleW(null);
-            var wc = new WndClass { Proc = proc, Instance = instance, ClassName = "NexusCodexPresence" };
-            RegisterClassW(ref wc);
-            var hwnd = CreateWindowExW(0, wc.ClassName, null, 0, 0, 0, 0, 0, HWND_MESSAGE, 0, instance, 0);
+            fixed (char* name = ClassName)
+            {
+                var wc = new WndClass { Proc = &WindowProcedure, Instance = instance, ClassName = name };
+                RegisterClassW(in wc);
+            }
+            var hwnd = CreateWindowExW(0, ClassName, null, 0, 0, 0, 0, 0, HWND_MESSAGE, 0, instance, 0);
             var devices = new[]
             {
                 new RawInputDevice { UsagePage = 0x01, Usage = 0x06, Flags = RIDEV_INPUTSINK, Target = hwnd }, // clavier
@@ -74,7 +78,7 @@ static partial class Presence
         }
         catch (Exception) { registered = false; }
         if (!registered) { Poll(); return; }
-        emit?.Invoke(new { @event = "presence", source = "raw-input" });
+        emit?.Invoke(new PresenceLoopJson(@event: "presence", source: "raw-input"));
         while (GetMessageW(out var msg, 0, 0, 0) > 0) DispatchMessageW(ref msg);
     }
 
@@ -108,14 +112,14 @@ static partial class Presence
 
     static void Poll()
     {
-        emit?.Invoke(new { @event = "presence", source = "last-input-info" });
+        emit?.Invoke(new PresenceLoopJson(@event: "presence", source: "last-input-info"));
         uint seen = 0;
         while (true)
         {
             var info = new Win32.LastInputInfo { Size = (uint)Marshal.SizeOf<Win32.LastInputInfo>() };
             if (Win32.GetLastInputInfo(ref info) && info.Time != seen)
             {
-                if (seen != 0) emit?.Invoke(new { @event = "input", device = "any", injectedPossible = true });
+                if (seen != 0) emit?.Invoke(new PresencePollJson(@event: "input", device: "any", injectedPossible: true));
                 seen = info.Time;
             }
             Thread.Sleep(100);

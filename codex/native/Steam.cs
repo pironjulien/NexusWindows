@@ -8,7 +8,7 @@ using System.Text.Json;
 
 // Le client Valve emploie CEF dans steamwebhelper, pas les commutateurs Chromium d'une application Electron.
 // Aucun lancement/arret implicite d'un client deja ouvert : sa session reste celle de Julien.
-static partial class Steam
+static unsafe partial class Steam
 {
     public const int ShutdownWaitMs = 60000, StartWaitMs = 90000, DevtoolsWaitMs = 10000, DevtoolsPort = 8080;
     public const string ViewSwitches = "-cef-disable-occlusion -cef-force-accessibility";
@@ -24,16 +24,21 @@ static partial class Steam
         "user-data-dir", "profile-directory", "shutdown", "restart"
     };
     public sealed record ProcessRow(uint Pid, uint Parent, string Name);
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    // PROCESSENTRY32W, blittable (the executable name inline as a fixed character buffer): source-generated calls.
+    [StructLayout(LayoutKind.Sequential)]
     struct ProcessEntry
     {
         public uint Size, Usage, Pid; public nuint DefaultHeap; public uint Module, Threads, Parent; public int Priority; public uint Flags;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string Exe;
+        public fixed char Exe[260];
+        public readonly string Name { get { fixed (char* exe = Exe) return new string(exe, 0, new ReadOnlySpan<char>(exe, 260).IndexOf('\0') is var end and >= 0 ? end : 260); } }
     }
     [LibraryImport("kernel32.dll", SetLastError = true)] private static partial nint CreateToolhelp32Snapshot(uint flags, uint pid);
-    // ProcessEntry holds an inline string (ByValTStr): runtime marshalling (DllImport), not source-generated.
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool Process32FirstW(nint snapshot, ref ProcessEntry entry);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool Process32NextW(nint snapshot, ref ProcessEntry entry);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool Process32FirstW(nint snapshot, ref ProcessEntry entry);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool Process32NextW(nint snapshot, ref ProcessEntry entry);
     [LibraryImport("kernel32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CloseHandle(nint handle);
@@ -56,7 +61,7 @@ static partial class Steam
         // Written aside, closed, then renamed: the waiting parent only sees a complete file no process still holds (CI of
         // 04/11: it read and deleted the file while this child still had it open, "being used by another process").
         var partial = path + ".partial";
-        File.WriteAllText(partial, JsonSerializer.Serialize(new { flags = startup.Flags, showWindow = startup.ShowWindow }));
+        File.WriteAllText(partial, EngineJson.Serialize(new SteamWriteStartupInfoJson(flags: startup.Flags, showWindow: startup.ShowWindow)));
         File.Move(partial, path); return 0;
     }
 
@@ -124,10 +129,10 @@ static partial class Steam
         if (snapshot == -1) throw new ActionRefusedException("Steam process inventory is unavailable; nothing was restarted");
         try
         {
-            var entry = new ProcessEntry { Size = (uint)Marshal.SizeOf<ProcessEntry>(), Exe = "" };
+            var entry = new ProcessEntry { Size = (uint)sizeof(ProcessEntry) };
             if (!Process32FirstW(snapshot, ref entry)) throw new ActionRefusedException("Steam process inventory is unavailable; nothing was restarted");
             var rows = new List<ProcessRow>();
-            do { rows.Add(new(entry.Pid, entry.Parent, entry.Exe)); } while (Process32NextW(snapshot, ref entry));
+            do { rows.Add(new(entry.Pid, entry.Parent, entry.Name)); } while (Process32NextW(snapshot, ref entry));
             if (Marshal.GetLastWin32Error() != 18 /* ERROR_NO_MORE_FILES */) throw new ActionRefusedException("Steam process inventory changed unreadably; nothing was restarted");
             return rows;
         }
@@ -286,35 +291,35 @@ static partial class Steam
                     if (!IsExecutable(exe)) throw new ActionRefusedException("Executable is not the genuine Steam client");
                     if (ArgsProblem(args) is { } problem) throw new ActionRefusedException(problem);
                     var info = StartInfo(exe, args, c.TryGetProperty("devtools", out var d) && d.GetBoolean());
-                    results.Add(new { arguments = info.Arguments, fileName = info.FileName, useShellExecute = info.UseShellExecute });
+                    results.Add(new SteamSelfTestJson(arguments: info.Arguments, fileName: info.FileName, useShellExecute: info.UseShellExecute));
                 }
                 else if (kind == "tree")
                 {
                     var rows = c.GetProperty("processes").EnumerateArray().Select(p => new ProcessRow(p.GetProperty("pid").GetUInt32(), p.GetProperty("parent").GetUInt32(), p.GetProperty("name").GetString() ?? "")).ToList();
                     var paths = c.GetProperty("processes").EnumerateArray().ToDictionary(p => p.GetProperty("pid").GetUInt32(), p => p.TryGetProperty("path", out var path) ? path.GetString() : null);
                     var roots = c.GetProperty("roots").EnumerateArray().Select(p => p.GetUInt32()).ToArray();
-                    results.Add(new { descendants = Descendants(roots, rows).Select(p => p.Pid), games = Games(c.GetProperty("exe").GetString() ?? "", rows, roots, p => paths.GetValueOrDefault(p)) });
+                    results.Add(new SteamSelfTestJson2(descendants: Descendants(roots, rows).Select(p => p.Pid), games: Games(c.GetProperty("exe").GetString() ?? "", rows, roots, p => paths.GetValueOrDefault(p))));
                 }
                 else if (kind == "endpoint")
                 {
                     var helpers = c.GetProperty("helpers").EnumerateArray().Select(p => p.GetUInt32()).ToHashSet();
                     var listeners = c.GetProperty("listeners").EnumerateArray().Select(l => (l.GetProperty("address").GetString() ?? "", l.GetProperty("pid").GetUInt32())).ToList();
-                    results.Add(new { owned = OwnsLoopback(listeners, helpers), cdp = CdpReply(c.GetProperty("reply"), DevtoolsPort) });
+                    results.Add(new SteamSelfTestJson3(owned: OwnsLoopback(listeners, helpers), cdp: CdpReply(c.GetProperty("reply"), DevtoolsPort)));
                 }
-                else if (kind == "window") results.Add(new { index = PickWindow(c.GetProperty("titles").EnumerateArray().Select(t => t.GetString() ?? "").ToArray()) });
+                else if (kind == "window") results.Add(new CdpClaudeInputSelfTestJson(index: PickWindow(c.GetProperty("titles").EnumerateArray().Select(t => t.GetString() ?? "").ToArray())));
                 else if (kind == "reuse")
                 {
                     var args = c.TryGetProperty("args", out var a) ? a.GetString() ?? "" : "";
                     if (ArgsProblem(args) is { } problem) throw new ActionRefusedException(problem);
                     RequireReusableEndpoint(c.TryGetProperty("devtools", out var d) && d.GetBoolean(), c.TryGetProperty("port", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetInt32() : null);
                     var index = PickWindow(c.GetProperty("titles").EnumerateArray().Select(t => t.GetString() ?? "").ToArray());
-                    results.Add(new { command = ReuseCommand(args, index >= 0) });
+                    results.Add(new SteamSelfTestJson4(command: ReuseCommand(args, index >= 0)));
                 }
                 else if (kind == "cdp")
                 {
                     var url = c.GetProperty("url").GetString() ?? "";
                     if (!Uri.TryCreate(url, UriKind.Absolute, out var endpoint) || endpoint.Scheme != "ws" || endpoint.Host != "127.0.0.1" || endpoint.UserInfo.Length != 0) throw new ActionRefusedException("Selftest CDP endpoint must be loopback");
-                    results.Add(new { alive = ProbeCdp(url) });
+                    results.Add(new SteamSelfTestJson5(alive: ProbeCdp(url)));
                 }
                 else if (kind == "startup")
                 {
@@ -331,15 +336,15 @@ static partial class Steam
                 }
                 else throw new InvalidOperationException("Unknown Steam selftest");
             }
-            catch (ActionRefusedException e) { results.Add(new { refused = e.Message }); }
+            catch (ActionRefusedException e) { results.Add(new ProgramLaunchSelfTestJson2(refused: e.Message)); }
         }
-        Console.WriteLine(JsonSerializer.Serialize(results)); return 0;
+        Console.WriteLine(EngineJson.Serialize(results)); return 0;
     }
 }
 
 static partial class Program
 {
-    static object LaunchSteam(string exe, string args, bool devtools, bool restart, int? quietMs)
+    static ProgramLaunchSteamJson LaunchSteam(string exe, string args, bool devtools, bool restart, int? quietMs)
     {
         if (Steam.ArgsProblem(args) is { } problem) throw new ActionRefusedException(problem + "; nothing was launched");
         using var token = ForegroundToken.Acquire("launch Steam");
@@ -446,10 +451,10 @@ static partial class Program
             if (requestedArgsTransmitted) notes.Add("The requested Steam arguments were transmitted once. Attesting a Steam window does not prove the requested game or page opened; observe that effect separately, never replay blindly.");
             Refresh(); var final = FindWindow(); ReturnIfTaken();
             var proved = found is { } old && final is { } now && old.Id == now.Id && old.Pid == now.Pid && seen != 0 && wait.ElapsedMilliseconds - seenAt >= 600;
-            object[] windows = proved && final is { } mine ? new object[] { new { id = mine.Id, app = mine.App, title = mine.Title, pid = mine.Pid, proof = "steam" } } : Array.Empty<object>();
-            return new { ok = true, opened = proved ? (bool?)true : null, windows, candidates = Array.Empty<object>(), foregroundReturned = giveBack,
-                reason = proved ? null : "No stable Steam window was attested; update or sign-in may still be in progress. Observe before deciding; never launch again blindly.",
-                steam = new { reused, restarted, requestedArgsTransmitted, viewSwitchesApplied = viewApplied, devtoolsRequested = devtools, devtoolsPort = port, notes } };
+            object[] windows = proved && final is { } mine ? new object[] { new ProgramLaunchJson(id: mine.Id, app: mine.App, title: mine.Title, pid: mine.Pid, proof: "steam") } : Array.Empty<object>();
+            return new ProgramLaunchSteamJson(ok: true, opened: proved ? (bool?)true : null, windows: windows, candidates: Array.Empty<object>(), foregroundReturned: giveBack,
+                reason: proved ? null : "No stable Steam window was attested; update or sign-in may still be in progress. Observe before deciding; never launch again blindly.",
+                steam: new ProgramLaunchSteamJson2(reused: reused, restarted: restarted, requestedArgsTransmitted: requestedArgsTransmitted, viewSwitchesApplied: viewApplied, devtoolsRequested: devtools, devtoolsPort: port, notes: notes));
         }
         finally { ReturnIfTaken(); }
     }

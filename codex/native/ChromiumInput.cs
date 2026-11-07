@@ -77,7 +77,7 @@ static partial class ChromiumInput
         return Run(window, target, quietMs, "type", started, (top, deadline) =>
         {
             var before = ReadValue(window, target, deadline) ?? throw new BackgroundNotApplicableException("Field value unreadable: nothing was typed");
-            Call(new { op = "caretToEnd", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow }, deadline);
+            Call(new ProgramForegroundActionJson(op: "caretToEnd", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow), deadline);
             var units = Units(text);
             return TypeUnits(window, target, top, text, deadline, units, typed => before + typed, value => Same(value, before + text), "text typed at the end");
         }, budget: TextBudget);
@@ -145,14 +145,14 @@ static partial class ChromiumInput
             var hosted = OwnedCef(cef.GetProperty("pid").GetUInt32(), cef.GetProperty("root").GetInt64(),
                 cef.GetProperty("children").EnumerateArray().Select(c => new HostChild(c.GetProperty("class").GetString() ?? "", c.GetProperty("pid").GetUInt32(), c.GetProperty("root").GetInt64())));
             var simulated = SupportsSimulatedActivation(topClass);
-            result = new { content = hosted || simulated, cef = hosted, focusSimulation = simulated, typeSimulation = simulated,
-                selectSimulation = simulated, postedHover = !simulated, wheelDevtools = hosted || simulated,
-                doubleClickInvoke = !(hosted || simulated) };
+            result = new ChromiumInputSelfTestJson(content: hosted || simulated, cef: hosted, focusSimulation: simulated, typeSimulation: simulated,
+                selectSimulation: simulated, postedHover: !simulated, wheelDevtools: hosted || simulated,
+                doubleClickInvoke: !(hosted || simulated));
         }
         else if (root.TryGetProperty("click", out var click)) result = ComWorker.ClickSelfTest(click);
         else result = root.TryGetProperty("units", out var u) ? Units(u.GetString()!)
             : Same(root.GetProperty("same")[0].GetString(), root.GetProperty("same")[1].GetString()!);
-        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(result));
+        Console.WriteLine(EngineJson.Serialize(result));
         return 0;
     }
 
@@ -166,7 +166,7 @@ static partial class ChromiumInput
 
     static string? ReadValue(nint window, Node target, long deadline)
     {
-        Call(new { op = "flush", windowId = (long)window, runtimeId = Array.Empty<int>() }, deadline);
+        Call(new ChromiumInputReadValueJson(op: "flush", windowId: (long)window, runtimeId: Array.Empty<int>()), deadline);
         using var tree = ComUia.Shared.ReadIdentity(window, target.RuntimeId, target.NativeWindow);
         return tree.Nodes.Count > 0 ? tree.Nodes[^1].Value : null;
     }
@@ -186,7 +186,7 @@ static partial class ChromiumInput
                 if (Top(Win32.GetForegroundWindow()) == top)
                     throw sent == 0 ? new BackgroundNotApplicableException("Julien switched to the window: nothing was typed")
                         : new InvalidOperationException("Julien switched to the window while typing: typing stopped");
-                var focus = Call(new { op = "hasFocus", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow }, deadline);
+                var focus = Call(new ProgramForegroundActionJson(op: "hasFocus", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow), deadline);
                 if (focus.Effect != "applied")
                     throw sent == 0 ? new BackgroundNotApplicableException("The field lost the focus: nothing was typed")
                         : new InvalidOperationException("The field lost the focus while typing: typing stopped");
@@ -307,7 +307,7 @@ static partial class ChromiumInput
 
     static void Focus(nint window, Node target, long deadline)
     {
-        var focus = Call(new { op = "takeFocus", windowId = (long)window, runtimeId = target.RuntimeId, nativeWindow = (long)target.NativeWindow }, deadline);
+        var focus = Call(new ProgramForegroundActionJson(op: "takeFocus", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow), deadline);
         if (focus.Effect != "applied") throw new BackgroundNotApplicableException("Focus without activation not read back on the element: nothing was typed");
     }
 }

@@ -48,7 +48,7 @@ static partial class Cdp
     }
 
     const string DeepActive = "let a=document.activeElement;while(a&&a.shadowRoot&&a.shadowRoot.activeElement)a=a.shadowRoot.activeElement;";
-    static string Literal(object? value) => JsonSerializer.Serialize(value);
+    static string Literal(object? value) => EngineJson.Serialize(value);
     static JsonElement ValueOf(JsonElement result)
     {
         if (result.TryGetProperty("exceptionDetails", out var ex)) throw new ActionRefusedException("DevTools DOM preparation failed: " + ex);
@@ -56,7 +56,7 @@ static partial class Cdp
         return value;
     }
     static JsonElement Function(Session session, string objectId, string body) => ValueOf(session.Call("Runtime.callFunctionOn",
-        new { objectId, functionDeclaration = "function(){" + body + "}", returnByValue = true }));
+        new CdpFunctionJson(objectId: objectId, functionDeclaration: "function(){" + body + "}", returnByValue: true)));
     static bool True(JsonElement value) => value.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.True;
     static string? StringValue(JsonElement value) => value.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
@@ -120,7 +120,7 @@ static partial class Cdp
         {
             Prove(session.Evaluate, FreshEvaluator(url), document != null ? () => ReadDocumentTitle(window, document) : () => Win32.Title(window));
             var values = session.Evaluate("JSON.stringify([innerWidth,innerHeight,devicePixelRatio])");
-            var metrics = JsonSerializer.Deserialize<double[]>(StringValue(values) ?? "null");
+            var metrics = EngineJson.Deserialize<double[]>(StringValue(values) ?? "null");
             var surfaces = Surfaces(window);
             if (metrics is not { Length: 3 }) throw new ActionRefusedException("Page metrics unavailable");
             var index = document != null ? PickDocumentSurface(surfaces, document.Bounds, metrics[0], metrics[1], metrics[2]) :
@@ -137,11 +137,11 @@ static partial class Cdp
     static (string ObjectId, int BackendNodeId) PinFocus(Session session, string? focusScript, bool editable, bool secretSafeKey)
     {
         var expression = focusScript ?? "(()=>{" + DeepActive + "return a;})()";
-        var result = ValueOf(session.Call("Runtime.evaluate", new { expression, returnByValue = false }));
+        var result = ValueOf(session.Call("Runtime.evaluate", new CdpEvaluateJson(expression: expression, returnByValue: false)));
         if (!result.TryGetProperty("objectId", out var id) || !result.TryGetProperty("subtype", out var subtype) || subtype.GetString() != "node")
             throw new ActionRefusedException("No unique DOM field/focus under the target; no input sent");
         var objectId = id.GetString()!;
-        var node = session.Call("DOM.describeNode", new { objectId }).GetProperty("node");
+        var node = session.Call("DOM.describeNode", new CdpPinFocusJson(objectId: objectId)).GetProperty("node");
         var backend = node.GetProperty("backendNodeId").GetInt32();
         CheckPinned(session, objectId, backend, editable, secretSafeKey);
         return (objectId, backend);
@@ -155,7 +155,7 @@ static partial class Cdp
             throw new ActionRefusedException("DOM target/focus changed; no further input sent");
         if (!secretSafeKey && root.GetProperty("password").GetBoolean()) throw new ActionRefusedException("Password fields are refused; no input sent");
         if (editable && !root.GetProperty("editable").GetBoolean()) throw new ActionRefusedException("DOM target is not writable; no input sent");
-        if (session.Call("DOM.describeNode", new { objectId }).GetProperty("node").GetProperty("backendNodeId").GetInt32() != backend)
+        if (session.Call("DOM.describeNode", new CdpPinFocusJson(objectId: objectId)).GetProperty("node").GetProperty("backendNodeId").GetInt32() != backend)
             throw new ActionRefusedException("DOM backend identity changed; no further input sent");
     }
     static string FocusAt(double x, double y, bool editable) => "(()=>{" +
@@ -173,11 +173,11 @@ static partial class Cdp
     static void DispatchDomKey(DomKey key, Action<object, Action?> send, Func<bool> sent, Action<object> cleanup, Action validate)
     {
         var releaseAttempted = false;
-        var release = new { type = "keyUp", key = key.Key, code = key.Code, windowsVirtualKeyCode = key.Vk, modifiers = key.Modifiers };
+        var release = new CdpDispatchDomKeyJson(type: "keyUp", key: key.Key, code: key.Code, windowsVirtualKeyCode: key.Vk, modifiers: key.Modifiers);
         try
         {
-            send(new { type = "rawKeyDown", key = key.Key, code = key.Code, windowsVirtualKeyCode = key.Vk, modifiers = key.Modifiers }, validate);
-            if (key.Text != null) send(new { type = "char", text = key.Text, key = key.Key, code = key.Code, windowsVirtualKeyCode = key.Vk, modifiers = key.Modifiers }, validate);
+            send(new CdpDispatchDomKeyJson(type: "rawKeyDown", key: key.Key, code: key.Code, windowsVirtualKeyCode: key.Vk, modifiers: key.Modifiers), validate);
+            if (key.Text != null) send(new CdpDispatchDomKeyJson2(type: "char", text: key.Text, key: key.Key, code: key.Code, windowsVirtualKeyCode: key.Vk, modifiers: key.Modifiers), validate);
             releaseAttempted = true;
             send(release, null); // intentional focus transition does not prevent release
         }
@@ -269,11 +269,11 @@ static partial class Cdp
                     guard(); Validate(); prepared = true; Program.InputStarted = true;
                     if (!True(Function(session, pinned.ObjectId, AppendBody))) throw new ActionRefusedException("DOM append caret could not be proved; no text sent");
                 }
-                if (text.Length > 0) Send("Input.insertText", new { text }, Validate);
+                if (text.Length > 0) Send("Input.insertText", new CdpClaudeInputPixelsJson(text: text), Validate);
                 else if (op == "setValue" || replaceText)
                 {
-                    Send("Input.dispatchKeyEvent", new { type = "rawKeyDown", key = "Delete", code = "Delete", windowsVirtualKeyCode = 46 }, Validate);
-                    Send("Input.dispatchKeyEvent", new { type = "keyUp", key = "Delete", code = "Delete", windowsVirtualKeyCode = 46 });
+                    Send("Input.dispatchKeyEvent", new CdpClaudeInputPixelsJson2(type: "rawKeyDown", key: "Delete", code: "Delete", windowsVirtualKeyCode: 46), Validate);
+                    Send("Input.dispatchKeyEvent", new CdpClaudeInputPixelsJson2(type: "keyUp", key: "Delete", code: "Delete", windowsVirtualKeyCode: 46));
                 }
                 return new("background:devtools", "Input.insertText (native editor input events)", "sent");
             }
@@ -282,7 +282,7 @@ static partial class Cdp
             {
                 var option = Text("option");
                 var script = "(()=>{let el=document.elementFromPoint(" + Literal(at.X) + "," + Literal(at.Y) + ");while(el&&el.shadowRoot){const c=el.shadowRoot.elementFromPoint(" + Literal(at.X) + "," + Literal(at.Y) + ");if(!c||c===el)break;el=c;}if(!el||el.tagName!=='SELECT'||el.disabled)return null;const wanted=" + Literal(option.Trim().ToLowerInvariant()) + ";const hits=[...el.options].filter(o=>o.text.trim().toLowerCase()===wanted);if(hits.length!==1||hits[0].disabled)return null;return el;})()";
-                var result = ValueOf(session.Call("Runtime.evaluate", new { expression = script, returnByValue = false }));
+                var result = ValueOf(session.Call("Runtime.evaluate", new CdpEvaluateJson(expression: script, returnByValue: false)));
                 if (!result.TryGetProperty("objectId", out var selectId)) throw new ActionRefusedException("Select option missing, disabled or duplicated; nothing sent");
                 var id = selectId.GetString()!;
                 guard(); Geometry(); started(); guard(); Geometry(); sent = true;
@@ -294,38 +294,38 @@ static partial class Cdp
             if (action == "wheel")
             {
                 var delta = ScrollPlan.DevTools(Int("deltaY"), Int("deltaX"));
-                Send("Input.dispatchMouseEvent", new { type = "mouseWheel", x = at.X, y = at.Y, deltaX = delta.Item1, deltaY = delta.Item2 });
+                Send("Input.dispatchMouseEvent", new CdpWheelJson(type: "mouseWheel", x: at.X, y: at.Y, deltaX: delta.Item1, deltaY: delta.Item2));
             }
-            else if (action == "hover") Send("Input.dispatchMouseEvent", new { type = "mouseMoved", x = at.X, y = at.Y });
+            else if (action == "hover") Send("Input.dispatchMouseEvent", new CdpDragJson2(type: "mouseMoved", x: at.X, y: at.Y));
             else if (action == "drag")
             {
                 var end = Point(Int("toX"), Int("toY"));
                 // An HTML5 drag is intercepted (never the system drag loop, which follows the real mouse) and dropped by
                 // Input.dispatchDragEvent at the end, like Cdp.Drag.
-                session.Call("Input.setInterceptDrags", new { enabled = true });
+                session.Call("Input.setInterceptDrags", new CdpDragJson(enabled: true));
                 try
                 {
-                    Send("Input.dispatchMouseEvent", new { type = "mouseMoved", x = at.X, y = at.Y });
-                    Send("Input.dispatchMouseEvent", new { type = "mousePressed", x = at.X, y = at.Y, button = "left", buttons = 1, clickCount = 1 });
-                    for (var i = 1; i <= 12; i++) Send("Input.dispatchMouseEvent", new { type = "mouseMoved", x = at.X + (end.X - at.X) * i / 12, y = at.Y + (end.Y - at.Y) * i / 12, button = "left", buttons = 1 });
+                    Send("Input.dispatchMouseEvent", new CdpDragJson2(type: "mouseMoved", x: at.X, y: at.Y));
+                    Send("Input.dispatchMouseEvent", new CdpDragJson3(type: "mousePressed", x: at.X, y: at.Y, button: "left", buttons: 1, clickCount: 1));
+                    for (var i = 1; i <= 12; i++) Send("Input.dispatchMouseEvent", new CdpDragJson4(type: "mouseMoved", x: at.X + (end.X - at.X) * i / 12, y: at.Y + (end.Y - at.Y) * i / 12, button: "left", buttons: 1));
                     session.Evaluate("0");
                     var intercepted = session.Events.FirstOrDefault(e => e.Method == "Input.dragIntercepted");
                     if (intercepted.Method is not null)
                         foreach (var type in new[] { "dragEnter", "dragOver", "drop" })
-                            Send("Input.dispatchDragEvent", new { type, x = end.X, y = end.Y, data = intercepted.Params.GetProperty("data") });
-                    Send("Input.dispatchMouseEvent", new { type = "mouseReleased", x = end.X, y = end.Y, button = "left", buttons = 0, clickCount = 1 });
+                            Send("Input.dispatchDragEvent", new CdpDragJson5(type: type, x: end.X, y: end.Y, data: intercepted.Params.GetProperty("data")));
+                    Send("Input.dispatchMouseEvent", new CdpDragJson3(type: "mouseReleased", x: end.X, y: end.Y, button: "left", buttons: 0, clickCount: 1));
                 }
-                finally { try { session.Call("Input.setInterceptDrags", new { enabled = false }); } catch (Exception) { } }
+                finally { try { session.Call("Input.setInterceptDrags", new CdpDragJson(enabled: false)); } catch (Exception) { } }
             }
             else if (action == "click")
             {
                 var button = Text("button", "left");
                 if (button is not ("left" or "right" or "middle")) throw new ActionRefusedException("Invalid DOM mouse button");
-                Send("Input.dispatchMouseEvent", new { type = "mouseMoved", x = at.X, y = at.Y });
+                Send("Input.dispatchMouseEvent", new CdpDragJson2(type: "mouseMoved", x: at.X, y: at.Y));
                 for (var i = 1; i <= Math.Clamp(Int("count", 1), 1, 2); i++)
                 {
-                    Send("Input.dispatchMouseEvent", new { type = "mousePressed", x = at.X, y = at.Y, button, clickCount = i });
-                    Send("Input.dispatchMouseEvent", new { type = "mouseReleased", x = at.X, y = at.Y, button, clickCount = i });
+                    Send("Input.dispatchMouseEvent", new CdpClaudeInputPixelsJson3(type: "mousePressed", x: at.X, y: at.Y, button: button, clickCount: i));
+                    Send("Input.dispatchMouseEvent", new CdpClaudeInputPixelsJson3(type: "mouseReleased", x: at.X, y: at.Y, button: button, clickCount: i));
                 }
             }
             else throw new ActionRefusedException("Unknown DevTools pointer action");
@@ -350,20 +350,20 @@ static partial class Cdp
                     var rectangles = surfaces.EnumerateArray().Select(s => s.EnumerateArray().Select(v => v.GetInt32()).ToArray()).Select(s => new Win32.Rect { Left = s[0], Top = s[1], Right = s[2], Bottom = s[3] }).ToList();
                     var b = input.RootElement.GetProperty("bounds").EnumerateArray().Select(v => v.GetDouble()).ToArray();
                     var inner = input.RootElement.GetProperty("inner").EnumerateArray().Select(v => v.GetDouble()).ToArray();
-                    Console.WriteLine(JsonSerializer.Serialize(new { index = PickDocumentSurface(rectangles, b, inner[0], inner[1], input.RootElement.GetProperty("ratio").GetDouble()) }));
+                    Console.WriteLine(EngineJson.Serialize(new CdpClaudeInputSelfTestJson(index: PickDocumentSurface(rectangles, b, inner[0], inner[1], input.RootElement.GetProperty("ratio").GetDouble()))));
                 }
-                catch (ActionRefusedException e) { Console.WriteLine(JsonSerializer.Serialize(new { error = e.Message })); }
+                catch (ActionRefusedException e) { Console.WriteLine(EngineJson.Serialize(new CdpSurfaceSelfTestJson2(error: e.Message))); }
                 return 0;
             }
             if (input.RootElement.TryGetProperty("scripts", out _))
             {
-                Console.WriteLine(JsonSerializer.Serialize(new { focusEditable = FocusAt(16, 24, true), focusAny = FocusAt(16, 24, false), selectAll = SelectAllBody, append = AppendBody, select = SelectMutation("Bleu") })); return 0;
+                Console.WriteLine(EngineJson.Serialize(new CdpClaudeInputSelfTestJson2(focusEditable: FocusAt(16, 24, true), focusAny: FocusAt(16, 24, false), selectAll: SelectAllBody, append: AppendBody, select: SelectMutation("Bleu")))); return 0;
             }
         }
         var rows = new List<object>();
         foreach (var value in input.RootElement.EnumerateArray())
-        { try { var key = ParseDomKey(value.GetString()!); rows.Add(new { key = key.Key, code = key.Code, vk = key.Vk, modifiers = key.Modifiers, text = key.Text }); } catch (Exception e) { rows.Add(new { error = e.Message }); } }
-        Console.WriteLine(JsonSerializer.Serialize(rows)); return 0;
+        { try { var key = ParseDomKey(value.GetString()!); rows.Add(new CdpClaudeInputSelfTestJson3(key: key.Key, code: key.Code, vk: key.Vk, modifiers: key.Modifiers, text: key.Text)); } catch (Exception e) { rows.Add(new CdpSurfaceSelfTestJson2(error: e.Message)); } }
+        Console.WriteLine(EngineJson.Serialize(rows)); return 0;
     }
 
     // Real Session/WebSocket, no GUI. Independent server records exactly the events actually received.
@@ -383,7 +383,7 @@ static partial class Cdp
                     var type = message.RootElement.GetProperty("params").GetProperty("type").GetString()!;
                     received.Add(type);
                     if (scenario == "ack-lost" && type == "rawKeyDown") { client.Client.Close(); break; }
-                    WriteFrame(stream, JsonSerializer.SerializeToUtf8Bytes(new { id = message.RootElement.GetProperty("id").GetInt32(), result = new { } }));
+                    WriteFrame(stream, EngineJson.SerializeToUtf8Bytes(new CdpDomKeyTraceSelfTestJson(id: message.RootElement.GetProperty("id").GetInt32(), result: new CdpDomKeyTraceSelfTestJson2())));
                 }
             }
             catch (Exception) { }
@@ -414,6 +414,6 @@ static partial class Cdp
             catch (Exception) { outcome = hasSent ? "unknown" : "refused-before-input"; }
         }
         server.Join(3000);
-        Console.WriteLine(JsonSerializer.Serialize(new { outcome, started, dispatched, cleanups, received, automaticReplay = false, gui = false })); return 0;
+        Console.WriteLine(EngineJson.Serialize(new CdpDomKeyTraceSelfTestJson3(outcome: outcome, started: started, dispatched: dispatched, cleanups: cleanups, received: received, automaticReplay: false, gui: false))); return 0;
     }
 }

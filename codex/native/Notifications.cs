@@ -81,7 +81,7 @@ static partial class Notifications
                 var texts = Text.Matches(Encoding.UTF8.GetString(payload)).Select(m => Space.Replace(WebUtility.HtmlDecode(Tags.Replace(m.Groups[1].Value, "")), " ").Trim()).Where(s => s.Length > 0).ToList();
                 if (texts.Count == 0) continue;
                 var context = string.Join(' ', texts);
-                output.Add(new JsonObject { ["app"] = name, ["arrived"] = DateTime.FromFileTimeUtc(sqlite3_column_int64(statement, 1)).ToLocalTime().ToString("yyyy-MM-ddTHH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture), ["texts"] = new JsonArray(texts.Select(t => (JsonNode)JsonValue.Create(Mask(t, context))!).ToArray()) });
+                output.Add(EngineJson.Node(new JsonObject { ["app"] = name, ["arrived"] = DateTime.FromFileTimeUtc(sqlite3_column_int64(statement, 1)).ToLocalTime().ToString("yyyy-MM-ddTHH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture), ["texts"] = new JsonArray(texts.Select(t => (JsonNode)JsonValue.Create(Mask(t, context))!).ToArray()) }));
                 if (output.Count >= Math.Clamp(limit, 1, 200)) return output;
             }
             if (status != 101) throw new InvalidOperationException("Notification database unreadable (query).");

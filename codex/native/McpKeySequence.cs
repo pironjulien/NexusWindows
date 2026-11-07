@@ -228,7 +228,7 @@ static partial class McpServer
         {
             var control = IdentityPart(element);
             foreach (var field in new[] { "value", "valueTruncated", "password", "focused", "isDefault", "accessKey", "disabled", "checked", "selected", "expanded" }) control[field] = element[field]?.DeepClone();
-            controls.Add(control);
+            controls.Add(EngineJson.Node(control));
         }
         return Routines.Digest(new JsonArray(JsonValue.Create(title), focus.DeepClone(), controls).ToJsonString(JsonOut));
     }
@@ -312,7 +312,7 @@ static partial class McpServer
             foreach (var delivery in deliveries.OfType<JsonObject>())
                 foreach (var attempt in (delivery["attempts"] as JsonArray ?? new JsonArray()).OfType<JsonObject>())
                 {
-                    var copy = attempt.DeepClone().AsObject(); copy["index"] = delivery["index"]?.DeepClone(); attempts.Add(copy);
+                    var copy = attempt.DeepClone().AsObject(); copy["index"] = delivery["index"]?.DeepClone(); attempts.Add(EngineJson.Node(copy));
                 }
             if (attempts.Count > 0) result["attempts"] = attempts;
             return result;
@@ -324,10 +324,10 @@ static partial class McpServer
                 var outcome = deliver(key);
                 if (!KeyDeliveryConfirmed(outcome))
                 {
-                    deliveries.Add(new JsonObject { ["index"] = completed, ["delivery"] = "uncertain", ["technique"] = outcome["technique"]?.DeepClone(), ["attempts"] = outcome["attempts"]?.DeepClone() });
+                    deliveries.Add(EngineJson.Node(new JsonObject { ["index"] = completed, ["delivery"] = "uncertain", ["technique"] = outcome["technique"]?.DeepClone(), ["attempts"] = outcome["attempts"]?.DeepClone() }));
                     return Report(StepResult("unknown", "~", null, false, "Current key delivery is uncertain; no following combination sent", outcome));
                 }
-                deliveries.Add(new JsonObject { ["index"] = completed, ["delivery"] = "confirmed", ["technique"] = outcome["technique"]?.DeepClone(), ["attempts"] = outcome["attempts"]?.DeepClone() }); completed++;
+                deliveries.Add(EngineJson.Node(new JsonObject { ["index"] = completed, ["delivery"] = "confirmed", ["technique"] = outcome["technique"]?.DeepClone(), ["attempts"] = outcome["attempts"]?.DeepClone() })); completed++;
             }
             catch (Exception error)
             {
@@ -336,7 +336,7 @@ static partial class McpServer
                 result["message"] = $"{completed} earlier combination(s) delivered. Current combination {(input ? "may have been sent" : "not sent")}: " + error.Message;
                 if (error is NativeConfirmationException) result["authorizationRequired"] = true;
                 if (error is ForegroundNeededException) result["needsForeground"] = true;
-                deliveries.Add(new JsonObject { ["index"] = completed, ["delivery"] = input ? "uncertain" : "not-sent", ["attempts"] = result["attempts"]?.DeepClone() });
+                deliveries.Add(EngineJson.Node(new JsonObject { ["index"] = completed, ["delivery"] = input ? "uncertain" : "not-sent", ["attempts"] = result["attempts"]?.DeepClone() }));
                 return Report(result);
             }
         }
@@ -428,7 +428,7 @@ static partial class McpServer
             {
                 submission.BeforeEnter(); Check(true, "an editor newline with no outward trigger remains permitted");
                 live["elements"]![0]!["value"] = "A";
-                live["elements"]!.AsArray().Add(new JsonObject { ["index"] = 1, ["role"] = "button", ["name"] = "Send", ["isDefault"] = true });
+                live["elements"]!.AsArray().Add(EngineJson.Node(new JsonObject { ["index"] = 1, ["role"] = "button", ["name"] = "Send", ["isDefault"] = true }));
                 var refused = false;
                 try { submission.BeforeEnter(); } catch (NativeConfirmationException) { refused = true; }
                 Check(refused && Str(live["elements"]![0], "value") == "A", "a send control appearing after the prefix is refused before Enter without altering or replaying that prefix");

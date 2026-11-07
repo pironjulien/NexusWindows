@@ -88,7 +88,7 @@ static partial class EmergencyStop
 
     internal static void Emit(object value)
     {
-        lock (Output) { Console.WriteLine(JsonSerializer.Serialize(value)); Console.Out.Flush(); }
+        lock (Output) { Console.WriteLine(EngineJson.Serialize(value)); Console.Out.Flush(); }
     }
 
     public static int Guard(string version)
@@ -118,16 +118,16 @@ static partial class EmergencyStop
         if (TestDirectory)
         {
             // A guard pointed at a test directory must not take the real hotkey from the other agents.
-            Emit(new { @event = "hotkey", state = "disabled" });
+            Emit(new EmergencyStopHotkeyLoopJson(@event: "hotkey", state: "disabled"));
             return;
         }
         var reported = false;
         while (!RegisterHotKey(0, HotkeyId, ModControl | ModAlt | ModShift | ModNoRepeat, VkEscape))
         {
-            if (!reported) { Emit(new { @event = "hotkey", state = "retrying", error = Marshal.GetLastWin32Error() }); reported = true; }
+            if (!reported) { Emit(new EmergencyStopHotkeyLoopJson2(@event: "hotkey", state: "retrying", error: Marshal.GetLastWin32Error())); reported = true; }
             Thread.Sleep(HeartbeatMs); // Held by another agent: take over when it stops.
         }
-        Emit(new { @event = "hotkey", state = "owned" });
+        Emit(new EmergencyStopHotkeyLoopJson(@event: "hotkey", state: "owned"));
         Heartbeat(version);
         SetTimer(0, 0, HeartbeatMs, 0);
         while (GetMessageW(out var msg, 0, 0, 0) > 0)
@@ -142,7 +142,7 @@ static partial class EmergencyStop
         try
         {
             System.IO.Directory.CreateDirectory(Directory);
-            File.WriteAllText(OwnerFile, JsonSerializer.Serialize(new { owner = "NexusCodex", pid = Environment.ProcessId, version, ts = Now() }));
+            File.WriteAllText(OwnerFile, EngineJson.Serialize(new EmergencyStopHeartbeatJson(owner: "NexusCodex", pid: Environment.ProcessId, version: version, ts: Now())));
         }
         catch (IOException) { } // A missed beat makes the others report the stop as unavailable, which stays honest.
         catch (UnauthorizedAccessException) { }
@@ -156,15 +156,14 @@ static partial class EmergencyStop
         try
         {
             System.IO.Directory.CreateDirectory(Directory);
-            File.WriteAllText(StopFile, JsonSerializer.Serialize(new
-            {
-                by = "NexusCodex", pid = Environment.ProcessId, at = Now(), hold_s = HoldSeconds,
-                nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(6)).ToLowerInvariant(),
-            }));
+            File.WriteAllText(StopFile, EngineJson.Serialize(new EmergencyStopPressedJson(
+                by: "NexusCodex", pid: Environment.ProcessId, at: Now(), hold_s: HoldSeconds,
+                nonce: Convert.ToHexString(RandomNumberGenerator.GetBytes(6)).ToLowerInvariant()
+            )));
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { failure = error.Message; }
         // The client latches on this line even when the file could not be written.
-        Emit(new { @event = "stop", hold_s = HoldSeconds, written = failure == null, error = failure });
+        Emit(new EmergencyStopPressedJson2(@event: "stop", hold_s: HoldSeconds, written: failure == null, error: failure));
     }
 
     static double Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;

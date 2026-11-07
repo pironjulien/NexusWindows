@@ -76,9 +76,9 @@ static partial class Capture
             CheckDesktopCapture();
             var encoded = Encode(pixels, width, height); Directory.CreateDirectory(directory);
             var file = Path.Combine(directory, Guid.NewGuid().ToString("N") + encoded.Image.Extension); File.WriteAllBytes(file, encoded.Image.Bytes);
-            return new { ok = true, method = "desktop-bitblt", path = file, width = encoded.Width, height = encoded.Height,
-                mimeType = encoded.Image.MimeType, size_bytes = encoded.Image.Bytes.Length, encoding = encoded.How,
-                frame = new { left, top, width, height }, full_screen = true };
+            return new CaptureScreenJson(ok: true, method: "desktop-bitblt", path: file, width: encoded.Width, height: encoded.Height,
+                mimeType: encoded.Image.MimeType, size_bytes: encoded.Image.Bytes.Length, encoding: encoded.How,
+                frame: new CaptureWindowJson2(left: left, top: top, width: width, height: height), full_screen: true);
         }
         finally { Win32.SetThreadDpiAwarenessContext(previous); }
     }
