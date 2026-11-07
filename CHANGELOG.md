@@ -38,6 +38,9 @@ and npm (`nexus-windows-codex`).
   Its findings are fixed: culture-independent parsing and formatting of routine stamps, notification times and
   numbers, ordinal comparisons of window classes and arguments, cleanup results discarded explicitly, a fixture that
   no longer throws from `finally`, cached JSON options.
+- The engine project is `NexusWindows.Engine` (`codex/native/NexusWindows.Engine.csproj`) instead of the old Codex
+  profile's `NexusCodex.UIA`; installers and releases still publish it as `NexusWindows.exe`, so installed paths,
+  running processes and the AI apps' declarations are unchanged. Its project and manifest comments are in English.
 - The real-process checks of the shared emergency stop (stop file, guard, refusals) and foreground token (exclusion,
   deferral, release when the holder ends or dies) moved from the Node suites to xUnit
   (`SharedProtocolProcessTests`); the foreground token cases hold the PC's real lock and run with `test.ps1 -Full`.

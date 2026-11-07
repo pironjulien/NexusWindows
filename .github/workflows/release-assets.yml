@@ -54,8 +54,8 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $version = ([xml](Get-Content codex/native/NexusCodex.UIA.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "codex/native/NexusCodex.UIA.csproj: no X.Y.Z version ($version)." }
+          $version = ([xml](Get-Content codex/native/NexusWindows.Engine.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "codex/native/NexusWindows.Engine.csproj: no X.Y.Z version ($version)." }
           $server = Get-Content server.json -Raw | ConvertFrom-Json
           $found = [ordered]@{
             'codex/native/McpServer.cs' = [regex]::Match((Get-Content codex/native/McpServer.cs -Raw), 'Version = "([^"]+)"').Groups[1].Value

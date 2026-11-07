@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Helper entier en pixels reels de chaque ecran (PER_MONITOR_AWARE_V2), comme la capture et les gestes au point : sans
-     cela, l'arbre UI Automation est lu en coordonnees virtualisees a 125 % et les rectangles ne visent plus le bon
-     controle (banc commun du 22/10 : clic droit WinForms tombe sur la fenetre au lieu de la liste). -->
+<!-- The whole engine works in each screen's real pixels (PER_MONITOR_AWARE_V2), like the capture and the gestures at a
+     point: otherwise the UI Automation tree is read in coordinates virtualised at 125 % and the rectangles no longer
+     hit the right control (shared bench of 22/10: a WinForms right-click landed on the window instead of the list). -->
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
-  <assemblyIdentity version="1.0.0.0" name="NexusCodex.UIA"/>
+  <assemblyIdentity version="1.0.0.0" name="NexusWindows"/>
   <application xmlns="urn:schemas-microsoft-com:asm.v3">
     <windowsSettings>
       <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>

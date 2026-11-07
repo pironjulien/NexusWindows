@@ -15,7 +15,7 @@ static class SelfTest
     static readonly Lock Gate = new();
 
     /// <summary>Built engine executable next to the tests (ProjectReference), used for its helper children.</summary>
-    public static readonly string Engine = Path.Combine(AppContext.BaseDirectory, "NexusCodex.UIA.exe");
+    public static readonly string Engine = Path.Combine(AppContext.BaseDirectory, "NexusWindows.Engine.exe");
 
     static SelfTest() => Program.HelperExecutable = Engine;
 

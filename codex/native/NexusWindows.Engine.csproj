@@ -1,22 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!-- The common engine of the three profiles. Built here as NexusWindows.Engine, next to the launcher (NexusWindows) in
+       the test output; installers and releases publish it as NexusWindows (-p:AssemblyName=NexusWindows). -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AssemblyName>NexusCodex.UIA</AssemblyName>
+    <AssemblyName>NexusWindows.Engine</AssemblyName>
     <Version>3.16.28</Version>
-    <!-- Le contenu du runtime est identifié par ses SHA-256 ; ne pas lui attribuer le dernier commit
-         si une qualification est construite depuis le worktree courant. -->
+    <!-- The runtime content is identified by its SHA-256: never stamp it with the last commit when a qualification is
+         built from the current worktree. -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- Sorties d'une compilation faite dans ce dossier (obj, bin) : jamais compilees comme sources quand l'installeur
-         deporte BaseIntermediateOutputPath hors de OneDrive (AssemblyInfo en double, relecture de Codex du 24/10). -->
+    <!-- Outputs of a build made in this folder (obj, bin) are never compiled as sources when the installer moves
+         BaseIntermediateOutputPath out of OneDrive (duplicate AssemblyInfo, Codex review of 24/10). -->
     <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Logo de l'indicateur « agent au travail » (BusyIndicator.cs), lu a cote de l'executable. -->
+    <!-- Logo of the "agent at work" indicator (BusyIndicator.cs), read next to the executable. -->
     <None Include="logo.png" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="NativeSchemas.json" LogicalName="NexusWindows.Contracts" />
     <!-- xUnit tests (tests/) call the engine in-process. -->

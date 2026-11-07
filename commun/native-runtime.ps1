@@ -96,7 +96,7 @@ function Install-NexusWindowsNativeRuntime([switch]$CheckOnly) {
             if (Test-Path -LiteralPath $target) { throw "Runtime immutable incomplet ou altéré : $target. Aucune réécriture d'un binaire existant." }
             $build = Join-Path $nexusWindowsRuntimeHome ("build\$hash-" + [guid]::NewGuid().ToString('N'))
             $output = Join-Path $build 'publish'
-            & dotnet publish (Join-Path $nexusWindowsSource 'codex\native\NexusCodex.UIA.csproj') -c Release -o $output '-p:AssemblyName=NexusWindows' "-p:BaseIntermediateOutputPath=$build\obj\" "-p:MSBuildProjectExtensionsPath=$build\obj\" "-p:BaseOutputPath=$build\bin\" --nologo | Out-Host
+            & dotnet publish (Join-Path $nexusWindowsSource 'codex\native\NexusWindows.Engine.csproj') -c Release -o $output '-p:AssemblyName=NexusWindows' "-p:BaseIntermediateOutputPath=$build\obj\" "-p:MSBuildProjectExtensionsPath=$build\obj\" "-p:BaseOutputPath=$build\bin\" --nologo | Out-Host
             if ($LASTEXITCODE) { throw 'Compilation du moteur commun en échec.' }
             Copy-Item -LiteralPath (Join-Path $nexusWindowsSource 'commun\garde-fous.json') -Destination $output
             $artifacts = [ordered]@{}

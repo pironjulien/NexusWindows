@@ -42,7 +42,7 @@ public sealed class PublicMaintenanceTests
         File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), Path.Combine(packageRoot, "NexusWindows.exe"));
         File.Copy(SelfTest.Engine, Path.Combine(packageRoot, "engine", "NexusWindows.exe"));
         // The engine host runs its assembly (the update's --prune-installed); the published NexusWindows.dll stays a fixture.
-        foreach (var file in new[] { "NexusCodex.UIA.dll", "NexusCodex.UIA.runtimeconfig.json", "NexusCodex.UIA.deps.json" })
+        foreach (var file in new[] { "NexusWindows.Engine.dll", "NexusWindows.Engine.runtimeconfig.json", "NexusWindows.Engine.deps.json" })
             File.Copy(Path.Combine(AppContext.BaseDirectory, file), Path.Combine(packageRoot, "engine", file));
         File.WriteAllText(Path.Combine(packageRoot, "engine", "NexusWindows.dll"), "fixture dll never executed");
         File.WriteAllText(Path.Combine(packageRoot, "engine", "garde-fous.json"), "{}");
