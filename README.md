@@ -11,6 +11,7 @@ mouse, keyboard or foreground, with every action read back. For Claude, Codex an
 
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/pironjulien/NexusWindows/badge)](https://scorecard.dev/viewer/?uri=github.com/pironjulien/NexusWindows)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/16433/badge)](https://www.bestpractices.dev/projects/16433)
 [![release](https://img.shields.io/github/v/release/pironjulien/NexusWindows?style=flat-square&label=release)](https://github.com/pironjulien/NexusWindows/releases/latest)
 [![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square)](#-quick-start)
 [![MCP](https://img.shields.io/badge/MCP-stdio-6E56CF?style=flat-square)](commun/mcp-cookbook.md)
