@@ -50,10 +50,6 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
         with:
           dotnet-version: 10.0.x
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
-        with:
-          node-version: 22
-          package-manager-cache: false  # a release job never restores a cache (cache poisoning)
       - name: One version everywhere
         id: version
         shell: pwsh
@@ -65,8 +61,6 @@ jobs:
             'codex/native/McpServer.cs' = [regex]::Match((Get-Content codex/native/McpServer.cs -Raw), 'Version = "([^"]+)"').Groups[1].Value
             'commun/launcher/NexusWindows.Launcher.csproj' = ([xml](Get-Content commun/launcher/NexusWindows.Launcher.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
             'commun/native-runtime.ps1' = [regex]::Match((Get-Content commun/native-runtime.ps1 -Raw), "Version='([^']+)'").Groups[1].Value
-            'codex/package.json' = (Get-Content codex/package.json -Raw | ConvertFrom-Json).version
-            'codex/.codex-plugin/plugin.json' = (Get-Content codex/.codex-plugin/plugin.json -Raw | ConvertFrom-Json).version
             'claude/mcpb/manifest.json' = (Get-Content claude/mcpb/manifest.json -Raw | ConvertFrom-Json).version
             'plugin/antigravity/plugin.json' = (Get-Content plugin/antigravity/plugin.json -Raw | ConvertFrom-Json).version
             'plugin/.claude-plugin/plugin.json' = (Get-Content plugin/.claude-plugin/plugin.json -Raw | ConvertFrom-Json).version

@@ -10,6 +10,21 @@ and npm (`nexus-windows-codex`).
 
 ## [Unreleased]
 
+### Removed
+- The Node.js adapter of the Codex profile (`codex/lib`, `codex/bin`, its REPL guide and `entry.mjs`, the vendored
+  TOML reader, the `nexus-windows-codex` npm package files, `codex/.mcp.json`, its own `.codex-plugin` and
+  `.agents` marketplace, `setup.ps1`, `install.ps1` and the `node --test` suites). Codex already ran the native
+  engine through the common plugin (`plugin/.codex-plugin`, `NexusWindows.exe --mcp --agent codex`) and
+  `--register codex`; the npm package, frozen at 3.7.4, is deprecated. An older `npx -y nexus-windows-codex`
+  declaration is still recognised and replaced by `--register codex`.
+- Node.js from the test and release workflows, and the npm ecosystem from Dependabot. `test.ps1` is now
+  `dotnet test` alone.
+
+### Changed
+- The real-process checks of the shared emergency stop (stop file, guard, refusals) and foreground token (exclusion,
+  deferral, release when the holder ends or dies) moved from the Node suites to xUnit
+  (`SharedProtocolProcessTests`); the foreground token cases hold the PC's real lock and run with `test.ps1 -Full`.
+
 ## [3.16.28] - 2026-11-06
 
 ### Fixed

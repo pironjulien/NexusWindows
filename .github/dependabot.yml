@@ -10,12 +10,6 @@ updates:
     groups:
       actions:
         patterns: ["*"]
-  - package-ecosystem: npm
-    directory: /codex
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 7
   - package-ecosystem: nuget
     directories:
       - /codex/native

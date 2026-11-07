@@ -50,6 +50,9 @@ public class ThreeProfilesBehaviorTests
     public void Type_and_click_on_a_wpf_window_take_the_same_background_route_for_the_three_profiles()
     {
         Assert.SkipWhen(Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true", "Live WPF window and OCR: run on a desktop (test.ps1).");
+        // The click is proven by OCR of the window's pixels: with the screens asleep WPF does not render its client area
+        // (the capture is blank), so the proof cannot exist. Measured 07/11: same failure on unchanged sources.
+        Assert.SkipWhen(DisplayState.IsOff(), "Screens asleep: WPF renders no pixels to read back by OCR; run while the screens are on.");
         using var lab = new WpfLab();
         var typed = new Dictionary<string, string>(); var clicked = new Dictionary<string, string>();
         var expected = "";
