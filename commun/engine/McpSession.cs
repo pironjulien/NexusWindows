@@ -201,6 +201,8 @@ static partial class McpServer
         if (Regex.IsMatch(name, @"^\s*\d+\s*$") && Elements(snapshot).OfType<JsonObject>().Any(e => Str(e, "name") == name.Trim())) throw new ActionRefusedException("Numeric target is ambiguous: use #N for an index or name:N for its visible name");
         if (int.TryParse(name.Trim('#', '[', ']'), out var index))
             return Elements(snapshot).OfType<JsonObject>().SingleOrDefault(e => Number(e, "index", -1) == index) ?? throw new ActionRefusedException("Element index absent from current observation");
+        // An index beyond any int (#99999999999) is an index no look showed, not a name (found by McpToolArgumentFuzzTests).
+        if (Regex.IsMatch(name, @"^\s*(?:#|\[)?\d+\]?\s*$")) throw new ActionRefusedException("Element index absent from current observation");
         var exact = FindNative(snapshot, LegacySelector(JsonValue.Create(name)!));
         if (exact.Count == 1) return exact[0];
         // Two controls with the same name, only one of them on screen (05/11: Codex's two « Nouveau chat », the second one a

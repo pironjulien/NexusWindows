@@ -12,7 +12,7 @@ using System.Text.Json.Nodes;
 // - applies the common guardrails (GardeFous.cs), logs every action (Journal.cs) and drives Windows in process through Program.Execute.
 static partial class McpServer
 {
-    public const string Version = "3.17.4";
+    public const string Version = "3.17.5";
     static readonly string[] ModernProtocolVersions = ["2026-07-28"];
     static readonly string[] LegacyProtocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
     const string ProtocolVersionMeta = "io.modelcontextprotocol/protocolVersion";
@@ -826,17 +826,46 @@ static partial class McpServer
         foreach (var message in lines.GetConsumingEnumerable())
         {
             RequestCancellation.Begin(RequestId(message));
-            JsonObject? response;
+            string? response;
             receipt.Write("busy");
-            try { response = HandleMessage(state, message); }
+            try { response = ResponseLine(message, line => HandleMessage(state, line)); }
             finally { RequestCancellation.End(); receipt.Write("idle"); }
             if (response != null)
             {
-                Console.WriteLine(response.ToJsonString(JsonOut));
+                Console.WriteLine(response);
                 Console.Out.Flush();
             }
         }
         return 0;
+    }
+
+    // The session's last line of defence: whatever escapes the handler or the writing of its answer (a decoder bug, never
+    // a refusal: tools/call already turns a tool's exception into an isError result) is answered as a JSON-RPC internal
+    // error for that request, written to stderr, and the session keeps reading the next line. A notification gets no
+    // answer, as always. Before 3.17.5, one such exception ended the server loop and the client lost every tool.
+    internal static string? ResponseLine(string message, Func<string, JsonObject?> handle)
+    {
+        try { return handle(message)?.ToJsonString(JsonOut); }
+        catch (Exception error) when (error is not OutOfMemoryException)
+        {
+            try { Console.Error.WriteLine($"NexusWindows: request handling failed, session kept: {error}"); } catch (IOException) { }
+            JsonNode? id = null;
+            try
+            {
+                if (ParseRequest(message) is JsonObject msg && msg["method"] != null)
+                {
+                    if (!msg.TryGetPropertyValue("id", out var requestId)) return null;
+                    if (requestId is JsonValue value && (Text(value) != null || value.TryGetValue<long>(out _))) id = value.DeepClone();
+                }
+            }
+            catch (Exception unreadable) when (UnreadableRequest(unreadable)) { }
+            return new JsonObject
+            {
+                ["jsonrpc"] = "2.0",
+                ["id"] = id,
+                ["error"] = new JsonObject { ["code"] = -32603, ["message"] = $"Internal error ({error.GetType().Name}); the session goes on" },
+            }.ToJsonString(JsonOut);
+        }
     }
 
     // JSON-RPC id of a request (its JSON form: "1" and 1 differ), null for a notification or an unreadable message.

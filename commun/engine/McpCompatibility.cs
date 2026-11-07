@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 static partial class McpServer
 {
-    // Conversion de syntaxe uniquement : aucune cible ni preuve n'est inventée à l'import.
+    // Syntax conversion only: no target and no proof is invented on import.
     static JsonObject LegacyStep(JsonObject original)
     {
         var step = original.DeepClone().AsObject();
@@ -72,7 +72,7 @@ static partial class McpServer
     {
         if (value is JsonObject selector) return selector.DeepClone().AsObject();
         var text = value.ToString().Trim();
-        if (Regex.IsMatch(text, @"^(?:#|\[)?\d+\]?$|^-?\d+\s*[,x]\s*-?\d+$")) throw new InvalidDataException("A saved routine needs a semantic target, not an index or point");
+        if (Regex.IsMatch(text, @"^(?:#|\[)?\d+\]?$|^-?\d+\s*[,x]\s*-?\d+$")) throw new ActionRefusedException($"\"{text}\" is an index or a point, not a name: an index must be shown by the last look, and a saved routine needs a semantic target");
         var match = Regex.Match(text, "^([A-Za-zéèÉ]+)\\s*(?::\\s*(.+)|[«\\\"'](.+?)[»\\\"'])$");
         if (!match.Success) return new JsonObject { ["name"] = text };
         var key = match.Groups[1].Value.ToLowerInvariant(); var name = (match.Groups[2].Success ? match.Groups[2].Value : match.Groups[3].Value).Trim();

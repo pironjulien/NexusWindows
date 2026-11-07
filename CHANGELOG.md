@@ -11,6 +11,30 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+## [3.17.5] - 2026-11-07
+
+### Fixed
+- An exception that escapes a request (a decoder bug, never a refusal: a tool's own failure was already an `isError`
+  result) no longer ends the MCP session: the server answers that request with a JSON-RPC internal error (-32603), writes
+  the exception to stderr and reads the next line. An answer that cannot be written is handled the same way.
+- An act target given as an index beyond any integer (`#99999999999`) is refused as an index no look showed, instead of
+  an unrelated "saved routine" error; a name that reads as an index or a point gets a refusal that says so (found by the
+  new fuzzing below).
+
+### Added
+- Fuzzing of the act tool's arguments (`tests/McpToolArgumentFuzzTests.cs`): steps of every kind and wording, with their
+  targets, keys, texts and expectations, are mutated like the requests and decoded in isolation (step normalization
+  against an observation fixture, the key grammar, routine and selector validation, the Windows panel plan); nothing is
+  shown, read from the desktop or sent. Each decoder accepts a step or refuses it with a readable error. 20,000 steps in
+  every `test.ps1` run, 2,000,000 in the weekly `Fuzz` workflow.
+- `Registry status` workflow: an optional list of versions changes only those versions of an MCP registry entry.
+
+### Changed
+- The Codex and Antigravity READMEs show the current benchmark (3 November 2026) instead of the October tables of the
+  retired Python engine, like the Claude README.
+- The English comments test reads comments with a C# lexer (strings and literals skipped, quoted interface texts left
+  out) and judges short comments and `/* */` blocks too; it found one more French comment, translated.
+
 ## [3.17.4] - 2026-11-07
 
 ### Fixed
@@ -839,7 +863,8 @@ took 64 s and 14 calls; Codex now takes three calls and about 2 s, with no foreg
 - A UIA or Win32 input whose effect is not confirmed no longer triggers another technique or a physical click;
   repeated inputs require a newer observation of the same window; `expanded` and `focused` postconditions are checked.
 
-[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.4...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.5...HEAD
+[3.17.5]: https://github.com/pironjulien/NexusWindows/compare/v3.17.4...v3.17.5
 [3.17.4]: https://github.com/pironjulien/NexusWindows/compare/v3.17.3...v3.17.4
 [3.17.3]: https://github.com/pironjulien/NexusWindows/compare/v3.17.2...v3.17.3
 [3.17.2]: https://github.com/pironjulien/NexusWindows/compare/v3.17.1...v3.17.2

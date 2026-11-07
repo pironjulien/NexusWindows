@@ -92,7 +92,7 @@ public sealed class McpFuzzTests
         catch (Exception) { return false; }
     }
 
-    static string Mutate(Random random, string seed)
+    internal static string Mutate(Random random, string seed)
     {
         var text = seed;
         var rounds = 1 + random.Next(4);

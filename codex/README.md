@@ -304,6 +304,21 @@ flowchart LR
 
 ## Measurements
 
+The current figures are in [the 3 November 2026 benchmark](https://github.com/pironjulien/NexusWindows/blob/main/docs/benchmarks/2026-11-03-cua-driver/README.md):
+the common engine (3.16.5, Claude profile) and Cua Driver 0.38.0 on the same covered lab windows (Win32, WinForms, WPF,
+Electron, Edge), the application as the judge, 116 trials each.
+
+| 116 trials, target covered | NexusWindows 3.16.5 | Cua Driver 0.38.0 |
+|---|---|---|
+| Real effect | **98** | 54 |
+| False success (reported done, the app got nothing) | **0** | 16 |
+| Trials with an intrusion (foreground, cursor or clipboard) | **2** (launch: foreground given back at 0 ms) | 13 |
+
+Raw results and every task are in that folder. Benchmarks of the earlier Python engine (October 2026) were retired
+with it.
+
+### Earlier validation (October 15, 2026)
+
 Real validation of October 15, 2026 on the fixture of the former Node.js test harness. Windows shown without activation at the bottom of the z-order, the Win32 one covered by the WinForms one.
 Each action: postcondition verified, event counted by the application, foreground unchanged, cursor still.
 
@@ -318,30 +333,6 @@ Each action: postcondition verified, event counted by the application, foregroun
 
 Durations are dominated by full UIA tree read-backs. The physical fallback that takes
 the foreground was skipped in that run because the user was active; it is not counted as passed.
-
-## Common bench of the NexusWindows family (October 25, 2026)
-
-The three editions are measured together by the family's common bench: 55 tasks on lab windows (Win32, WinForms,
-WPF, Tk, Electron and Edge, plus launching an application behind a maximized window), three rounds each, every lab
-window covered by another window, run only while nobody uses the PC (a run stops and is not counted when the user
-comes back). The effect is judged by the application itself, never by the tool's report. "Without intrusion" counts an
-effect only when the user's foreground window and cursor stayed untouched.
-
-| 165 trials (55 tasks × 3) | Claude 3.2.2 | Antigravity 3.1.7 | Codex 3.1.4 |
-|---|---|---|---|
-| Exact effect | 120 | 119 | 120 |
-| Exact effect without intrusion | 114 | 113 | 113 |
-| False success (reported done, the app got nothing) | 0 | 3 | 0 |
-| Median / p95 time per task | 695 / 5179 ms | 702 / 3063 ms | 402 / 2909 ms |
-
-This edition misses only tasks the other two miss as well: in this run the Electron lab published no page once
-covered, so every Electron task failed for all three tools (the lab is fixed and Electron will count at the next run);
-the WinForms double click was covered by the bench's own cover window; WPF raw click, shortcut, double click and
-context menu have no background technique in any edition yet. The Tk wheel has one since 3.5.0 (an entirely covered
-Tk window is moved off screen for the gesture, then put back; 3/3 on the common bench). Ctrl/Shift shortcuts in the
-background arrived in 3.1.4 (none passed before) and passed on Win32, WinForms, Tk and Edge. A comparison with
-[Cua Driver](https://github.com/trycua/cua) and [Windows-MCP](https://github.com/CursorTouch/Windows-MCP) is in
-[NexusWindows for Claude](https://github.com/pironjulien/NexusWindows/tree/main/claude#side-by-side-with-cua-driver-and-windows-mcp-october-23-2026).
 
 ## Security
 

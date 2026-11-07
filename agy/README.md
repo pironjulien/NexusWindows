@@ -166,26 +166,20 @@ Tool descriptions, server instructions, tool and parameter names are in English;
   emergency stop (Ctrl+Alt+Shift+Esc, `%USERPROFILE%\.nexus\stop`), the same file protocols as
   [NexusWindows for Claude](https://github.com/pironjulien/NexusWindows/tree/main/claude#working-alongside-other-agents).
 
-## Common bench of the NexusWindows family (October 25, 2026)
+## Measurements
 
-The three editions are measured together by the family's common bench: 55 tasks on lab windows (Win32, WinForms,
-WPF, Tk, Electron and Edge, plus launching an application behind a maximized window), three rounds each, every lab
-window covered by another window, run only while nobody uses the PC (a run stops and is not counted when the user
-comes back). The effect is judged by the application itself, never by the tool's report. "Without intrusion" counts an
-effect only when the user's foreground window and cursor stayed untouched.
+The current figures are in [the 3 November 2026 benchmark](https://github.com/pironjulien/NexusWindows/blob/main/docs/benchmarks/2026-11-03-cua-driver/README.md):
+the common engine (3.16.5, Claude profile) and Cua Driver 0.38.0 on the same covered lab windows (Win32, WinForms, WPF,
+Electron, Edge), the application as the judge, 116 trials each.
 
-| 165 trials (55 tasks × 3) | Claude 3.2.2 | Antigravity 3.1.7 | Codex 3.1.4 |
-|---|---|---|---|
-| Exact effect | 120 | 119 | 120 |
-| Exact effect without intrusion | 114 | 113 | 113 |
-| False success (reported done, the app got nothing) | 0 | 3 | 0 |
-| Median / p95 time per task | 695 / 5179 ms | 702 / 3063 ms | 402 / 2909 ms |
+| 116 trials, target covered | NexusWindows 3.16.5 | Cua Driver 0.38.0 |
+|---|---|---|
+| Real effect | **98** | 54 |
+| False success (reported done, the app got nothing) | **0** | 16 |
+| Trials with an intrusion (foreground, cursor or clipboard) | **2** (launch: foreground given back at 0 ms) | 13 |
 
-The three false successes of this edition (Ctrl+K in Electron) and its missed WinForms context menu are fixed in
-3.2.2. In this run the Electron lab published no page once covered, so every Electron task failed for all three
-tools; the lab is fixed and Electron will count at the next run. A comparison with
-[Cua Driver](https://github.com/trycua/cua) and [Windows-MCP](https://github.com/CursorTouch/Windows-MCP) is in
-[NexusWindows for Claude](https://github.com/pironjulien/NexusWindows/tree/main/claude#side-by-side-with-cua-driver-and-windows-mcp-october-23-2026).
+Raw results and every task are in that folder. Benchmarks of the earlier Python engine (October 2026) were retired
+with it.
 
 ## Architecture
 

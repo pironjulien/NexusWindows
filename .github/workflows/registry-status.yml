@@ -1,5 +1,6 @@
 # Status of this owner's servers in the official MCP registry, by hand only ("Run workflow"): marks every version of
-# a server deprecated (with a message naming its replacement) or active again. Used for the separate profile entries of
+# a server, or only the versions listed, deprecated (with a message naming its replacement) or active again. Used for the
+# separate profile entries of
 # October 2026 (io.github.pironjulien/nexus-windows-claude, -codex, -antigravity), replaced by
 # io.github.pironjulien/nexus-windows. Never "deleted": a deprecated entry stays readable and says where to go.
 # mcp-publisher pinned by version and SHA-256 (the version product-promote uses); GitHub OIDC login, no token stored.
@@ -20,6 +21,10 @@ on:
         description: Status message (for deprecated, the replacement)
         required: false
         default: ''
+      versions:
+        description: Versions to change, separated by spaces (empty = every version)
+        required: false
+        default: ''
 
 permissions: {}
 
@@ -35,10 +40,14 @@ jobs:
       SERVER: ${{ inputs.server }}
       STATUS: ${{ inputs.status }}
       MESSAGE: ${{ inputs.message }}
+      VERSIONS: ${{ inputs.versions }}
     steps:
       - name: Check the server name
         run: |
           [[ "$SERVER" =~ ^io\.github\.pironjulien/[a-z0-9-]+$ ]] || { echo "Not a server of this owner: $SERVER"; exit 1; }
+          for v in $VERSIONS; do
+            [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Not a version: $v"; exit 1; }
+          done
       - name: Install mcp-publisher (pinned, checksum verified)
         run: |
           curl -fsSL -o mcp-publisher.tar.gz \
@@ -46,10 +55,17 @@ jobs:
           echo "${PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum --strict -c
           tar xzf mcp-publisher.tar.gz mcp-publisher
       - run: ./mcp-publisher login github-oidc
-      - name: Set the status of every version
-        run: ./mcp-publisher status --status "$STATUS" --message "$MESSAGE" --all-versions --yes "$SERVER"
+      - name: Set the status of every version, or of the versions listed
+        run: |
+          if [[ -z "${VERSIONS// }" ]]; then
+            ./mcp-publisher status --status "$STATUS" --message "$MESSAGE" --all-versions --yes "$SERVER"
+          else
+            for v in $VERSIONS; do
+              ./mcp-publisher status --status "$STATUS" --message "$MESSAGE" "$SERVER" "$v"
+            done
+          fi
       - name: Read it back from the registry
         run: |
-          curl -fsSL "https://registry.modelcontextprotocol.io/v0/servers?search=${SERVER#io.github.pironjulien/}" \
+          curl -fsSL "https://registry.modelcontextprotocol.io/v0/servers?search=${SERVER#io.github.pironjulien/}&limit=100" \
             | jq -r --arg name "$SERVER" '.servers[] | select(.server.name == $name)
                 | "\(.server.name) \(.server.version) \(._meta["io.modelcontextprotocol.registry/official"].status)"'
