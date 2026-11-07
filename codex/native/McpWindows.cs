@@ -47,8 +47,8 @@ static partial class McpServer
     {
         var hwnd = (nint)id; var cls = Win32.ClassName(hwnd);
         Win32.GetWindowRect(hwnd, out var rect);
-        row["process"] = app.StartsWith("process:") ? System.IO.Path.GetFileName(app[8..]) : app;
-        row["framework"] = cls.StartsWith("HwndWrapper") ? "WPF" : cls.StartsWith("Chrome_") ? "Chromium" : cls.StartsWith("Windows.UI.") || cls == "ApplicationFrameWindow" ? "UWP" : "Win32";
+        row["process"] = app.StartsWith("process:", StringComparison.Ordinal) ? System.IO.Path.GetFileName(app[8..]) : app;
+        row["framework"] = cls.StartsWith("HwndWrapper", StringComparison.Ordinal) ? "WPF" : cls.StartsWith("Chrome_", StringComparison.Ordinal) ? "Chromium" : cls.StartsWith("Windows.UI.", StringComparison.Ordinal) || cls == "ApplicationFrameWindow" ? "UWP" : "Win32";
         row["width"] = rect.Width; row["height"] = rect.Height;
         row["minimized"] = Win32.IsIconic(hwnd); row["maximized"] = IsZoomed(hwnd);
         row["foreground"] = Win32.GetForegroundWindow() == hwnd; row["hidden"] = !Win32.IsWindowVisible(hwnd) || Win32.IsCloaked(hwnd);

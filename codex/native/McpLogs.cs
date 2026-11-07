@@ -264,8 +264,8 @@ static partial class McpServer
         finally
         {
             Environment.SetEnvironmentVariable("NEXUS_WINDOWS_HOME", previous);
-            if (!Path.GetFullPath(root).StartsWith(Path.GetFullPath(Path.GetTempPath()), StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Unexpected logs fixture path");
-            if (Directory.Exists(root)) Directory.Delete(root, true);
+            // Only a fixture folder of the temporary directory is ever deleted (never thrown from finally).
+            if (Path.GetFullPath(root).StartsWith(Path.GetFullPath(Path.GetTempPath()), StringComparison.OrdinalIgnoreCase) && Directory.Exists(root)) Directory.Delete(root, true);
         }
     }
 }

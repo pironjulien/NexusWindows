@@ -179,7 +179,7 @@ unsafe sealed partial class ComUia
     {
         nint array;
         if (((delegate* unmanaged[Stdcall]<nint, nint*, int>)Vt(element)[4])(element, &array) < 0 || array == 0) return null; // GetRuntimeId
-        try { return ReadArray<int>(array); } finally { SafeArrayDestroy(array); }
+        try { return ReadArray<int>(array); } finally { _ = SafeArrayDestroy(array); }
     }
     [LibraryImport("oleaut32.dll")] private static partial int SafeArrayDestroy(nint array);
 
@@ -499,7 +499,7 @@ unsafe sealed partial class ComUia
         }
     }
 
-    Node Describe(nint element, int depth, int[] ancestors, bool readDocumentText = true, bool currentDefaultState = false)
+    static Node Describe(nint element, int depth, int[] ancestors, bool readDocumentText = true, bool currentDefaultState = false)
     {
         var password = CachedBool(element, IsPasswordProperty) ?? false;
         var role = Role(CachedInt(element, ControlTypeProperty) ?? 0);
@@ -551,7 +551,7 @@ unsafe sealed partial class ComUia
         }
         return node;
     }
-    double[] Bounds(nint element)
+    static double[] Bounds(nint element)
     {
         var v = Cached(element, BoundingRectangleProperty);
         try
@@ -570,7 +570,7 @@ unsafe sealed partial class ComUia
         var result = new T[count];
         Check(SafeArrayAccessData(array, out var data));
         try { new ReadOnlySpan<T>((void*)data, count).CopyTo(result); }
-        finally { SafeArrayUnaccessData(array); }
+        finally { _ = SafeArrayUnaccessData(array); }
         return result;
     }
     static Variant Cached(nint element, int property)

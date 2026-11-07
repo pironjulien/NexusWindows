@@ -80,7 +80,7 @@ static partial class ImageEncoding
         finally
         {
             if (stream != 0) Marshal.Release(stream);
-            if (bitmap != 0) GdipDisposeImage(bitmap);
+            if (bitmap != 0) _ = GdipDisposeImage(bitmap);
         }
     }
 

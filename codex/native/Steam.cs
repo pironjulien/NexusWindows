@@ -104,7 +104,7 @@ static partial class Steam
         foreach (var token in Program.SplitArgs(args))
         {
             if (token == "--") return "-- would neutralize Steam's startup switches";
-            var key = token.StartsWith("--") ? token[2..] : token.StartsWith('-') || token.StartsWith('/') ? token[1..] : "";
+            var key = token.StartsWith("--", StringComparison.Ordinal) ? token[2..] : token.StartsWith('-') || token.StartsWith('/') ? token[1..] : "";
             if (ControlSwitches.Contains(key.Split('=')[0])) return $"Switch \"{token}\" opens a control channel or selects a profile; use devtools=true explicitly for Steam";
             if (Uri.TryCreate(token, UriKind.Absolute, out var uri) && uri.Scheme.Equals("steam", StringComparison.OrdinalIgnoreCase)
                 && new[] { "exit", "quit", "shutdown", "restart" }.Contains(uri.Host, StringComparer.OrdinalIgnoreCase))

@@ -111,7 +111,7 @@ public sealed class NativeRuntimeInstallerTests
 
     [Theory]
     [MemberData(nameof(Cases))]
-    public void Workstation_installer(string name, string script)
+    public async Task Workstation_installer(string name, string script)
     {
         var home = Path.Combine(Path.GetTempPath(), "nexuswindows-runtime-" + Guid.NewGuid().ToString("N"));
         try
@@ -121,10 +121,11 @@ public sealed class NativeRuntimeInstallerTests
             start.Environment["NEXUS_REPO"] = TestEnvironment.RepositoryRoot;
             start.Environment["NEXUS_FIXTURE_HOME"] = home;
             using var process = Process.Start(start)!;
-            var output = process.StandardOutput.ReadToEndAsync();
-            var error = process.StandardError.ReadToEnd();
+            var cancel = TestContext.Current.CancellationToken;
+            var output = process.StandardOutput.ReadToEndAsync(cancel);
+            var error = await process.StandardError.ReadToEndAsync(cancel);
             Assert.True(process.WaitForExit(60_000), name);
-            Assert.True(process.ExitCode == 0, $"{name}: {error}{output.Result}");
+            Assert.True(process.ExitCode == 0, $"{name}: {error}{await output}");
         }
         finally { try { Directory.Delete(home, true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
     }

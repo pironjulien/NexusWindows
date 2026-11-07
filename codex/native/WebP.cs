@@ -8,11 +8,12 @@ using System.IO;
 // contre le decodeur de reference (libwebp, tests).
 static class WebP
 {
-    sealed class BitWriter
+    sealed class BitWriter : IDisposable
     {
         readonly MemoryStream stream = new();
         ulong bits;
         int used;
+        public void Dispose() => stream.Dispose();
         public void Put(uint value, int count)
         {
             if (count == 0) return;
@@ -291,7 +292,7 @@ static class WebP
                 else pred = modes[(y >> BlockBits) * bw + (x >> BlockBits)] == 2 ? argb[i - width] : argb[i - 1];
                 residual[i] = Sub(argb[i], pred);
             }
-        var w = new BitWriter();
+        using var w = new BitWriter();
         w.Put(0x2F, 8);
         w.Put((uint)(width - 1), 14);
         w.Put((uint)(height - 1), 14);

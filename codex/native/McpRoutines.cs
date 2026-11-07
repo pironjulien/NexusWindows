@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 
 static partial class McpServer
 {
+    // Routine stamps are ISO 8601 (an offset or the local time), read the same whatever the user's culture.
+    static DateTimeOffset ParseSaved(string text) => DateTimeOffset.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
     static string NativeStateRoot(string agent)
     {
         var custom = Environment.GetEnvironmentVariable("NEXUS_WINDOWS_HOME");
@@ -220,7 +222,7 @@ static partial class McpServer
             var step = steps[i]!.DeepClone().AsObject();
             // Never retain an authorization inside a saved definition or continuation.
             step.Remove("confirm"); step.Remove("accord");
-            var authorization = (args["authorizations"] as JsonObject)?[i.ToString()] as JsonObject;
+            var authorization = (args["authorizations"] as JsonObject)?[i.ToString(System.Globalization.CultureInfo.InvariantCulture)] as JsonObject;
             if (authorization != null) { step["confirm"] = Bool(authorization, "confirm"); step["accord"] = Str(authorization, "accord"); }
             else if (operation == "run" && routine == null) { step["confirm"] = Bool(steps[i], "confirm", Bool(args, "confirm")); step["accord"] = Str(steps[i], "accord", Str(args, "accord")); }
             var preparationInputAttempted = false;
@@ -379,7 +381,7 @@ static partial class McpServer
         if (args["authorizations"] is not JsonObject authorizations) throw new ActionRefusedException("authorizations must be an object indexed from 0; nothing sent");
         foreach (var (key, value) in authorizations)
         {
-            if (!int.TryParse(key, out var index) || index.ToString() != key || index < next || index >= total || value is not JsonObject permission)
+            if (!int.TryParse(key, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var index) || index.ToString(System.Globalization.CultureInfo.InvariantCulture) != key || index < next || index >= total || value is not JsonObject permission)
                 throw new ActionRefusedException("Authorization indices must name a remaining step, starting at 0; nothing sent");
             if (permission.Any(kv => kv.Key is not ("confirm" or "accord"))) throw new ActionRefusedException("An authorization accepts only confirm and accord; nothing sent");
             RoutineBoolean(permission, "confirm", false);
@@ -580,8 +582,8 @@ static partial class McpServer
         {
             Environment.SetEnvironmentVariable("NEXUS_WINDOWS_HOME", previousHome); Environment.SetEnvironmentVariable("NEXUS_ROUTINES_MIRROR", previousMirror);
             var resolved = Path.GetFullPath(root); var temporary = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            if (!string.Equals(Path.GetDirectoryName(resolved), temporary, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Unexpected routine fixture path");
-            if (Directory.Exists(resolved)) Directory.Delete(resolved, true);
+            // Only a fixture folder of the temporary directory is ever deleted (never thrown from finally).
+            if (string.Equals(Path.GetDirectoryName(resolved), temporary, StringComparison.OrdinalIgnoreCase) && Directory.Exists(resolved)) Directory.Delete(resolved, true);
         }
         return assertions;
     }
@@ -779,17 +781,17 @@ static partial class McpServer
                 foreach (var kv in imported["routines"]!.AsObject())
                 {
                     Routines.ValidateRoutineName(kv.Key); var e = kv.Value!.AsObject(); e["steps"] = Routines.PrepareRoutineSteps(e["steps"] as JsonArray);
-                    var date = DateTimeOffset.Parse(Str(e, "saved"));
-                    if (local["forgotten"]![kv.Key] is JsonValue tomb && DateTimeOffset.Parse(tomb.GetValue<string>()) >= date) continue;
-                    if (local["routines"]![kv.Key] is JsonObject existing && DateTimeOffset.Parse(Str(existing, "saved")) >= date) continue;
+                    var date = ParseSaved(Str(e, "saved"));
+                    if (local["forgotten"]![kv.Key] is JsonValue tomb && ParseSaved(tomb.GetValue<string>()) >= date) continue;
+                    if (local["routines"]![kv.Key] is JsonObject existing && ParseSaved(Str(existing, "saved")) >= date) continue;
                     var incoming = e.DeepClone().AsObject(); if (fromMirror) incoming["mirrorReview"] = true;
                     local["routines"]![kv.Key] = incoming; local["forgotten"]!.AsObject().Remove(kv.Key); changed++;
                 }
                 foreach (var kv in imported["forgotten"]!.AsObject())
                 {
-                    var date = DateTimeOffset.Parse(kv.Value!.GetValue<string>());
-                    if (local["routines"]![kv.Key] is JsonObject e && DateTimeOffset.Parse(Str(e, "saved")) > date) continue;
-                    if (local["forgotten"]![kv.Key] is JsonValue t && DateTimeOffset.Parse(t.GetValue<string>()) >= date) continue;
+                    var date = ParseSaved(kv.Value!.GetValue<string>());
+                    if (local["routines"]![kv.Key] is JsonObject e && ParseSaved(Str(e, "saved")) > date) continue;
+                    if (local["forgotten"]![kv.Key] is JsonValue t && ParseSaved(t.GetValue<string>()) >= date) continue;
                     local["routines"]!.AsObject().Remove(kv.Key); local["forgotten"]![kv.Key] = kv.Value.DeepClone(); changed++;
                 }
                 if (changed > 0) Write(file, local);
@@ -830,8 +832,8 @@ static partial class McpServer
                     var choices = new List<(DateTimeOffset Date, int Priority, JsonObject? Entry)>();
                     foreach (var (data, basePriority) in new[] { (local, 1), (remote, 0) })
                     {
-                        if (data["routines"]![name] is JsonObject e) choices.Add((DateTimeOffset.Parse(Str(e, "saved")), basePriority, e));
-                        if (data["forgotten"]![name] is JsonValue d) choices.Add((DateTimeOffset.Parse(d.GetValue<string>()), basePriority + 2, null));
+                        if (data["routines"]![name] is JsonObject e) choices.Add((ParseSaved(Str(e, "saved")), basePriority, e));
+                        if (data["forgotten"]![name] is JsonValue d) choices.Add((ParseSaved(d.GetValue<string>()), basePriority + 2, null));
                     }
                     var winner = choices.OrderByDescending(c => c.Date).ThenByDescending(c => c.Priority).First();
                     if (winner.Entry != null && !TransferableNativeRoutine(agent, winner.Entry))

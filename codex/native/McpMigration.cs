@@ -14,7 +14,7 @@ static partial class McpServer
     {
         if (Number(data, "schema") != 1 || data["app"] is not JsonValue || data["routines"] is not JsonObject) throw new InvalidDataException("Unknown legacy routine format; source left intact");
         var key = Str(data, "app");
-        if (!key.StartsWith("process:") && key.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) key = "process:" + key.ToLowerInvariant();
+        if (!key.StartsWith("process:", StringComparison.Ordinal) && key.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) key = "process:" + key.ToLowerInvariant();
         var converted = new JsonObject { ["schema"] = 1, ["appKey"] = Routines.ApplicationKey(key), ["routines"] = new JsonObject(), ["forgotten"] = data["forgotten"]?.DeepClone() ?? new JsonObject() };
         foreach (var pair in data["routines"]!.AsObject())
         {

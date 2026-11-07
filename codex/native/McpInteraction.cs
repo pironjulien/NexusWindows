@@ -138,7 +138,6 @@ static partial class McpServer
             legacy && SameIdentity(bound, target)
             && observed.TryGetValue(target.Window, out var shownTarget) && SameIdentity(shownTarget, target)
             && observed.TryGetValue(candidate.Window, out var shownCandidate) && SameIdentity(shownCandidate, candidate);
-        internal bool UserResumed => NativeMcpGuard.UserResumed;
         internal string ReturnForeground()
         {
             if (NativeMcpGuard.UserResumed) return "kept-by-julien";

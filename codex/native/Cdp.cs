@@ -23,6 +23,10 @@ using System.Text.RegularExpressions;
 // rejouee ni suivie d'une autre technique.
 static partial class Cdp
 {
+    // Sec-WebSocket-Accept of the fixture servers: RFC 6455 section 4.2.2 fixes SHA-1 (a handshake check, not a security hash).
+#pragma warning disable CA5350
+    static string WebSocketAccept(string key) => Convert.ToBase64String(System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.ASCII.GetBytes(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")));
+#pragma warning restore CA5350
     const int TimeoutMs = 2000, ProofMs = 500;
     [LibraryImport("kernel32.dll")] private static partial nint OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint pid);
     [LibraryImport("kernel32.dll")]
@@ -661,7 +665,7 @@ static partial class Cdp
         var request = new List<byte>();
         while (request.Count < 4 || request[^4] != '\r' || request[^3] != '\n' || request[^2] != '\r' || request[^1] != '\n') request.Add((byte)stream.ReadByte());
         var key = Regex.Match(System.Text.Encoding.ASCII.GetString(request.ToArray()), @"Sec-WebSocket-Key: (\S+)", RegexOptions.IgnoreCase).Groups[1].Value;
-        var accept = Convert.ToBase64String(System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.ASCII.GetBytes(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")));
+        var accept = WebSocketAccept(key);
         stream.Write(System.Text.Encoding.ASCII.GetBytes($"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"));
     }
 
@@ -702,7 +706,7 @@ static partial class Cdp
                 var request = new List<byte>();
                 while (request.Count < 4 || request[^4] != '\r' || request[^3] != '\n' || request[^2] != '\r' || request[^1] != '\n') request.Add((byte)stream.ReadByte());
                 var key = Regex.Match(System.Text.Encoding.ASCII.GetString(request.ToArray()), @"Sec-WebSocket-Key: (\S+)", RegexOptions.IgnoreCase).Groups[1].Value;
-                var accept = Convert.ToBase64String(System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.ASCII.GetBytes(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")));
+                var accept = WebSocketAccept(key);
                 var head = System.Text.Encoding.ASCII.GetBytes($"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n");
                 stream.Write(head);
                 while (true)

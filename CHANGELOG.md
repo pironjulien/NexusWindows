@@ -33,6 +33,11 @@ and npm (`nexus-windows-codex`).
   carries a delegate or an inline string (window class registration, process snapshot).
   The packaged app activation manager is a source-generated COM interface (`GeneratedComInterface`) instead of a
   runtime callable wrapper, checked against the real activation manager by an xUnit test.
+- Every project builds under one analysis policy (`Directory.Build.props`): the .NET 10 recommended rules, code style
+  enforced in the build and warnings as errors, with a shared `.editorconfig` that lists the rules left out and why.
+  Its findings are fixed: culture-independent parsing and formatting of routine stamps, notification times and
+  numbers, ordinal comparisons of window classes and arguments, cleanup results discarded explicitly, a fixture that
+  no longer throws from `finally`, cached JSON options.
 - The real-process checks of the shared emergency stop (stop file, guard, refusals) and foreground token (exclusion,
   deferral, release when the holder ends or dies) moved from the Node suites to xUnit
   (`SharedProtocolProcessTests`); the foreground token cases hold the PC's real lock and run with `test.ps1 -Full`.

@@ -219,14 +219,14 @@ static unsafe partial class Ocr
         const string expected = "NexusWindows OCR 2026";
         var screen = Win32.GetDC(0);
         var dc = Win32.CreateCompatibleDC(screen);
-        Win32.ReleaseDC(0, screen);
+        _ = Win32.ReleaseDC(0, screen);
         var header = new Win32.BitmapInfoHeader { Size = 40, Width = width, Height = -height, Planes = 1, BitCount = 32 };
         var dib = Win32.CreateDIBSection(dc, ref header, 0, out var bits, 0, 0);
         var old = Win32.SelectObject(dc, dib);
         var font = CreateFontW(-48, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5 /* CLEARTYPE */, 0, "Segoe UI");
         var oldFont = Win32.SelectObject(dc, font);
         PatBlt(dc, 0, 0, width, height, 0x00FF0062 /* WHITENESS */);
-        SetBkMode(dc, 1);
+        _ = SetBkMode(dc, 1);
         TextOutW(dc, 60, 70, expected, expected.Length);
         Win32.GdiFlush();
         var pixels = new byte[width * height * 4];

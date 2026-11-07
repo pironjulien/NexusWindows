@@ -13,7 +13,7 @@ public class ChromiumTests
     static JsonNode Cef(object[]? children = null, string topClass = "SDL_app") =>
         Chromium(new { cef = new { pid = 17, root = 42, topClass, children = children ?? [new Dictionary<string, object> { ["class"] = "CefBrowserWindow", ["pid"] = 17, ["root"] = 42 }] } });
     static JsonNode Click(object patterns, string role = "tab", bool hosted = true) => Chromium(new { click = new { cef = hosted, role, patterns } });
-    static object Child(string cls, int pid, int root) => new Dictionary<string, object> { ["class"] = cls, ["pid"] = pid, ["root"] = root };
+    static Dictionary<string, object> Child(string cls, int pid, int root) => new Dictionary<string, object> { ["class"] = cls, ["pid"] = pid, ["root"] = root };
     static bool[] Simulation(JsonNode r) => [r["focusSimulation"].B(), r["typeSimulation"].B(), r["selectSimulation"].B()];
 
     [Fact]

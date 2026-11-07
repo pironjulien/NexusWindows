@@ -277,7 +277,7 @@ static partial class McpServer
                     if (!Bool(target, "ocr") && !placeOnly) { if (target["runtimeId"] is not JsonArray runtime || runtime.Count == 0) throw new ActionRefusedException("The shown index has no stable runtime identity; no input sent"); step["observedIdentity"] = ElementIdentity(snapshot, target); }
                 }
                 // A repeated control named with its row is bound to that very control, like an index.
-                else if (Str(target, "context").Length > 0 && !placeOnly && target["runtimeId"] is JsonArray { Count: > 0 } && step["target"]!.ToString().EndsWith(")", StringComparison.Ordinal))
+                else if (Str(target, "context").Length > 0 && !placeOnly && target["runtimeId"] is JsonArray { Count: > 0 } && step["target"]!.ToString().EndsWith(')'))
                     step["observedIdentity"] = ElementIdentity(snapshot, target);
             }
             catch (ActionRefusedException e) when (allowFutureTarget && e.Message.Contains(" absent from current observation", StringComparison.Ordinal) && !step["target"]!.ToString().StartsWith('#'))
@@ -540,7 +540,7 @@ static partial class McpServer
             var surface = kind == "key" ? KeySurface(observation, step, state.RetainedFocus) : null;
             triggers.AddRange(elements.Where(e => (surface == null || WebRoot(observation, e) == surface) && (Bool(e, "focused") || Bool(e, "isDefault") ||
                 (keyKinds.Contains("submit") || keyKinds.Contains("send")) && Str(e, "role") is "button" or "menuitem" && GardeFous.OutwardWord(Str(e, "name")).Length > 0)));
-            foreach (var alt in keyKinds.Where(k => k.StartsWith("alt+"))) triggers.AddRange(elements.Where(e => Str(e, "accessKey").Replace(" ", "").Equals(alt, StringComparison.OrdinalIgnoreCase)));
+            foreach (var alt in keyKinds.Where(k => k.StartsWith("alt+", StringComparison.Ordinal))) triggers.AddRange(elements.Where(e => Str(e, "accessKey").Replace(" ", "").Equals(alt, StringComparison.OrdinalIgnoreCase)));
         }
         var fields = Elements(observation).OfType<JsonObject>().Where(e => !Bool(e, "password") && Str(e, "value").Length > 0).Select(e => Str(e, "name") + "=" + Str(e, "value")).ToArray();
         var context = currentTitle ?? Win32.Title((nint)state.BoundWindow!.Value.Id);

@@ -6,4 +6,15 @@
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(NexusWindowsBuild)obj\</BaseIntermediateOutputPath>
     <BaseOutputPath Condition="'$(BaseOutputPath)' == ''">$(NexusWindowsBuild)bin\</BaseOutputPath>
   </PropertyGroup>
+  <!-- Analysis policy of every project: the .NET 10 recommended rule set (pinned, so a newer SDK on a workstation that
+       builds the engine from source adds no rule by surprise), code style rules enforced in the build, and any warning
+       stops the build (test.ps1 and the CI alike). A NuGet vulnerability advisory stays a visible warning: it is
+       handled by a version update, never by a build that fails on a workstation. Rules that do not apply are listed
+       with their reason in .editorconfig. -->
+  <PropertyGroup>
+    <AnalysisLevel>10.0-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+  </PropertyGroup>
 </Project>

@@ -227,7 +227,7 @@ public class LaunchTests
                 try { client = await listener.AcceptTcpClientAsync(stop.Token); } catch (OperationCanceledException) { return; } catch (ObjectDisposedException) { return; }
                 _ = Task.Run(() => Serve(client));
             }
-        });
+        }, TestContext.Current.CancellationToken);
         void Serve(TcpClient client)
         {
             using var _ = client;
@@ -236,7 +236,9 @@ public class LaunchTests
             var one = new byte[1];
             while (!request.ToString().EndsWith("\r\n\r\n", StringComparison.Ordinal) && stream.Read(one, 0, 1) == 1) request.Append((char)one[0]);
             var key = request.ToString().Split("\r\n").First(l => l.StartsWith("Sec-WebSocket-Key:", StringComparison.OrdinalIgnoreCase))[18..].Trim();
+#pragma warning disable CA5350 // RFC 6455 section 4.2.2 fixes SHA-1 for Sec-WebSocket-Accept: a handshake check, not a security hash.
             var accept = Convert.ToBase64String(SHA1.HashData(Encoding.ASCII.GetBytes(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")));
+#pragma warning restore CA5350
             stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"));
             try
             {
@@ -270,7 +272,10 @@ public class LaunchTests
             response = null; Assert.False(Alive());
             lock (methods) Assert.Equal(Enumerable.Repeat("Browser.getVersion", 4), methods);
         }
+        // Bounded wait for the fixture server after its cancellation, from a synchronous test.
+#pragma warning disable xUnit1031, xUnit1051
         finally { stop.Cancel(); listener.Stop(); server.Wait(5000); }
+#pragma warning restore xUnit1031, xUnit1051
     }
 
     // ----- Claude profile launch planning (McpLaunchCompatibility.cs) -----

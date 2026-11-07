@@ -1,6 +1,7 @@
 // The engine defects met on 05/11/2026 in the evening while driving Chrome (Chrome Web Store dashboard and
 // chrome://extensions, pages NexusBrowser cannot drive), reproduced offline: no window is shown and no input is sent.
 // The live reproductions (a Chrome of its own profile, the Windows Open dialog) are in the shared bench's RECETTES.md.
+using System.Globalization;
 using System.Text.Json.Nodes;
 
 namespace NexusWindows.Tests;
@@ -112,7 +113,7 @@ public class ChromeEveningFixesTests
         ["elements"] = new JsonArray([
             new JsonObject { ["index"] = 0, ["depth"] = 0, ["role"] = "window", ["name"] = "Ouvrir", ["automationId"] = "", ["runtimeId"] = new JsonArray(42, 100), ["nativeWindow"] = 100, ["ancestors"] = new JsonArray(), ["visible"] = true },
             new JsonObject { ["index"] = 1, ["depth"] = 1, ["role"] = "list", ["name"] = "Vue d'éléments", ["automationId"] = "", ["runtimeId"] = new JsonArray(42, 101), ["nativeWindow"] = 101, ["ancestors"] = new JsonArray(0), ["visible"] = true },
-            .. Enumerable.Range(0, files).Select(i => (JsonNode)new JsonObject { ["index"] = 10 + i, ["depth"] = 2, ["role"] = "listitem", ["name"] = "fichier " + i, ["automationId"] = i.ToString(), ["runtimeId"] = new JsonArray(42, 101, i), ["nativeWindow"] = 101, ["ancestors"] = new JsonArray(0, 1), ["visible"] = true }),
+            .. Enumerable.Range(0, files).Select(i => (JsonNode)new JsonObject { ["index"] = 10 + i, ["depth"] = 2, ["role"] = "listitem", ["name"] = "fichier " + i, ["automationId"] = i.ToString(CultureInfo.InvariantCulture), ["runtimeId"] = new JsonArray(42, 101, i), ["nativeWindow"] = 101, ["ancestors"] = new JsonArray(0, 1), ["visible"] = true }),
             new JsonObject { ["index"] = 2, ["depth"] = 1, ["role"] = "combobox", ["name"] = "Nom du fichier :", ["automationId"] = "1148", ["runtimeId"] = new JsonArray(42, 102), ["nativeWindow"] = 102, ["ancestors"] = new JsonArray(0), ["visible"] = true, ["bounds"] = new JsonArray(10, 10, 300, 20) },
             new JsonObject { ["index"] = 3, ["depth"] = 2, ["role"] = "edit", ["name"] = "Nom du fichier :", ["automationId"] = "", ["runtimeId"] = new JsonArray(-1, 102, 3, 0), ["nativeWindow"] = 103, ["ancestors"] = new JsonArray(0, 2), ["visible"] = true, ["bounds"] = new JsonArray(10, 10, 280, 20) },
         ]),

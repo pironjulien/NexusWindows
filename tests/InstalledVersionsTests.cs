@@ -1,6 +1,7 @@
 // Earlier engine versions and leftovers removed at install and update (codex/native/InstalledVersions.cs), in a
 // throwaway profile: the installed, running and declared versions stay, the others go; a folder in use is never half
 // removed; only this product's own disposable browser profiles go, once their browser has closed.
+using System.Globalization;
 using System.Text;
 
 namespace NexusWindows.Tests;
@@ -30,7 +31,7 @@ public sealed class InstalledVersionsTests : IDisposable
 
     string BrowserProfile(string agent, string owner, DateTimeOffset created, bool marker = true)
     {
-        var id = created.ToString("yyyyMMdd-HHmmss-") + Guid.NewGuid().ToString("N");
+        var id = created.ToString("yyyyMMdd-HHmmss-", CultureInfo.InvariantCulture) + Guid.NewGuid().ToString("N");
         var folder = Path.Combine(Home, "state", agent, "devtools-profiles", id);
         Directory.CreateDirectory(Path.Combine(folder, "Default"));
         File.WriteAllText(Path.Combine(folder, "Default", "Preferences"), "{}");

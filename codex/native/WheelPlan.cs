@@ -72,7 +72,7 @@ static class ScrollChoice
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
         var root = input.RootElement;
-        var parents = root.TryGetProperty("parents", out var map) ? map.EnumerateObject().ToDictionary(e => int.Parse(e.Name), e => e.Value.GetInt32()) : new();
+        var parents = root.TryGetProperty("parents", out var map) ? map.EnumerateObject().ToDictionary(e => int.Parse(e.Name, System.Globalization.CultureInfo.InvariantCulture), e => e.Value.GetInt32()) : new();
         bool Descends(int a, int b)
         {
             for (var hops = 0; hops < 64 && parents.TryGetValue(a, out var p); hops++) { if (p == b) return true; a = p; }

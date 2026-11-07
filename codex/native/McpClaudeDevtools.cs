@@ -48,7 +48,7 @@ static partial class McpServer
     // Account checks still run through GuardClaudeDevtools, while its controls retain their native routes.
     static bool ClaudeRenderedWindow(SessionState state) => state.BoundWindow is { } bound && ChromiumInput.HasChromiumContent((nint)bound.Id);
     static bool HasClaudeDevtools(SessionState state) => ClaudeRenderedWindow(state) && ClaudeLease(state) != null;
-    static IDisposable? ClaudeDevtoolsScope(SessionState state, JsonObject step, JsonObject snapshot)
+    static ClaudeDomScope? ClaudeDevtoolsScope(SessionState state, JsonObject step, JsonObject snapshot)
     {
         if (!ClaudeRenderedWindow(state)) return null;
         var lease = ClaudeLease(state); if (lease == null) return null;

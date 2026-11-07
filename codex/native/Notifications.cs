@@ -68,7 +68,7 @@ static partial class Notifications
         {
             // SQLITE_OPEN_READONLY (no CREATE, no fallback to writable).
             if (sqlite3_open_v2(database, out db, 1, 0) != 0) throw new InvalidOperationException("Notification database unreadable.");
-            sqlite3_busy_timeout(db, 2000);
+            _ = sqlite3_busy_timeout(db, 2000);
             if (sqlite3_prepare_v2(db, Sql, -1, out statement, 0) != 0 || sqlite3_bind_int64(statement, 1, DateTime.UtcNow.ToFileTimeUtc()) != 0) throw new InvalidOperationException("Notification database unreadable (schema).");
             var output = new JsonArray(); int status;
             while ((status = sqlite3_step(statement)) == 100)
@@ -81,13 +81,13 @@ static partial class Notifications
                 var texts = Text.Matches(Encoding.UTF8.GetString(payload)).Select(m => Space.Replace(WebUtility.HtmlDecode(Tags.Replace(m.Groups[1].Value, "")), " ").Trim()).Where(s => s.Length > 0).ToList();
                 if (texts.Count == 0) continue;
                 var context = string.Join(' ', texts);
-                output.Add(new JsonObject { ["app"] = name, ["arrived"] = DateTime.FromFileTimeUtc(sqlite3_column_int64(statement, 1)).ToLocalTime().ToString("yyyy-MM-ddTHH:mm:sszzz"), ["texts"] = new JsonArray(texts.Select(t => (JsonNode)JsonValue.Create(Mask(t, context))!).ToArray()) });
+                output.Add(new JsonObject { ["app"] = name, ["arrived"] = DateTime.FromFileTimeUtc(sqlite3_column_int64(statement, 1)).ToLocalTime().ToString("yyyy-MM-ddTHH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture), ["texts"] = new JsonArray(texts.Select(t => (JsonNode)JsonValue.Create(Mask(t, context))!).ToArray()) });
                 if (output.Count >= Math.Clamp(limit, 1, 200)) return output;
             }
             if (status != 101) throw new InvalidOperationException("Notification database unreadable (query).");
             return output;
         }
-        finally { if (statement != 0) sqlite3_finalize(statement); if (db != 0) sqlite3_close(db); }
+        finally { if (statement != 0) _ = sqlite3_finalize(statement); if (db != 0) _ = sqlite3_close(db); }
     }
 
     public static int SelfTest()
@@ -105,7 +105,7 @@ static partial class Notifications
                 var now = DateTime.UtcNow.ToFileTimeUtc();
                 Assert(sqlite3_exec(db, $"WITH RECURSIVE seq(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM seq WHERE x<1001) INSERT INTO Notification SELECT 'toast',1,{now}+x,'<text>expired</text>',1 FROM seq; INSERT INTO Notification VALUES('toast',1,{now},'<text>Code de connexion</text><text>&#49;23456. K7F2QX</text>',0);", 0, 0, 0) == 0);
             }
-            finally { sqlite3_close(db); }
+            finally { _ = sqlite3_close(db); }
             var hash = System.Security.Cryptography.SHA256.HashData(System.IO.File.ReadAllBytes(path));
             var rows = Read(20, "fixture", path);
             Assert(rows.Count == 1 && rows[0]!["texts"]![1]!.GetValue<string>() == "•••. •••");

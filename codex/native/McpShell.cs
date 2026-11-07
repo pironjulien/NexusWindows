@@ -187,7 +187,7 @@ static partial class McpServer
         {
             // A foreground transfer can cloak and suspend the shell before it consumes Escape. Close the exact
             // visible panel we opened first; only then return the foreground. Never WM_CLOSE, toggle or replay.
-            var returned = CloseShellPanelInOrder(() => !scope.UserResumed && VisibleOwnedFront(), scope.Check,
+            var returned = CloseShellPanelInOrder(() => !NativeMcpGuard.UserResumed && VisibleOwnedFront(), scope.Check,
                 () => SendShellKeys(scope, [0x1B]), () =>
                 {
                     var timer = Stopwatch.StartNew();
@@ -195,7 +195,7 @@ static partial class McpServer
                     { EmergencyStop.ThrowIfStopped(); NativeMcpGuard.CheckInterruption(); Thread.Sleep(30); }
                 }, scope.ReturnForeground);
             // Cloaked is not released: a hidden CoreWindow may still own the active input queue.
-            return !scope.UserResumed && scope.OwnsShellWindow(Front()) ? "refused" : returned;
+            return !NativeMcpGuard.UserResumed && scope.OwnsShellWindow(Front()) ? "refused" : returned;
         }
         catch (Exception error) when (error is EmergencyStopException or JulienActiveException or ActionRefusedException) { return "interrupted"; }
     }

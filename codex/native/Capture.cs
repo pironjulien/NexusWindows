@@ -193,7 +193,7 @@ static partial class Capture
     {
         var screen = Win32.GetDC(0);
         var dc = Win32.CreateCompatibleDC(screen);
-        Win32.ReleaseDC(0, screen);
+        _ = Win32.ReleaseDC(0, screen);
         if (dc == 0) throw new CaptureUnavailableException("No memory device context");
         try
         {

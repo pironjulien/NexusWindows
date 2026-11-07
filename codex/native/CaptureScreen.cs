@@ -55,7 +55,7 @@ static partial class Capture
             var width = GetSystemMetrics(78); var height = GetSystemMetrics(79);
             if (width <= 0 || height <= 0 || (long)width * height > int.MaxValue / 4) throw new CaptureUnavailableException("Desktop dimensions unavailable");
             var screen = Win32.GetDC(0); var dc = Win32.CreateCompatibleDC(screen);
-            if (screen == 0 || dc == 0) { if (screen != 0) Win32.ReleaseDC(0, screen); throw new CaptureUnavailableException("Desktop device context unavailable"); }
+            if (screen == 0 || dc == 0) { if (screen != 0) _ = Win32.ReleaseDC(0, screen); throw new CaptureUnavailableException("Desktop device context unavailable"); }
             byte[] pixels;
             try
             {
@@ -71,7 +71,7 @@ static partial class Capture
                 }
                 finally { Win32.SelectObject(dc, old); Win32.DeleteObject(bitmap); }
             }
-            finally { Win32.DeleteDC(dc); Win32.ReleaseDC(0, screen); }
+            finally { Win32.DeleteDC(dc); _ = Win32.ReleaseDC(0, screen); }
             // A manager/UAC appearing during acquisition invalidates the whole capture; no file is published.
             CheckDesktopCapture();
             var encoded = Encode(pixels, width, height); Directory.CreateDirectory(directory);

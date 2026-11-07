@@ -199,7 +199,7 @@ static partial class Keys
             {
                 var clock = System.Diagnostics.Stopwatch.StartNew();
                 var process = OpenProcess(0x00100000 | 0x1000 /* SYNCHRONIZE | QUERY_LIMITED */, false, pid);
-                if (process != 0) { try { WaitForInputIdle(process, 2000); } finally { CloseHandle(process); } }
+                if (process != 0) { try { _ = WaitForInputIdle(process, 2000); } finally { CloseHandle(process); } }
                 var left = HoldMs - (int)clock.ElapsedMilliseconds;
                 if (left > 0) Thread.Sleep(left);
             }
@@ -254,8 +254,8 @@ static partial class Keys
     {
         var cls = ClassOf(window);
         var tk = cls == "TkTopLevel";
-        var classic = !cls.StartsWith("Chrome_WidgetWin_") && !cls.StartsWith("HwndWrapper") && cls != "ApplicationFrameWindow" &&
-            !cls.StartsWith("Windows.UI.") && !tk && !cls.StartsWith("Mozilla");
+        var classic = !cls.StartsWith("Chrome_WidgetWin_", StringComparison.Ordinal) && !cls.StartsWith("HwndWrapper", StringComparison.Ordinal) && cls != "ApplicationFrameWindow" &&
+            !cls.StartsWith("Windows.UI.", StringComparison.Ordinal) && !tk && !cls.StartsWith("Mozilla", StringComparison.Ordinal);
         if (!classic && !tk) throw new BackgroundNotApplicableException("This interface ignores posted keys (measured): no background technique");
         var (mods, vk, layout) = ParseForWindow(window, spec);
         var thread = Win32.GetWindowThreadProcessId(window, out _);

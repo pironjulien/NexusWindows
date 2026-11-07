@@ -37,7 +37,7 @@ public class TextGestureGuardTests
         const string marker = "accord=\"";
         return refusal.Message[(refusal.Message.LastIndexOf(marker, StringComparison.Ordinal) + marker.Length)..].Split('"')[0];
     }
-    static Exception Refusal(Action action) => Assert.ThrowsAny<InvalidOperationException>(action);
+    static InvalidOperationException Refusal(Action action) => Assert.ThrowsAny<InvalidOperationException>(action);
 
     [Theory]
     [InlineData("codex")]

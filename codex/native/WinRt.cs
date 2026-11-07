@@ -31,7 +31,7 @@ static unsafe partial class WinRt
         nint name, factory;
         Check(WindowsCreateString(runtimeClass, runtimeClass.Length, &name), "WindowsCreateString");
         try { Check(RoGetActivationFactory(name, &iid, &factory), "RoGetActivationFactory " + runtimeClass); }
-        finally { WindowsDeleteString(name); }
+        finally { _ = WindowsDeleteString(name); }
         return factory;
     }
 
@@ -64,7 +64,7 @@ static unsafe partial class WinRt
     {
         if (hstring == 0) return "";
         try { uint length; var raw = WindowsGetStringRawBuffer(hstring, &length); return new string(raw, 0, (int)length); }
-        finally { WindowsDeleteString(hstring); }
+        finally { _ = WindowsDeleteString(hstring); }
     }
 
     // Attente bornee d'une IAsyncOperation<T> par IAsyncInfo.Status (aucun delegue COM a implementer), puis GetResults

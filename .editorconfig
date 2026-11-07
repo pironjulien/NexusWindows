@@ -1,0 +1,32 @@
+# Shared editor and analyzer settings of NexusWindows. The analysis level and warnings-as-errors policy are in
+# Directory.Build.props; this file only says how the code is laid out and which rules do not apply, and why.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+
+[*.{json,yml,yaml,csproj,props,targets,xml,manifest}]
+indent_size = 2
+
+[*.{cmd,bat}]
+end_of_line = crlf
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.cs]
+# CA2201: the engine's self-tests and fixtures reproduce UI Automation provider failures with COMException and a
+# failed SafeArrayCreate with OutOfMemoryException, the exact types the real APIs raise.
+dotnet_diagnostic.CA2201.severity = none
+# CA1861: small literal arrays in self-tests and one-shot request checks; nothing of the kind sits in a hot loop, and
+# the inline form keeps each expectation readable where it is checked.
+dotnet_diagnostic.CA1861.severity = none
+
+[tests/**.cs]
+# CA1707: xUnit test names are sentences (A_window_closed_during_the_request_is_a_refusal).
+dotnet_diagnostic.CA1707.severity = none

@@ -7,7 +7,7 @@ using System.Text.Json.Nodes;
 namespace NexusWindows.Tests;
 
 [CollectionDefinition("Engine", DisableParallelization = true)]
-public sealed class EngineCollection;
+public sealed class EngineGroup;
 
 static class SelfTest
 {

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
@@ -19,7 +20,7 @@ public sealed class RuntimeReceiptTests
         JsonNode Read(string path) => JsonNode.Parse(File.ReadAllText(path))!;
         var identity = Read(first.PathName);
         Assert.Equal(Environment.ProcessId, identity["pid"].I());
-        Assert.Equal(process.StartTime.ToUniversalTime().Ticks.ToString(), identity["processStartTicks"].S());
+        Assert.Equal(process.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture), identity["processStartTicks"].S());
         Assert.Equal(Environment.ProcessPath, identity["executable"].S());
         Assert.Equal(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(typeof(McpServer).Assembly.Location))).ToLowerInvariant(), identity["assemblySha256"].S());
         Assert.Equal(McpServer.Version, identity["version"].S());

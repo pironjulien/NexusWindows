@@ -46,7 +46,7 @@ static partial class McpServer
     {
         text = Environment.ExpandEnvironmentVariables(text.Trim());
         if (text == "~") return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (text.StartsWith("~\\") || text.StartsWith("~/")) return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), text[2..]);
+        if (text.StartsWith("~\\", StringComparison.Ordinal) || text.StartsWith("~/", StringComparison.Ordinal)) return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), text[2..]);
         return text;
     }
     static string ClaudeKnownFolderPath(string id)
@@ -136,7 +136,7 @@ static partial class McpServer
     static bool ClaudeChromium(string exe) => ClaudeBrowser(exe) || Path.GetFileName(exe).Equals("electron.exe", StringComparison.OrdinalIgnoreCase) || Program.IsChromiumFamily(exe);
     static string? ClaudeSwitchKey(string token)
     {
-        var prefix = token.StartsWith("--") ? 2 : token.StartsWith('-') || token.StartsWith('/') ? 1 : 0;
+        var prefix = token.StartsWith("--", StringComparison.Ordinal) ? 2 : token.StartsWith('-') || token.StartsWith('/') ? 1 : 0;
         return prefix > 0 && token.Length > prefix ? token[prefix..].Split('=')[0].ToLowerInvariant() : null;
     }
     static void ClaudeCheckExecutable(string exe, string arguments, bool devtools)
@@ -350,7 +350,7 @@ static partial class McpServer
     {
         var root = Path.Combine(NativeStateRoot(GardeFous.CurrentAgent), "devtools-profiles"); Directory.CreateDirectory(root);
         if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0) throw new ActionRefusedException("DevTools profile root may not be a reparse point");
-        var path = Path.Combine(root, DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-") + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(path);
+        var path = Path.Combine(root, DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-", System.Globalization.CultureInfo.InvariantCulture) + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(path);
         File.WriteAllText(Path.Combine(path, ".nexus-profile"), JsonSerializer.Serialize(new { created = DateTimeOffset.UtcNow, owner = "nexus-windows-" + GardeFous.CurrentAgent, id = Path.GetFileName(path) }));
         return path;
     }

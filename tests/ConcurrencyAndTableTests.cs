@@ -1,5 +1,6 @@
 // Window lock between agents (two real processes), full tree reads in turn, the UIA gesture chosen under a point where posted clicks are ignored,
 // and table reading from an observed tree. No window is shown and no input is sent.
+using System.Globalization;
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 
@@ -18,7 +19,7 @@ public class ConcurrencyAndTableTests
         Process Start(string agent, int waitMs)
         {
             var start = new ProcessStartInfo(SelfTest.Engine) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true };
-            foreach (var arg in new[] { "--window-lock", window, agent, waitMs.ToString() }) start.ArgumentList.Add(arg);
+            foreach (var arg in new[] { "--window-lock", window, agent, waitMs.ToString(CultureInfo.InvariantCulture) }) start.ArgumentList.Add(arg);
             start.Environment["NEXUS_SHARED_HOME"] = home;
             return Process.Start(start)!;
         }
@@ -54,6 +55,9 @@ public class ConcurrencyAndTableTests
 
     // Full tree reads in turn: a second reader waits while the first holds the gate, then goes ahead; a reader that waited
     // too long reads anyway, ungated. Two threads, two handles on the same lock file in the tests' own shared home.
+    // Synchronous on purpose: the gate is held per thread ([ThreadStatic]), so the test thread must not change across
+    // an await while it holds the first one.
+#pragma warning disable xUnit1031, xUnit1051
     [Fact]
     public void Full_tree_reads_wait_their_turn_then_go_ahead_ungated_after_the_bound()
     {
@@ -69,6 +73,7 @@ public class ConcurrencyAndTableTests
         Assert.True(turn.Wait(2000) && turn.Result.Gated, "gets the gate once released");
         using (var again = UiaReadGate.Enter()) using (var nested = UiaReadGate.Enter()) Assert.Same(again, nested);
     }
+#pragma warning restore xUnit1031, xUnit1051
 
     static JsonObject Element(int index, string role, string name = "", string? value = null, int[]? ancestors = null, bool invoke = false, bool? toggled = null, bool? selected = null, bool disabled = false) => new()
     {

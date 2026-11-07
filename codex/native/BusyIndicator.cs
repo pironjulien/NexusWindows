@@ -86,7 +86,7 @@ static partial class BusyIndicator
                 logo = ((int)width, (int)height, pixels);
                 return logo.Value;
             }
-            finally { GdipDisposeImage(bitmap); }
+            finally { _ = GdipDisposeImage(bitmap); }
         }
         finally { GdiplusShutdown(token); }
     }

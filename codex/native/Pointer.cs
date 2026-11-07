@@ -98,7 +98,7 @@ static partial class Pointer
     internal static bool IgnoresPostedClick(nint window)
     {
         var cls = ClassOf(window);
-        return cls.StartsWith("HwndWrapper") || cls == "ApplicationFrameWindow" || cls.StartsWith("Windows.UI.") || cls.StartsWith("Mozilla");
+        return cls.StartsWith("HwndWrapper", StringComparison.Ordinal) || cls == "ApplicationFrameWindow" || cls.StartsWith("Windows.UI.", StringComparison.Ordinal) || cls.StartsWith("Mozilla", StringComparison.Ordinal);
     }
 
     public static Outcome Act(nint window, string action, int x, int y, int[] frame, string button, int count, int deltaY, int deltaX, Action started, int toX = 0, int toY = 0)
@@ -112,11 +112,11 @@ static partial class Pointer
     static Outcome ActPhysicalPixels(nint window, string action, int x, int y, int[] frame, string button, int count, int deltaY, int deltaX, Action started, int toX = 0, int toY = 0)
     {
         var cls = ClassOf(window);
-        var chromium = cls.StartsWith("Chrome_WidgetWin_");
-        var wpf = cls.StartsWith("HwndWrapper");
+        var chromium = cls.StartsWith("Chrome_WidgetWin_", StringComparison.Ordinal);
+        var wpf = cls.StartsWith("HwndWrapper", StringComparison.Ordinal);
         var tk = cls == "TkTopLevel";
-        var classic = !chromium && !wpf && cls != "ApplicationFrameWindow" && !cls.StartsWith("Windows.UI.") &&
-            cls != "TkTopLevel" && !cls.StartsWith("Mozilla");
+        var classic = !chromium && !wpf && cls != "ApplicationFrameWindow" && !cls.StartsWith("Windows.UI.", StringComparison.Ordinal) &&
+            cls != "TkTopLevel" && !cls.StartsWith("Mozilla", StringComparison.Ordinal);
         if (action is not ("click" or "wheel" or "hover" or "drag")) throw new InvalidOperationException("Unknown pointer action");
         // Glisser-deposer (01/11) : seule une page Chromium ou CEF au port DevTools prouve le recoit en arriere-plan. Ailleurs
         // la boucle de glisser de Windows (OLE DoDragDrop) lit la vraie souris : des messages postes lui feraient lacher

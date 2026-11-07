@@ -319,6 +319,7 @@ static partial class ChromiumInput
         return new { ok = true, checks, packets, packetProofs, presenceChecks, proofDuringRune, utf16Posted = posted, gui = false, inputSent = false };
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1859", Justification = "Also returns anonymous result objects; only the units branch is a List<string>.")]
     static object SimulatedTextSelfTest(JsonElement test)
     {
         static string S(JsonElement e, string key, string fallback = "") => e.TryGetProperty(key, out var value) ? value.GetString() ?? fallback : fallback;

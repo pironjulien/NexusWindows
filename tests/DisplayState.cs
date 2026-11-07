@@ -26,7 +26,7 @@ static class DisplayState
         var recipient = new Recipient { Callback = callback };
         if (PowerSettingRegisterNotification(ref ConsoleDisplayState, DeviceNotifyCallback, ref recipient, out var handle) != 0) return false;
         try { reported.Wait(1000); }
-        finally { PowerSettingUnregisterNotification(handle); GC.KeepAlive(callback); }
+        finally { _ = PowerSettingUnregisterNotification(handle); GC.KeepAlive(callback); }
         return state == 0;
     }
 }
