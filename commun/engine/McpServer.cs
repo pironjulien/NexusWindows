@@ -6,10 +6,10 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-// Serveur MCP natif unifie de NexusWindows (stdio, JSON-RPC 2.0 ligne par ligne) :
-// - Sert les trois profils d'agents (--agent codex|claude|antigravity) depuis un seul moteur C# (.NET 10) sans Node ni Python.
-// - Supporte le protocole MCP sans etat 2026-07-28 (server/discover, _meta) et les versions historiques (initialize, ping).
-// - Applique les garde-fous communs (GardeFous.cs), journalise chaque action (Journal.cs) et pilote Windows en processus via Program.Execute.
+// The unified native MCP server of NexusWindows (stdio, JSON-RPC 2.0, one message per line):
+// - serves the three agent profiles (--agent codex|claude|antigravity) from one C# (.NET 10) engine, without Node or Python;
+// - supports the stateless MCP protocol 2026-07-28 (server/discover, _meta) and the earlier versions (initialize, ping);
+// - applies the common guardrails (GardeFous.cs), logs every action (Journal.cs) and drives Windows in process through Program.Execute.
 static partial class McpServer
 {
     public const string Version = "3.17.4";
@@ -803,9 +803,9 @@ static partial class McpServer
         using var receipt = new RuntimeReceipt(normalizedAgent, state.SessionId);
         using var nativeGuard = NativeMcpGuard.Start(Version);
         WriteStatusFile(normalizedAgent);
-        // stdin est lu par un fil dedie pendant qu'une requete s'execute : une notifications/cancelled visant la requete
-        // en cours l'arrete a sa prochaine garde (RequestCancellation). Les requetes restent traitees une a une, dans
-        // l'ordre ; EOF apres un lot laisse finir ce qui est deja recu (verify-native-profiles.py, sondes).
+        // stdin is read by a dedicated thread while a request runs: a notifications/cancelled aimed at the running request
+        // stops it at its next checkpoint (RequestCancellation). Requests are still handled one at a time, in order; EOF
+        // after a batch lets what was already received finish (verify-native-profiles.py, probes).
         using var lines = new System.Collections.Concurrent.BlockingCollection<string>();
         var reader = new Thread(() =>
         {
@@ -839,7 +839,7 @@ static partial class McpServer
         return 0;
     }
 
-    // Identifiant JSON-RPC d'une requete (forme JSON, "1" et 1 distincts), null pour une notification ou un message illisible.
+    // JSON-RPC id of a request (its JSON form: "1" and 1 differ), null for a notification or an unreadable message.
     internal static string? RequestId(string raw)
     {
         try { return ParseRequest(raw) is JsonObject msg && msg["method"] != null && msg["id"] is JsonValue id ? id.ToJsonString() : null; }
@@ -868,7 +868,7 @@ static partial class McpServer
             if (!cond) throw new InvalidOperationException("McpServer SelfTest failed: " + msg);
         }
 
-        // Annulation MCP : seule la requete en cours est visee, vue comme un arret, effacee en fin de requete.
+        // MCP cancellation: only the running request is targeted, seen as a stop, cleared when the request ends.
         Assert(RequestId("""{"jsonrpc":"2.0","id":7,"method":"tools/call"}""") == "7" && RequestId("""{"jsonrpc":"2.0","method":"notifications/initialized"}""") == null, "request id form");
         Assert(CancelledRequestId("""{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":7}}""") == "7", "cancelled id form");
         Assert(CancelledRequestId("""{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":"7"}}""") == "\"7\"", "string and number ids stay distinct");

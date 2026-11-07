@@ -39,6 +39,9 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 - The Claude README's measurements now come from the current benchmark (3 November 2026, the common engine and Cua
   Driver 0.38.0) instead of tables of the retired Python engine.
 - `TestResults/` is ignored by Git.
+- Code comments are in English: the MCP server's are translated, and a test lists the 31 engine files that still hold
+  comments written in French before the profiles were merged; the list may only shrink, each file being translated
+  when it next changes.
 
 ### Removed
 - `claude/bench`: the French notes and the 33 raw result files of the October 2026 Python bench, whose scripts were
