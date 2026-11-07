@@ -8,7 +8,7 @@ Releases up to 30 October 2026 were made in separate repositories for each profi
 Antigravity 3.6.0), since removed; those versions remain on PyPI (`nexus-windows-claude`, `nexus-windows-antigravity`)
 and npm (`nexus-windows-codex`).
 
-## [Unreleased]
+## [3.17.0] - 2026-11-07
 
 ### Removed
 - The Node.js adapter of the Codex profile (`codex/lib`, `codex/bin`, its REPL guide and `entry.mjs`, the vendored
@@ -24,6 +24,16 @@ and npm (`nexus-windows-codex`).
   natively on Microsoft.Testing.Platform, the runner global.json already selects.
 
 ### Changed
+- Releases ship the engine compiled ahead of time (Native AOT): `engine\NexusWindows.exe` is one 14 MB executable
+  instead of the 78 MB self-contained engine in 193 files, and it answers `initialize` in about 50 ms instead of
+  125 ms; the x64 package drops from 38 MB to 7 MB. `commun/package.ps1` refuses an engine that still carries
+  `NexusWindows.dll`, its `.deps.json` or `.runtimeconfig.json`. Installed by `get.ps1`, it passes `test.ps1 -Full`,
+  the live capture and DevTools title probes on test windows and the three-profile WPF test.
+- `test.ps1 -Engine <NexusWindows.exe>` (`NEXUS_TEST_ENGINE`) runs the process tests against a given engine, such as
+  the Native AOT engine of a package or of an installation, instead of the one built for the tests.
+- The Claude Desktop extensions (`.mcpb`) are packed by `commun/package.ps1` itself, a ZIP of the manifest, the icon
+  and the engine as before, after checking the manifest's required fields and entry point, instead of
+  `npx @anthropic-ai/mcpb pack`: no Node.js or npm is left in the build or release.
 - The DOM scripts the engine injects into Chromium pages (deep focus, select mutation) are executed by an embedded
   ECMAScript engine (Jint) inside xUnit instead of `node --test`, which was skipped in silence where Node.js was
   absent, the CI included.
@@ -66,17 +76,14 @@ and npm (`nexus-windows-codex`).
   (warnings as errors) and report nothing. Measured on win-x64: the self-contained engine is 78.2 MB in 193 files
   and answers `initialize` and `tools/list` in about 125 ms; trimmed with ReadyToRun, 36 MB in 63 files and about
   160 ms; Native AOT, 13.5 MB in one executable and about 50 to 60 ms, with the MCP stdio, launcher, process and
-  table tests passing against it. Releases still publish the self-contained engine: `get.ps1`,
-  `commun/native-runtime.ps1` and NexusSystem's runtime checks require `NexusWindows.dll`, its `deps.json` and
-  `runtimeconfig.json`, and the desktop tests (`test.ps1 -Full`) have not run on it yet.
+  table tests passing against it.
 - CodeQL runs from a workflow file (`.github/workflows/codeql.yml`, `actions` and `csharp`, default queries, actions
   pinned by commit) instead of the repository's default setup, so OpenSSF Scorecard credits the SAST check for
   commits pushed without pull requests.
 - `get.ps1`, `commun/native-runtime.ps1` and the stable launcher accept a single-file Native AOT engine
   (`NexusWindows.exe` alone, checked against its hash) as well as the framework-dependent one, whose
   `NexusWindows.dll`, `.deps.json` and `.runtimeconfig.json` must now be recorded together (a partial set is refused).
-  Releases do not switch to `PublishAot` yet. The README's Development section says what `test.ps1 -Full` must show
-  before a stable promotion.
+  The README's Development section says what `test.ps1 -Full` must show before a stable promotion.
 - The Claude and Antigravity READMEs name the server `nexus-windows`, its plugin name in the NexusSystem catalog and
   its MCP registry name, instead of `nexus-windows-claude` and `nexus-windows-antigravity`; the release file
   `nexus-windows-claude.mcpb` keeps its name.

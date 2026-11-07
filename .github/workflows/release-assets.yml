@@ -1,7 +1,7 @@
 # Release, in two channels, with the shared Nexus release workflows of NexusSystem.
 # - Development: every push to main checks one version everywhere (codex/native, the launcher, server.json, the
 #   manifests and CHANGELOG.md), runs test.ps1 and builds (commun/package.ps1) NexusWindows-win-x64.zip and
-#   NexusWindows-win-arm64.zip (stable launcher, Native AOT, + the self-contained engine: what get.ps1 installs), the
+#   NexusWindows-win-arm64.zip (stable launcher and engine, both Native AOT: what get.ps1 installs), the
 #   Claude Desktop extension nexus-windows-claude.mcpb (x64, the name NexusSystem and the MCP registry use) and
 #   nexus-windows-claude-arm64.mcpb, get.ps1 and SHA256SUMS.txt. product-dev-release attests them (Sigstore, keyless:
 #   `gh attestation verify <file> --repo pironjulien/NexusWindows --signer-repo pironjulien/NexusSystem`, bundle

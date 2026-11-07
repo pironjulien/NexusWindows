@@ -14,8 +14,11 @@ static class SelfTest
     static readonly JsonSerializerOptions Options = new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     static readonly Lock Gate = new();
 
-    /// <summary>Built engine executable next to the tests (ProjectReference), used for its helper children.</summary>
-    public static readonly string Engine = Path.Combine(AppContext.BaseDirectory, "NexusWindows.Engine.exe");
+    /// <summary>Built engine executable next to the tests (ProjectReference), used for its helper children and the
+    /// black-box process tests; NEXUS_TEST_ENGINE (test.ps1 -Engine) names another one instead, such as an installed
+    /// Native AOT engine, so those tests run against the very binary a release ships.</summary>
+    public static readonly string Engine = Environment.GetEnvironmentVariable("NEXUS_TEST_ENGINE") is { Length: > 0 } engine
+        ? Path.GetFullPath(engine) : Path.Combine(AppContext.BaseDirectory, "NexusWindows.Engine.exe");
 
     static SelfTest() => Program.HelperExecutable = Engine;
 

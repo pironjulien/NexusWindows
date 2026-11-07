@@ -8,16 +8,15 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>NexusWindows.Engine</AssemblyName>
-    <Version>3.16.28</Version>
+    <Version>3.17.0</Version>
     <!-- The runtime content is identified by its SHA-256: never stamp it with the last commit when a qualification is
          built from the current worktree. -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- Trimming, single-file and Native AOT analyzers in every build: with warnings as errors, no reflection-based JSON,
          runtime COM binder or marshalled delegate can come back. The engine has zero such warning and publishes with
-         PublishAot (13.5 MB, one file). The installers, the stable launcher and NexusSystem accept that single-file
-         layout (README, Development); releases keep the current engine until a NexusSystem release with that rule is
-         stable. -->
+         PublishAot (13.5 MB, one file): releases ship it that way (commun/package.ps1), and the installers, the
+         stable launcher and NexusSystem accept that single-file layout (README, Development). -->
     <IsAotCompatible>true</IsAotCompatible>
     <!-- Outputs of a build made in this folder (obj, bin) are never compiled as sources when the installer moves
          BaseIntermediateOutputPath out of OneDrive (duplicate AssemblyInfo, Codex review of 24/10). -->

@@ -152,17 +152,27 @@ For current MCP requests, native file dialogs, UTF-8 stdio and blank Chromium pa
 [RELEASING.md](https://github.com/pironjulien/NexusSystem/blob/main/RELEASING.md)), `./test.ps1 -Full` must pass on a
 real interactive Windows session with a GPU, at a moment nobody is using the PC (the live tests take the shared
 foreground token and open real windows). The hosted CI skips those tests, so a green CI alone is not enough to
-promote. The run must also show that the installers accept both engine layouts:
+promote. Releases ship the engine compiled ahead of time (Native AOT, `commun/package.ps1`): run the suite against
+that very binary, installed by `get.ps1` from a local package in a throwaway profile:
 
-- framework-dependent (today's releases): `NexusWindows.exe` with `NexusWindows.dll`, `.deps.json` and
-  `.runtimeconfig.json`, all three recorded together;
-- Native AOT single file (ready, not yet published: the engine is AOT-clean but `PublishAot` stays off):
-  `NexusWindows.exe` alone holds the code, and a partial set of the three managed files is refused.
+```powershell
+./commun/package.ps1 -Version X.Y.Z -Out <dist> -Runtimes win-x64 -NoMcpb
+$env:NEXUS_WINDOWS_PROFILE = '<empty folder>'; $env:NEXUS_WINDOWS_SOURCE = '<dist>\NexusWindows-win-x64.zip'
+powershell -NoProfile -ExecutionPolicy Bypass -File ./get.ps1
+./test.ps1 -Full -Engine '<empty folder>\.nexus\nexus-windows\native\<sha-256>\NexusWindows.exe'
+```
+
+`-Engine` runs the process tests (MCP over stdio, helper children) against that executable. The installers accept
+both engine layouts:
+
+- Native AOT single file (releases since 3.17.0): `NexusWindows.exe` alone holds the code;
+- framework-dependent (the working-folder installation, `commun/native-runtime.ps1`, and releases up to 3.16.28):
+  `NexusWindows.exe` with `NexusWindows.dll`, `.deps.json` and `.runtimeconfig.json`, all three recorded together; a
+  partial set is refused.
 
 These cases live in `LauncherTests`, `NativeRuntimeInstallerTests` and `PublicMaintenanceTests` (`get.ps1`,
 `commun/native-runtime.ps1`, the stable launcher); NexusSystem's `WindowsRuntime`/`RuntimeObservation` follow the same
-rule. Switching releases to `PublishAot` is a separate change, made once a NexusSystem release with that rule is
-stable.
+rule since NexusSystem 1.7.0.
 
 Build and test outputs go to `%USERPROFILE%\.nexus\build\nexuswindows`. The three profiles were separate repositories
 until 30 October 2026; those repositories have since been removed (see [CHANGELOG.md](CHANGELOG.md)).

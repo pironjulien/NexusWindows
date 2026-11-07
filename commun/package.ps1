@@ -1,13 +1,15 @@
 # Release files (run by the release workflow, or by hand to try get.ps1 on a local package):
 #   NexusWindows-win-x64.zip, NexusWindows-win-arm64.zip  NexusWindows.exe (stable launcher, Native AOT) + engine\ (the
-#       self-contained engine, the shared policy and the Antigravity plugin): what get.ps1 installs;
+#       engine compiled ahead of time as one NexusWindows.exe, the shared policy and the Antigravity plugin): what
+#       get.ps1 installs;
 #   nexus-windows-claude.mcpb, nexus-windows-claude-arm64.mcpb   Claude Desktop extension, x64 and ARM64 engines;
 #   get.ps1                                              the installer, attested with the packages.
 # Builds go to %USERPROFILE%\.nexus\build\nexuswindows\package; nothing is written to the source tree.
 [CmdletBinding()]
 param([Parameter(Mandatory)] [string]$Version, [Parameter(Mandatory)] [string]$Out, [string[]]$Runtimes = @('win-x64', 'win-arm64'), [switch]$NoMcpb)
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$root =Split-Path -Parent $PSScriptRoot
 $work = Join-Path $env:USERPROFILE ".nexus\build\nexuswindows\package\$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Force -Path $Out | Out-Null
 $Out = (Resolve-Path -LiteralPath $Out).Path
@@ -18,8 +20,9 @@ try {
     foreach ($rid in $Runtimes) {
         $stage = Join-Path $work $rid
         $engine = Join-Path $stage 'engine'
-        & dotnet publish (Join-Path $root 'codex\native\NexusWindows.Engine.csproj') -c Release -r $rid --self-contained -o $engine `
-            -p:AssemblyName=NexusWindows -p:DebugType=none "-p:BaseIntermediateOutputPath=$work\obj-engine-$rid\" "-p:BaseOutputPath=$work\bin-engine-$rid\" --nologo
+        # Native AOT: one NexusWindows.exe (about 14 MB instead of 78 MB, twice as fast to start), no assembly or host file.
+        & dotnet publish (Join-Path $root 'codex\native\NexusWindows.Engine.csproj') -c Release -r $rid -o $engine `
+            -p:PublishAot=true -p:AssemblyName=NexusWindows -p:DebugType=none "-p:BaseIntermediateOutputPath=$work\obj-engine-$rid\" "-p:BaseOutputPath=$work\bin-engine-$rid\" --nologo
         if ($LASTEXITCODE) { throw "Engine build failed ($rid)." }
         & dotnet publish (Join-Path $root 'commun\launcher\NexusWindows.Launcher.csproj') -c Release -r $rid -o (Join-Path $work "launcher-$rid") `
             -p:DebugType=none "-p:BaseIntermediateOutputPath=$work\obj-launcher-$rid\" "-p:BaseOutputPath=$work\bin-launcher-$rid\" --nologo
@@ -32,9 +35,10 @@ try {
         Copy-Item (Join-Path $root 'plugin\antigravity') $plugin -Recurse
         $actual = (Get-Item (Join-Path $engine 'NexusWindows.exe')).VersionInfo.ProductVersion
         if ($actual -ne $Version) { throw "The engine says version $actual, not $Version." }
+        $managed = @('NexusWindows.dll', 'NexusWindows.deps.json', 'NexusWindows.runtimeconfig.json' | Where-Object { Test-Path -LiteralPath (Join-Path $engine $_) })
+        if ($managed) { throw "The engine was not compiled ahead of time ($rid): $($managed -join ', ')." }
         $zip = Join-Path $Out "NexusWindows-$rid.zip"
         if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip }
-        Add-Type -AssemblyName System.IO.Compression.FileSystem
         [IO.Compression.ZipFile]::CreateFromDirectory($stage, $zip, [IO.Compression.CompressionLevel]::Optimal, $false)
     }
     if (-not $NoMcpb) {
@@ -49,8 +53,14 @@ try {
             Copy-Item (Join-Path $work "$rid\engine") (Join-Path $mcpb 'server') -Recurse
             Remove-Item (Join-Path $mcpb 'server\plugins') -Recurse -Force
             $name = if ($rid -eq 'win-x64') { 'nexus-windows-claude.mcpb' } else { "nexus-windows-claude-$($rid -replace '^win-').mcpb" }
-            & npx --yes '@anthropic-ai/mcpb@2.1.2' pack $mcpb (Join-Path $Out $name)
-            if ($LASTEXITCODE) { throw "Claude Desktop extension packing failed ($rid)." }
+            # A .mcpb is a plain ZIP of that folder (manifest.json at its root), packed here without Node.js; the checks the
+            # mcpb CLI made are the ones that matter for this manifest: required fields and an entry point that exists.
+            foreach ($field in 'manifest_version', 'name', 'display_name', 'description') { if (-not $manifest.$field) { throw "claude/mcpb/manifest.json has no $field." } }
+            if (-not $manifest.author.name -or $manifest.server.type -ne 'binary' -or -not $manifest.server.mcp_config.command) { throw 'claude/mcpb/manifest.json: author, binary server or command missing.' }
+            if (-not (Test-Path -LiteralPath (Join-Path $mcpb $manifest.server.entry_point) -PathType Leaf)) { throw "The extension has no $($manifest.server.entry_point)." }
+            $file = Join-Path $Out $name
+            if (Test-Path -LiteralPath $file) { Remove-Item -LiteralPath $file }
+            [IO.Compression.ZipFile]::CreateFromDirectory($mcpb, $file, [IO.Compression.CompressionLevel]::Optimal, $false)
         }
     }
     Copy-Item (Join-Path $root 'get.ps1') $Out
