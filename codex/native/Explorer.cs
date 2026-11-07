@@ -15,7 +15,7 @@ static partial class Explorer
         if (!Path.IsPathFullyQualified(path) || !Directory.Exists(path))
             throw new ActionRefusedException("The folder must be an existing absolute path; nothing was sent");
         var wanted = Identity(path) ?? throw new ActionRefusedException("The folder identity cannot be read; nothing was sent");
-        var tab = SingleTab(hwnd);
+        using var tab = SingleTab(hwnd);
         if (Current(tab) is { } before && Identity(before) == wanted)
         {
             // Rattachement relu APRES les lectures : le succes concerne bien la fenetre liee (relecture de Codex).
@@ -24,12 +24,13 @@ static partial class Explorer
         }
         // Rattachement relu juste avant l'envoi : meme vue, toujours seule vue de CETTE fenetre ; puis STOP relu en
         // DERNIER, l'inventaire COM pouvant attendre (relecture de Codex).
-        if (!SameView(SingleTab(hwnd), tab)) throw new ActionRefusedException("The Explorer view changed before input; nothing was sent");
+        using (var again = SingleTab(hwnd))
+            if (!again.SameObject(tab)) throw new ActionRefusedException("The Explorer view changed before input; nothing was sent");
         // L'inventaire a pu attendre apres avoir lu ce HWND : rattachement de la vue relu en dernier (relecture de Codex).
         if (!Attached(tab, hwnd)) throw new ActionRefusedException("The Explorer view changed before input; nothing was sent");
         EmergencyStop.ThrowIfStopped();
         inputStarted();
-        ((dynamic)tab).Navigate2(path);
+        tab.Call("Navigate2", path);
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (clock.ElapsedMilliseconds < 4000)
         {
@@ -51,45 +52,54 @@ static partial class Explorer
     {
         try
         {
-            var tab = SingleTab(hwnd);
+            using var tab = SingleTab(hwnd);
             return Current(tab) is { } shown && Identity(shown) == wanted && Attached(tab, hwnd);
         }
         catch (Exception) { return false; }
     }
 
-    static object SingleTab(nint hwnd)
+    // Every view of the shell (Shell.Application.Windows()), read by index; the caller owns the returned tab.
+    internal static ShellDispatch SingleTab(nint hwnd)
     {
-        var shellType = Type.GetTypeFromProgID("Shell.Application") ?? throw new InvalidOperationException("Shell.Application is unavailable");
-        dynamic shell = Activator.CreateInstance(shellType)!;
-        var tabs = new List<object>();
-        foreach (object view in shell.Windows())
+        using var shell = ShellDispatch.CreateShellApplication();
+        using var windows = shell.CallObject("Windows") ?? throw new InvalidOperationException("Shell.Application has no window list");
+        var tabs = new List<ShellDispatch>();
+        try
         {
-            var handle = HwndOf(view) ?? throw new ActionRefusedException("A shell view could not be read: the tabs of this window cannot be counted; nothing was sent");
-            if (handle == (long)hwnd) tabs.Add(view);
+            var count = Convert.ToInt32(windows.Get("Count"), System.Globalization.CultureInfo.InvariantCulture);
+            for (var i = 0; i < count; i++)
+            {
+                ShellDispatch? view = null;
+                try { view = windows.CallObject("Item", i); } catch (Exception error) when (error is COMException or InvalidCastException) { }
+                var handle = (view is null ? null : HwndOf(view)) ?? throw new ActionRefusedException("A shell view could not be read: the tabs of this window cannot be counted; nothing was sent");
+                if (handle == (long)hwnd) { tabs.Add(view!); view = null; }
+                view?.Dispose();
+            }
+            if (tabs.Count == 0) throw new BackgroundNotApplicableException("This window is not a shell folder window");
+            if (tabs.Count > 1) throw new ActionRefusedException($"This Explorer window holds {tabs.Count} tabs: the tab to navigate would be guessed; nothing was sent");
+            var single = tabs[0]; tabs.Clear();
+            return single;
         }
-        if (tabs.Count == 0) throw new BackgroundNotApplicableException("This window is not a shell folder window");
-        if (tabs.Count > 1) throw new ActionRefusedException($"This Explorer window holds {tabs.Count} tabs: the tab to navigate would be guessed; nothing was sent");
-        return tabs[0];
+        finally { foreach (var tab in tabs) tab.Dispose(); }
     }
 
-    static bool Attached(object view, nint hwnd) => HwndOf(view) == (long)hwnd;
+    static bool Attached(ShellDispatch view, nint hwnd) => HwndOf(view) == (long)hwnd;
 
-    static long? HwndOf(object view)
+    static long? HwndOf(ShellDispatch view)
     {
-        try { return (long)((dynamic)view).HWND; } catch { return null; }
+        try { return view.Get("HWND") switch { long value => value, int value => value, uint value => value, _ => null }; } catch { return null; }
     }
 
-    // Meme objet COM (identite IUnknown), pas seulement meme dossier.
-    static bool SameView(object a, object b)
+    static string? Current(ShellDispatch tab)
     {
-        var ua = Marshal.GetIUnknownForObject(a);
-        var ub = Marshal.GetIUnknownForObject(b);
-        try { return ua == ub; } finally { Marshal.Release(ua); Marshal.Release(ub); }
-    }
-
-    static string? Current(object tab)
-    {
-        try { return (string)((dynamic)tab).Document.Folder.Self.Path; } catch { return null; }
+        try
+        {
+            using var document = tab.GetObject("Document");
+            using var folder = document?.GetObject("Folder");
+            using var self = folder?.GetObject("Self");
+            return self?.Get("Path") as string;
+        }
+        catch { return null; }
     }
 
     // Identite d'un dossier sur le disque : FILE_ID_INFO (volume 64 bits + identifiant 128 bits), unique y compris sur

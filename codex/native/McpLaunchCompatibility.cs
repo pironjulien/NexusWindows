@@ -14,7 +14,7 @@ using System.Text.RegularExpressions;
 // keeps its own block list, journal and DevTools profiles. User applications are dispatched by the interactive shell, never inherited from the MCP job.
 static partial class McpServer
 {
-    sealed record ClaudeStartApp(string Name, string Id, string? Target = null, string Arguments = "");
+    internal sealed record ClaudeStartApp(string Name, string Id, string? Target = null, string Arguments = "");
     sealed record ClaudeLaunchPlan(string Kind, string Target, string Arguments, string? Executable,
         string? AppId, string Name, bool Devtools, bool Restart, string[] Notes);
     static readonly string[] ClaudeBrowserNames = ["msedge.exe", "chrome.exe", "brave.exe", "vivaldi.exe", "opera.exe", "chromium.exe"];
@@ -41,7 +41,6 @@ static partial class McpServer
         [PreserveSig] int ActivateForProtocol(string id, nint items, out uint pid);
     }
     [LibraryImport("ole32.dll")] private static partial int CoCreateInstance(in Guid clsid, nint outer, uint context, in Guid iid, out nint instance);
-    static void ClaudeRelease(object? value) { if (value != null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value); }
     static string ClaudeExpandPath(string text)
     {
         text = Environment.ExpandEnvironmentVariables(text.Trim());
@@ -77,40 +76,42 @@ static partial class McpServer
         }
         return false;
     }
-    static List<ClaudeStartApp> ClaudeStartApps()
+    internal static List<ClaudeStartApp> ClaudeStartApps()
     {
         lock (ClaudeAppsLock)
         {
             if (claudeApps != null && DateTimeOffset.UtcNow - claudeAppsAt < TimeSpan.FromMinutes(10)) return claudeApps;
-            object? shell = null, folder = null, items = null;
+            ShellDispatch? shell = null, folder = null, items = null;
             var rows = new List<ClaudeStartApp>();
             try
             {
-                shell = Activator.CreateInstance(Type.GetTypeFromProgID("Shell.Application", true)!);
-                folder = ((dynamic)shell!).NameSpace("shell:AppsFolder");
+                shell = ShellDispatch.CreateShellApplication();
+                folder = shell.CallObject("NameSpace", "shell:AppsFolder");
                 if (folder == null) throw new InvalidOperationException("Windows AppsFolder unavailable");
-                items = ((dynamic)folder).Items();
-                for (var i = 0; i < (int)((dynamic)items).Count; i++)
+                items = folder.CallObject("Items") ?? throw new InvalidOperationException("Windows AppsFolder has no items");
+                var count = Convert.ToInt32(items.Get("Count"), System.Globalization.CultureInfo.InvariantCulture);
+                for (var i = 0; i < count; i++)
                 {
-                    object? item = null;
+                    ShellDispatch? item = null;
                     try
                     {
-                        item = ((dynamic)items).Item(i);
-                        var name = (string)((dynamic)item).Name;
-                        var id = (string)((dynamic)item).Path;
-                        try { var explicitId = ((dynamic)item).ExtendedProperty("System.AppUserModel.ID") as string; if (!string.IsNullOrEmpty(explicitId)) id = explicitId; } catch (COMException) { }
+                        item = items.CallObject("Item", i);
+                        if (item == null) continue;
+                        var name = (string?)item.Get("Name");
+                        var id = (string?)item.Get("Path");
+                        try { var explicitId = item.Call("ExtendedProperty", "System.AppUserModel.ID") as string; if (!string.IsNullOrEmpty(explicitId)) id = explicitId; } catch (COMException) { }
                         string? target = null; var args = "";
-                        try { target = ((dynamic)item).ExtendedProperty("System.Link.TargetParsingPath") as string; args = ((dynamic)item).ExtendedProperty("System.Link.Arguments") as string ?? ""; } catch (COMException) { }
+                        try { target = item.Call("ExtendedProperty", "System.Link.TargetParsingPath") as string; args = item.Call("ExtendedProperty", "System.Link.Arguments") as string ?? ""; } catch (COMException) { }
                         if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(id)) rows.Add(new(name, id, target, args));
                     }
                     catch (Exception error) when (error is COMException or InvalidCastException) { }
-                    finally { ClaudeRelease(item); }
+                    finally { item?.Dispose(); }
                 }
                 claudeApps = rows; claudeAppsAt = DateTimeOffset.UtcNow; return rows;
             }
-            catch (Exception error) when (error is COMException or InvalidCastException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+            catch (Exception error) when (error is COMException or InvalidCastException)
             { throw new ActionRefusedException("Start menu unreadable; give the executable's absolute path. Nothing was launched: " + error.GetType().Name); }
-            finally { ClaudeRelease(items); ClaudeRelease(folder); ClaudeRelease(shell); }
+            finally { items?.Dispose(); folder?.Dispose(); shell?.Dispose(); }
         }
     }
     static ClaudeStartApp? ClaudePickApp(string wanted, IEnumerable<ClaudeStartApp> apps)

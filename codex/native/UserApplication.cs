@@ -16,7 +16,6 @@ static unsafe partial class UserApplication
     static nint* Table(nint value) => *(nint**)value;
     static void Check(int result) { if (result < 0) Marshal.ThrowExceptionForHR(result); }
     static void Release(nint value) { if (value != 0) Marshal.Release(value); }
-    static void Release(object? value) { if (value != null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value); }
 
     // Startup preparation performs no launch. Callers set their unknown-outcome marker only at `started`.
     public static void Start(ProcessStartInfo info, Action started, int show = 1 /* SW_SHOWNORMAL */)
@@ -28,7 +27,7 @@ static unsafe partial class UserApplication
         // Explorer's ShellExecute is synchronous: an error box it shows (file not found, no associated application,
         // access denied...) blocks the call until someone answers it, and a launch held the shared foreground token
         // with it. The call runs on its own thread; the caller watches for a box of Explorer titled with the target.
-        object? application = null; Exception? failure = null;
+        ShellDispatch? application = null; Exception? failure = null;
         using var ready = new ManualResetEventSlim(); using var go = new ManualResetEventSlim(); using var done = new ManualResetEventSlim();
         var dispatched = false;
         var broker = new Thread(() =>
@@ -40,10 +39,10 @@ static unsafe partial class UserApplication
                 finally { ready.Set(); }
                 go.Wait();
                 if (!dispatched) return;
-                try { ((dynamic)application).ShellExecute(target, info.Arguments, directory, "open", show); }
+                try { application.Call("ShellExecute", target, info.Arguments, directory, "open", show); }
                 catch (Exception error) { failure = error; }
             }
-            finally { Release(application); done.Set(); }
+            finally { application?.Dispose(); done.Set(); }
         }) { IsBackground = true, Name = "Explorer launch broker" };
         broker.Start();
         ready.Wait();
@@ -169,24 +168,21 @@ static unsafe partial class UserApplication
         return final.StartsWith(@"\\?\UNC\", StringComparison.Ordinal) ? @"\\" + final[8..] : final.StartsWith(@"\\?\", StringComparison.Ordinal) ? final[4..] : final;
     }
 
-    static object DesktopApplication()
+    internal static ShellDispatch DesktopApplication()
     {
-        object? windows = null, desktop = null, folder = null;
-        nint unknown = 0, provider = 0, browser = 0, view = 0, dispatch = 0;
+        ShellDispatch? windows = null, desktop = null, folder = null;
+        nint provider = 0, browser = 0, view = 0, dispatch = 0;
         try
         {
             var shell = GetShellWindow();
             if (shell == 0 || GetWindowThreadProcessId(shell, out var shellPid) == 0 || shellPid == 0)
                 throw new InvalidOperationException("There is no interactive desktop shell");
-            var type = Type.GetTypeFromCLSID(new Guid("9BA05972-F6A8-11CF-A442-00A0C90A8F39"), throwOnError: true)!;
-            windows = Activator.CreateInstance(type) ?? throw new InvalidOperationException("ShellWindows is unavailable");
-            object location = 0 /* CSIDL_DESKTOP */, unused = Type.Missing;
-            desktop = ((dynamic)windows).FindWindowSW(ref location, ref unused, 8 /* SWC_DESKTOP */, out int desktopHwnd, 1 /* SWFO_NEEDDISPATCH */);
-            if (desktop == null || GetWindowThreadProcessId((nint)(uint)desktopHwnd, out var desktopPid) == 0 || desktopPid != shellPid)
+            windows = ShellDispatch.CreateShellWindows();
+            var hwnd = new ShellDispatch.Reference(0, integer: true);
+            desktop = windows.CallObject("FindWindowSW", new ShellDispatch.Reference(0 /* CSIDL_DESKTOP */), new ShellDispatch.Reference(null), 8 /* SWC_DESKTOP */, hwnd, 1 /* SWFO_NEEDDISPATCH */);
+            if (desktop == null || GetWindowThreadProcessId((nint)(uint)(int)hwnd.Value!, out var desktopPid) == 0 || desktopPid != shellPid)
                 throw new InvalidOperationException("The desktop automation object is not owned by the interactive shell");
-            unknown = Marshal.GetIUnknownForObject(desktop);
-            var serviceProvider = new Guid("6D5140C1-7436-11CE-8034-00AA006009FA");
-            Check(Marshal.QueryInterface(unknown, in serviceProvider, out provider));
+            provider = desktop.Query(new Guid("6D5140C1-7436-11CE-8034-00AA006009FA")); // IServiceProvider
             var topBrowser = new Guid("4C96BE40-915C-11CF-99D3-00AA004AE837");
             var browserInterface = new Guid("000214E2-0000-0000-C000-000000000046");
             // IServiceProvider::QueryService, then IShellBrowser::QueryActiveShellView.
@@ -195,13 +191,13 @@ static unsafe partial class UserApplication
             var dispatchInterface = new Guid("00020400-0000-0000-C000-000000000046");
             // IShellView::GetItemObject(SVGIO_BACKGROUND, IID_IDispatch).
             Check(((delegate* unmanaged[Stdcall]<nint, uint, Guid*, nint*, int>)Table(view)[15])(view, 0, &dispatchInterface, &dispatch));
-            folder = Marshal.GetObjectForIUnknown(dispatch);
-            return ((dynamic)folder).Application ?? throw new InvalidOperationException("The desktop has no Shell dispatch");
+            folder = ShellDispatch.FromUnknown(dispatch);
+            return folder.GetObject("Application") ?? throw new InvalidOperationException("The desktop has no Shell dispatch");
         }
         finally
         {
-            Release(folder); Release(dispatch); Release(view); Release(browser); Release(provider); Release(unknown);
-            Release(desktop); Release(windows);
+            folder?.Dispose(); Release(dispatch); Release(view); Release(browser); Release(provider);
+            desktop?.Dispose(); windows?.Dispose();
         }
     }
 }

@@ -87,12 +87,47 @@ static partial class Win32
     [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int GetWindowTextW(nint hwnd, [Out] char[] text, int max);
     [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] public static partial nint FindWindowExW(nint parent, nint after, string? cls, string? title);
     public delegate bool EnumProc(nint hwnd, nint data);
-    [LibraryImport("user32.dll")]
+    // Window enumeration without a marshalled delegate (trimming and Native AOT): the native callback is a static
+    // UnmanagedCallersOnly function that reaches the managed callback through a GCHandle. An exception thrown by the
+    // callback never crosses the native frames: it stops the enumeration and is rethrown here, as before.
+    public static unsafe bool EnumWindows(EnumProc callback, nint data) => Enumerate(callback, data, 0, children: false);
+    public static unsafe bool EnumChildWindows(nint parent, EnumProc callback, nint data) => Enumerate(callback, data, parent, children: true);
+    sealed class Enumeration(EnumProc callback, nint data)
+    {
+        public readonly EnumProc Callback = callback;
+        public readonly nint Data = data;
+        public System.Runtime.ExceptionServices.ExceptionDispatchInfo? Failure;
+    }
+    static unsafe bool Enumerate(EnumProc callback, nint data, nint parent, bool children)
+    {
+        var state = new Enumeration(callback, data);
+        var handle = GCHandle.Alloc(state);
+        bool result;
+        try
+        {
+            result = children ? NativeEnumChildWindows(parent, &EnumerationStep, GCHandle.ToIntPtr(handle)) : NativeEnumWindows(&EnumerationStep, GCHandle.ToIntPtr(handle));
+        }
+        finally { handle.Free(); }
+        state.Failure?.Throw();
+        return result;
+    }
+    [UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvStdcall)])]
+    static int EnumerationStep(nint hwnd, nint state)
+    {
+        var enumeration = (Enumeration)GCHandle.FromIntPtr(state).Target!;
+        try { return enumeration.Callback(hwnd, enumeration.Data) ? 1 : 0; }
+        catch (Exception error)
+        {
+            enumeration.Failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error);
+            return 0;
+        }
+    }
+    [LibraryImport("user32.dll", EntryPoint = "EnumWindows")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool EnumWindows(EnumProc callback, nint data);
-    [LibraryImport("user32.dll")]
+    private static unsafe partial bool NativeEnumWindows(delegate* unmanaged[Stdcall]<nint, nint, int> callback, nint data);
+    [LibraryImport("user32.dll", EntryPoint = "EnumChildWindows")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool EnumChildWindows(nint parent, EnumProc callback, nint data);
+    private static unsafe partial bool NativeEnumChildWindows(nint parent, delegate* unmanaged[Stdcall]<nint, nint, int> callback, nint data);
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool PostMessageW(nint hwnd, uint msg, nint wparam, nint lparam);

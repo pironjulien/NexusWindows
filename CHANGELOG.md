@@ -49,6 +49,11 @@ and npm (`nexus-windows-codex`).
 - `Directory.Build.props` takes the user profile from .NET instead of `$(USERPROFILE)`, with no hard-coded backslash:
   Dependabot restores on Linux, where `USERPROFILE` is unset, so the build folder became `/.nexus` (denied) and its
   NuGet updates silently found nothing. Output folders on Windows are unchanged.
+- The engine reaches the shell's automation objects (Explorer navigation, the Start menu's AppsFolder, the desktop
+  launch broker) through a source-generated `IDispatch` interface (`ShellDispatch`) instead of the C# `dynamic`
+  binder and runtime callable wrappers, and enumerates windows through an `UnmanagedCallersOnly` callback instead of
+  a marshalled delegate (an exception in the callback stops the enumeration and is rethrown, as before). Both are
+  trimming and Native AOT compatible; xUnit reads the real AppsFolder, shell windows and desktop broker.
 - CodeQL runs from a workflow file (`.github/workflows/codeql.yml`, `actions` and `csharp`, default queries, actions
   pinned by commit) instead of the repository's default setup, so OpenSSF Scorecard credits the SAST check for
   commits pushed without pull requests.
