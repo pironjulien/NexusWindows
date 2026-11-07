@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 // Port de claude/src/nexus_windows/notifications.py. SQLite Windows, strictement en lecture seule.
-static class Notifications
+static partial class Notifications
 {
     const string Sql = "SELECT h.PrimaryId,n.ArrivalTime,n.Payload FROM Notification n JOIN NotificationHandler h ON h.RecordId=n.HandlerId WHERE n.Type='toast' AND (n.ExpiryTime IS NULL OR n.ExpiryTime=0 OR n.ExpiryTime>=?) ORDER BY n.ArrivalTime DESC LIMIT 1000";
     static readonly Regex Text = new(@"<text\b[^>]*>(.*?)</text>", RegexOptions.Singleline);
@@ -14,18 +14,42 @@ static class Notifications
     static readonly Regex Context = new(@"code|c[óo]digo|codice|otp|v[ée]rif|passcode|mot de passe|password|contrase|s[ée]curit|security|2fa|connexion|sign.?in|log.?in|authent|\bpin\b|confirm|apple id|identifiant|one.?time|is your|acc[eè]s|access|do not share|ne (?:le )?partagez|connect|entrez|saisissez|\benter\b|valid", RegexOptions.IgnoreCase);
     static readonly Regex Code = new(@"(?<!\w)(?:[A-Z]-)?\d(?:[ -]?\d){3,11}(?!\w)");
     static readonly Regex Alnum = new(@"(?<![\w.-])(?=[\w-]*\d)(?=[\w-]*[A-Za-z])[A-Za-z0-9](?:[A-Za-z0-9-]{3,10})[A-Za-z0-9](?![\w-])");
-    [DllImport("winsqlite3.dll", CallingConvention = CallingConvention.Cdecl)] static extern int sqlite3_open_v2([MarshalAs(UnmanagedType.LPUTF8Str)] string path, out nint db, int flags, nint vfs);
-    [DllImport("winsqlite3.dll", CallingConvention = CallingConvention.Cdecl)] static extern int sqlite3_close(nint db);
-    [DllImport("winsqlite3.dll", CallingConvention = CallingConvention.Cdecl)] static extern int sqlite3_busy_timeout(nint db, int ms);
-    [DllImport("winsqlite3.dll", CallingConvention = CallingConvention.Cdecl)] static extern int sqlite3_prepare_v2(nint db, [MarshalAs(UnmanagedType.LPUTF8Str)] string sql, int length, out nint statement, nint tail);
-    [DllImport("winsqlite3.dll", CallingConvention = CallingConvention.Cdecl)] static extern int sqlite3_bind_int64(nint statement, int index, long value);
-    [DllImport("winsqlite3.dll", CallingConvention = CallingConvention.Cdecl)] static extern int sqlite3_step(nint statement);
-    [DllImport("winsqlite3.dll", CallingConvention = CallingConvention.Cdecl)] static extern int sqlite3_finalize(nint statement);
-    [DllImport("winsqlite3.dll", CallingConvention = CallingConvention.Cdecl)] static extern nint sqlite3_column_text(nint statement, int column);
-    [DllImport("winsqlite3.dll", CallingConvention = CallingConvention.Cdecl)] static extern long sqlite3_column_int64(nint statement, int column);
-    [DllImport("winsqlite3.dll", CallingConvention = CallingConvention.Cdecl)] static extern nint sqlite3_column_blob(nint statement, int column);
-    [DllImport("winsqlite3.dll", CallingConvention = CallingConvention.Cdecl)] static extern int sqlite3_column_bytes(nint statement, int column);
-    [DllImport("winsqlite3.dll", CallingConvention = CallingConvention.Cdecl)] static extern int sqlite3_exec(nint db, [MarshalAs(UnmanagedType.LPUTF8Str)] string sql, nint callback, nint arg, nint error);
+    [LibraryImport("winsqlite3.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static partial int sqlite3_open_v2([MarshalAs(UnmanagedType.LPUTF8Str)] string path, out nint db, int flags, nint vfs);
+    [LibraryImport("winsqlite3.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static partial int sqlite3_close(nint db);
+    [LibraryImport("winsqlite3.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static partial int sqlite3_busy_timeout(nint db, int ms);
+    [LibraryImport("winsqlite3.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static partial int sqlite3_prepare_v2(nint db, [MarshalAs(UnmanagedType.LPUTF8Str)] string sql, int length, out nint statement, nint tail);
+    [LibraryImport("winsqlite3.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static partial int sqlite3_bind_int64(nint statement, int index, long value);
+    [LibraryImport("winsqlite3.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static partial int sqlite3_step(nint statement);
+    [LibraryImport("winsqlite3.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static partial int sqlite3_finalize(nint statement);
+    [LibraryImport("winsqlite3.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static partial nint sqlite3_column_text(nint statement, int column);
+    [LibraryImport("winsqlite3.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static partial long sqlite3_column_int64(nint statement, int column);
+    [LibraryImport("winsqlite3.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static partial nint sqlite3_column_blob(nint statement, int column);
+    [LibraryImport("winsqlite3.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static partial int sqlite3_column_bytes(nint statement, int column);
+    [LibraryImport("winsqlite3.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static partial int sqlite3_exec(nint db, [MarshalAs(UnmanagedType.LPUTF8Str)] string sql, nint callback, nint arg, nint error);
 
     public static string Mask(string text, string context) => Context.IsMatch(context.Length > 0 ? context : text) ? Alnum.Replace(Code.Replace(text, "•••"), "•••") : text;
     static string AppName(string id)

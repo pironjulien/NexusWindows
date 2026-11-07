@@ -13,12 +13,12 @@ sealed class WinRtException(string what, int hr) : InvalidOperationException($"{
 // WinRT appele en COM brut (combase + vtables) : OCR (Ocr.cs) et Windows.Graphics.Capture (Wgc.cs) sans la projection
 // CsWinRT (Microsoft.Windows.SDK.NET.dll, ~25 Mo) ni aucun paquet. IID et ordre des methodes (emplacement 6 = premiere
 // methode apres IInspectable) relus dans les metadonnees du systeme (System32\WinMetadata\*.winmd) le 27/10.
-static unsafe class WinRt
+static unsafe partial class WinRt
 {
-    [DllImport("combase.dll")] static extern int RoGetActivationFactory(nint classId, Guid* iid, nint* factory);
-    [DllImport("combase.dll", CharSet = CharSet.Unicode)] static extern int WindowsCreateString(string text, int length, nint* hstring);
-    [DllImport("combase.dll")] static extern int WindowsDeleteString(nint hstring);
-    [DllImport("combase.dll")] static extern char* WindowsGetStringRawBuffer(nint hstring, uint* length);
+    [LibraryImport("combase.dll")] private static partial int RoGetActivationFactory(nint classId, Guid* iid, nint* factory);
+    [LibraryImport("combase.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int WindowsCreateString(string text, int length, nint* hstring);
+    [LibraryImport("combase.dll")] private static partial int WindowsDeleteString(nint hstring);
+    [LibraryImport("combase.dll")] private static partial char* WindowsGetStringRawBuffer(nint hstring, uint* length);
 
     public static readonly Guid IAsyncInfo = new("00000036-0000-0000-c000-000000000046");
     public static readonly Guid IClosable = new("30d5a829-7fa4-4026-83bb-d75bae4ea99e");

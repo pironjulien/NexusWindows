@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 // serait pas prouvee) ; fenetre a UN seul onglet (sinon l'onglet vise serait devine, et il peut etre celui de Julien) ;
 // rattachement vue/HWND relu juste avant l'envoi et a chaque relecture d'arrivee ; dossiers compares par leur identite
 // sur le disque (volume + identifiant de fichier), jamais par une casse normalisee (repertoires sensibles a la casse).
-static class Explorer
+static partial class Explorer
 {
     public static object Navigate(nint hwnd, string path, Action inputStarted)
     {
@@ -109,8 +109,9 @@ static class Explorer
         public ulong IdLow, IdHigh; // FILE_ID_128
     }
 
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFile(string name, uint access, uint share, nint security, uint disposition, uint flags, nint template);
-    [DllImport("kernel32.dll", SetLastError = true)]
-    static extern bool GetFileInformationByHandleEx(Microsoft.Win32.SafeHandles.SafeFileHandle handle, int infoClass, out FileIdInfo info, uint size);
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial Microsoft.Win32.SafeHandles.SafeFileHandle CreateFile(string name, uint access, uint share, nint security, uint disposition, uint flags, nint template);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetFileInformationByHandleEx(Microsoft.Win32.SafeHandles.SafeFileHandle handle, int infoClass, out FileIdInfo info, uint size);
 }

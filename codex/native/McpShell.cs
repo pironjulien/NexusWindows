@@ -210,7 +210,7 @@ static partial class McpServer
     [StructLayout(LayoutKind.Sequential)] struct ShellMouse { public int X, Y; public uint Data, Flags, Time; public nint Extra; }
     [StructLayout(LayoutKind.Explicit)] struct ShellInputUnion { [FieldOffset(0)] public ShellKeyboard Keyboard; [FieldOffset(0)] public ShellMouse Mouse; }
     [StructLayout(LayoutKind.Sequential)] struct ShellInput { public uint Type; public ShellInputUnion Data; }
-    [DllImport("user32.dll", EntryPoint = "SendInput", SetLastError = true)] static extern uint SendShellInput(uint count, ShellInput[] inputs, int size);
+    [LibraryImport("user32.dll", EntryPoint = "SendInput", SetLastError = true)] private static partial uint SendShellInput(uint count, ShellInput[] inputs, int size);
     internal static ushort[] ShellShortcutKeys(string shortcut) => shortcut switch
     {
         "win" => [0x5B], "win+a" => [0x5B, 0x41], "win+n" => [0x5B, 0x4E],

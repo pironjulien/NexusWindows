@@ -5,11 +5,15 @@ using System.Text.Json.Nodes;
 
 static partial class McpServer
 {
-    [DllImport("user32.dll")] static extern bool IsZoomed(nint hwnd);
-    [DllImport("user32.dll")] static extern nint MonitorFromWindow(nint hwnd, uint flags);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsZoomed(nint hwnd);
+    [LibraryImport("user32.dll")] private static partial nint MonitorFromWindow(nint hwnd, uint flags);
     [StructLayout(LayoutKind.Sequential)] struct MonitorBox { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] struct MonitorDetails { public int Size; public MonitorBox Monitor, Work; public uint Flags; }
-    [DllImport("user32.dll")] static extern bool GetMonitorInfoW(nint monitor, ref MonitorDetails info);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetMonitorInfoW(nint monitor, ref MonitorDetails info);
 
     // Maximized over more than its monitor (05/11: Antigravity brought back from the notification area by its own second
     // instance, maximized 5138 px wide across both screens).

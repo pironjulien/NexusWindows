@@ -9,10 +9,10 @@ sealed class UserApplicationPendingException(string message) : InvalidOperationE
 // Process.Start(UseShellExecute=true) still creates an inherited child: neither is a lifetime boundary.
 // https://devblogs.microsoft.com/oldnewthing/20131118-00/?p=2643
 // No fallback to an inherited process after an unavailable broker, and no retry after ShellExecute was entered.
-static unsafe class UserApplication
+static unsafe partial class UserApplication
 {
-    [DllImport("user32.dll")] static extern nint GetShellWindow();
-    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(nint hwnd, out uint pid);
+    [LibraryImport("user32.dll")] private static partial nint GetShellWindow();
+    [LibraryImport("user32.dll")] private static partial uint GetWindowThreadProcessId(nint hwnd, out uint pid);
     static nint* Table(nint value) => *(nint**)value;
     static void Check(int result) { if (result < 0) Marshal.ThrowExceptionForHR(result); }
     static void Release(nint value) { if (value != 0) Marshal.Release(value); }
@@ -73,11 +73,17 @@ static unsafe class UserApplication
 
     // The broker returns once the process is created (well under a second); beyond this, Windows awaits the user.
     const int PendingMs = 6180;
-    [DllImport("user32.dll")] static extern bool PostMessage(nint hwnd, uint message, nint wParam, nint lParam);
-    [DllImport("user32.dll")] static extern bool IsWindowVisible(nint hwnd);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassNameW(nint hwnd, char* name, int count);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowTextW(nint hwnd, char* text, int count);
-    [DllImport("user32.dll")] static extern bool EnumWindows(delegate* unmanaged[Stdcall]<nint, nint, int> callback, nint state);
+    [LibraryImport("user32.dll", EntryPoint = "PostMessageW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PostMessage(nint hwnd, uint message, nint wParam, nint lParam);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsWindowVisible(nint hwnd);
+    [LibraryImport("user32.dll")] private static partial int GetClassNameW(nint hwnd, char* name, int count);
+    [LibraryImport("user32.dll")] private static partial int GetWindowTextW(nint hwnd, char* text, int count);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool EnumWindows(delegate* unmanaged[Stdcall]<nint, nint, int> callback, nint state);
 
     // Windows' application chooser opened by this launch: closed, and the launch refused (nothing was launched).
     internal static void ThrowIfChooser(DateTime since, Action? closed = null)
@@ -142,9 +148,9 @@ static unsafe class UserApplication
         return Title(box);
     }
 
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string name, uint access, uint share, nint security, uint disposition, uint flags, nint template);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern uint GetFinalPathNameByHandleW(Microsoft.Win32.SafeHandles.SafeFileHandle file, char* buffer, uint length, uint flags);
+    [LibraryImport("kernel32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string name, uint access, uint share, nint security, uint disposition, uint flags, nint template);
+    [LibraryImport("kernel32.dll")] private static partial uint GetFinalPathNameByHandleW(Microsoft.Win32.SafeHandles.SafeFileHandle file, char* buffer, uint length, uint flags);
 
     // The path as Explorer sees it. A worker started by a packaged app (Claude Desktop is MSIX) sees its package's
     // virtualized AppData under the ordinary %LOCALAPPDATA% path; Explorer does not, answers "Windows cannot find"

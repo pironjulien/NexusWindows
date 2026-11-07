@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -25,19 +26,21 @@ static partial class McpServer
     static readonly ConditionalWeakTable<SessionState, ClaudeLaunchLeases> ClaudeOwnedLaunches = new();
     sealed class ClaudeLaunchLeases { public readonly object Sync = new(); public readonly List<ClaudeDevtoolsLease> Items = []; }
 
-    [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)] static extern int AssocQueryStringW(uint flags, uint kind, string association, string? extra, StringBuilder? output, ref uint length);
-    [DllImport("shell32.dll")] static extern int SHGetKnownFolderPath(in Guid folder, uint flags, nint token, out nint path);
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern int SHCreateItemFromParsingName(string path, nint context, in Guid iid, out nint item);
-    [DllImport("shell32.dll")] static extern int SHCreateShellItemArrayFromShellItem(nint item, in Guid iid, out nint array);
-    [DllImport("ntdll.dll")] static extern int NtQueryInformationProcess(nint process, int infoClass, nint buffer, int length, out int returned);
+    [LibraryImport("shlwapi.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int AssocQueryStringW(uint flags, uint kind, string association, string? extra, [Out] char[]? output, ref uint length);
+    [LibraryImport("shell32.dll")] private static partial int SHGetKnownFolderPath(in Guid folder, uint flags, nint token, out nint path);
+    [LibraryImport("shell32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int SHCreateItemFromParsingName(string path, nint context, in Guid iid, out nint item);
+    [LibraryImport("shell32.dll")] private static partial int SHCreateShellItemArrayFromShellItem(nint item, in Guid iid, out nint array);
+    [LibraryImport("ntdll.dll")] private static partial int NtQueryInformationProcess(nint process, int infoClass, nint buffer, int length, out int returned);
 
-    [ComImport, Guid("2E941141-7F97-4756-BA1D-9DECDE894A3D"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    interface IClaudeActivationManager
+    // IApplicationActivationManager, source-generated COM interop (no runtime callable wrapper, trimming and AOT safe).
+    [GeneratedComInterface(StringMarshalling = StringMarshalling.Utf16), Guid("2E941141-7F97-4756-BA1D-9DECDE894A3D")]
+    internal partial interface IClaudeActivationManager
     {
-        [PreserveSig] int ActivateApplication([MarshalAs(UnmanagedType.LPWStr)] string id, [MarshalAs(UnmanagedType.LPWStr)] string? args, uint options, out uint pid);
-        [PreserveSig] int ActivateForFile([MarshalAs(UnmanagedType.LPWStr)] string id, nint items, [MarshalAs(UnmanagedType.LPWStr)] string verb, out uint pid);
-        [PreserveSig] int ActivateForProtocol([MarshalAs(UnmanagedType.LPWStr)] string id, nint items, out uint pid);
+        [PreserveSig] int ActivateApplication(string id, string? args, uint options, out uint pid);
+        [PreserveSig] int ActivateForFile(string id, nint items, string verb, out uint pid);
+        [PreserveSig] int ActivateForProtocol(string id, nint items, out uint pid);
     }
+    [LibraryImport("ole32.dll")] private static partial int CoCreateInstance(in Guid clsid, nint outer, uint context, in Guid iid, out nint instance);
     static void ClaudeRelease(object? value) { if (value != null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value); }
     static string ClaudeExpandPath(string text)
     {
@@ -60,8 +63,8 @@ static partial class McpServer
         var flags = protocol ? 0x1000u /* ASSOCF_IS_PROTOCOL */ : 0u;
         AssocQueryStringW(flags, kind, target, "open", null, ref length);
         if (length == 0 || length > 32768) return null;
-        var buffer = new StringBuilder((int)length);
-        return AssocQueryStringW(flags, kind, target, "open", buffer, ref length) >= 0 ? buffer.ToString() : null;
+        var buffer = new char[length];
+        return AssocQueryStringW(flags, kind, target, "open", buffer, ref length) >= 0 ? Win32.Terminated(buffer) : null;
     }
     // A file type Windows can open: a command, a packaged application or a COM handler for its default verb.
     // ASSOCF_INIT_IGNOREUNKNOWN: an unknown type fails instead of answering with the "choose an application" window.
@@ -304,13 +307,16 @@ static partial class McpServer
         var result = new HashSet<uint> { Win32.ProcessOf((nint)window) };
         Win32.EnumChildWindows((nint)window, (child, _) => { result.Add(Win32.ProcessOf(child)); return true; }, 0); result.Remove(0); return result;
     }
-    static uint ClaudeActivate(string id, string arguments, string? document = null)
+    internal static uint ClaudeActivate(string id, string arguments, string? document = null)
     {
-        object? instance = null; nint item = 0, items = 0;
+        object? instance = null; nint unknown = 0, item = 0, items = 0;
         try
         {
-            instance = Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("45BA127D-10A8-46EA-8AB7-56EA9078943C"), true)!);
-            var manager = (IClaudeActivationManager)instance!;
+            // ApplicationActivationManager, CLSCTX_SERVER (in-process, local or remote server), as Activator did.
+            var clsid = new Guid("45BA127D-10A8-46EA-8AB7-56EA9078943C"); var iid = typeof(IClaudeActivationManager).GUID;
+            Marshal.ThrowExceptionForHR(CoCreateInstance(in clsid, 0, 0x17, in iid, out unknown));
+            instance = new StrategyBasedComWrappers().GetOrCreateObjectForComInstance(unknown, CreateObjectFlags.UniqueInstance);
+            var manager = (IClaudeActivationManager)instance;
             int hr; uint pid;
             if (document == null) { Program.InputStarted = true; hr = manager.ActivateApplication(id, arguments.Length > 0 ? arguments : null, 2, out pid); }
             else
@@ -323,7 +329,7 @@ static partial class McpServer
             if (hr < 0) Marshal.ThrowExceptionForHR(hr);
             return pid;
         }
-        finally { if (items != 0) Marshal.Release(items); if (item != 0) Marshal.Release(item); ClaudeRelease(instance); }
+        finally { if (items != 0) Marshal.Release(items); if (item != 0) Marshal.Release(item); (instance as ComObject)?.FinalRelease(); if (unknown != 0) Marshal.Release(unknown); }
     }
     // E_APPLICATION_NOT_REGISTERED: the activation broker rejected the unsupported file contract, before an app
     // could receive that contract. Unlike an arbitrary COM/transport failure, this explicit rejection permits the

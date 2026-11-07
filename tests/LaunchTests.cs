@@ -3,6 +3,7 @@
 // --steam-selftest and --launch-compat-selftest).
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -42,6 +43,15 @@ public class LaunchTests
             B.File(@"Navigateur\Application\156.0.1\resources.pak"); Browser = B.File(@"Navigateur\Application\browser.exe");
         }
         public void Dispose() => B.Dispose();
+    }
+
+    [Fact]
+    public void Packaged_activation_reaches_the_activation_manager_through_generated_com_interop()
+    {
+        // An application user model id that no package registers: the real ApplicationActivationManager is created and
+        // called through the source-generated interface, and refuses it without starting anything.
+        var error = Assert.Throws<COMException>(() => McpServer.ClaudeActivate("Nexus.Tests.NotRegistered_0000000000000!App", ""));
+        Assert.Equal(unchecked((int)0x80073CF1), error.HResult); // ERROR_INSTALL_PACKAGE_NOT_FOUND, from ActivateApplication
     }
 
     [Fact]

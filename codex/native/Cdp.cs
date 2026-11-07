@@ -24,10 +24,12 @@ using System.Text.RegularExpressions;
 static partial class Cdp
 {
     const int TimeoutMs = 2000, ProofMs = 500;
-    [DllImport("kernel32.dll")] static extern nint OpenProcess(uint access, bool inherit, uint pid);
-    [DllImport("kernel32.dll")] static extern bool CloseHandle(nint handle);
-    [DllImport("ntdll.dll")] static extern int NtQueryInformationProcess(nint process, int infoClass, nint buffer, int length, out int returned);
-    [DllImport("iphlpapi.dll")] static extern uint GetExtendedTcpTable(nint table, ref int size, bool sorted, int family, int tableClass, uint reserved);
+    [LibraryImport("kernel32.dll")] private static partial nint OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint pid);
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseHandle(nint handle);
+    [LibraryImport("ntdll.dll")] private static partial int NtQueryInformationProcess(nint process, int infoClass, nint buffer, int length, out int returned);
+    [LibraryImport("iphlpapi.dll")] private static partial uint GetExtendedTcpTable(nint table, ref int size, [MarshalAs(UnmanagedType.Bool)] bool sorted, int family, int tableClass, uint reserved);
 
     // Ligne de commande d'un processus (ProcessCommandLineInformation, Windows 8.1+), sans WMI ; null si illisible.
     static string? CommandLine(uint pid)

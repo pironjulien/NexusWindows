@@ -4,15 +4,17 @@ using System.Text;
 using System.Text.Json;
 
 // Only query state and Resume are exposed. No debugging, suspension, termination or persistent PLM setting.
-static unsafe class StorePackages
+static unsafe partial class StorePackages
 {
     static readonly Guid ClassId = new("b1aec16f-2383-4852-b0e9-8f0b1dc66b4d"), InterfaceId = new("f27c3930-8029-4ad1-94e3-3dba417810c1");
     static readonly HashSet<string> ShellProcesses = new(StringComparer.OrdinalIgnoreCase)
     { "textinputhost", "searchhost", "shellexperiencehost", "startmenuexperiencehost", "shellhost", "lockapp", "explorer", "tabtip", "widgets", "screenclippinghost" };
-    [DllImport("kernel32.dll", SetLastError = true)] static extern nint OpenProcess(uint access, bool inherit, int pid);
-    [DllImport("kernel32.dll")] static extern bool CloseHandle(nint process);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern int GetPackageFullName(nint process, ref uint length, StringBuilder? name);
-    [DllImport("ole32.dll")] static extern int CoCreateInstance(in Guid clsid, nint outer, uint context, in Guid iid, out nint instance);
+    [LibraryImport("kernel32.dll", SetLastError = true)] private static partial nint OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, int pid);
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseHandle(nint process);
+    [LibraryImport("kernel32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int GetPackageFullName(nint process, ref uint length, [Out] char[]? name);
+    [LibraryImport("ole32.dll")] private static partial int CoCreateInstance(in Guid clsid, nint outer, uint context, in Guid iid, out nint instance);
     internal static string FullName(int pid)
     {
         var handle = OpenProcess(0x1000 /* PROCESS_QUERY_LIMITED_INFORMATION */, false, pid);
@@ -21,8 +23,8 @@ static unsafe class StorePackages
         {
             uint length = 0;
             if (GetPackageFullName(handle, ref length, null) != 122 || length == 0) return "";
-            var name = new StringBuilder((int)length);
-            return GetPackageFullName(handle, ref length, name) == 0 ? name.ToString() : "";
+            var name = new char[length];
+            return GetPackageFullName(handle, ref length, name) == 0 ? Win32.Terminated(name) : "";
         }
         finally { CloseHandle(handle); }
     }

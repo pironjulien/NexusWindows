@@ -10,14 +10,18 @@ using System.Runtime.InteropServices;
 // avec Windows-MCP) : un seul WM_MOUSEMOVE poste au controle sous le point (Win32, WinForms ; envoye a Tk), curseur
 // intact ; ailleurs non applicable (vraie souris du helper en repli). Point d'un selecteur : sans cadre de capture, le
 // point (centre lu dans un arbre frais) doit seulement etre dans la fenetre.
-static class Pointer
+static partial class Pointer
 {
-    [DllImport("user32.dll")] static extern nint ChildWindowFromPointEx(nint parent, Win32.Point point, uint flags);
-    [DllImport("user32.dll")] static extern bool ScreenToClient(nint hwnd, ref Win32.Point point);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassNameW(nint hwnd, char[] name, int max);
-    [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(nint hwnd, int attribute, out Win32.Rect rect, int size);
-    [DllImport("user32.dll")] static extern nint WindowFromPoint(Win32.Point point);
-    [DllImport("user32.dll")] static extern bool GetGUIThreadInfo(uint thread, ref GuiThreadInfo info);
+    [LibraryImport("user32.dll")] private static partial nint ChildWindowFromPointEx(nint parent, Win32.Point point, uint flags);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ScreenToClient(nint hwnd, ref Win32.Point point);
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int GetClassNameW(nint hwnd, [Out] char[] name, int max);
+    [LibraryImport("dwmapi.dll")] private static partial int DwmGetWindowAttribute(nint hwnd, int attribute, out Win32.Rect rect, int size);
+    [LibraryImport("user32.dll")] private static partial nint WindowFromPoint(Win32.Point point);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetGUIThreadInfo(uint thread, ref GuiThreadInfo info);
     [StructLayout(LayoutKind.Sequential)] struct GuiThreadInfo
     {
         public int Size, Flags;

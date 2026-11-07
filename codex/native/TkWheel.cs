@@ -8,13 +8,17 @@ sealed class WindowNotRestoredException(string message, Exception? inner = null)
 // Codex) : Tk renvoie la molette a la fenetre visible AU POINT du message (tkWinX.c) ; recouverte, elle est perdue. La
 // fenetre, entierement cachee, est deplacee au-dela du bureau virtuel (sans activation ni changement d'ordre), la molette
 // y est postee au MEME controle (releve avant le deplacement), puis la fenetre revient, relue au rectangle entier.
-static class TkWheel
+static partial class TkWheel
 {
-    [DllImport("user32.dll")] static extern bool SetWindowPos(nint hwnd, nint after, int x, int y, int cx, int cy, uint flags);
-    [DllImport("user32.dll")] static extern bool IsZoomed(nint hwnd);
-    [DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
-    [DllImport("user32.dll")] static extern int GetWindowRgnBox(nint hwnd, out Win32.Rect rect);
-    [DllImport("user32.dll")] static extern nint WindowFromPoint(Win32.Point point);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetWindowPos(nint hwnd, nint after, int x, int y, int cx, int cy, uint flags);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsZoomed(nint hwnd);
+    [LibraryImport("user32.dll")] private static partial int GetSystemMetrics(int index);
+    [LibraryImport("user32.dll")] private static partial int GetWindowRgnBox(nint hwnd, out Win32.Rect rect);
+    [LibraryImport("user32.dll")] private static partial nint WindowFromPoint(Win32.Point point);
 
     const uint GW_HWNDPREV = 3, SWP_NOSIZE = 0x0001, SWP_NOZORDER = 0x0004, SWP_NOACTIVATE = 0x0010, WM_MOUSEWHEEL = 0x020A, WM_MOUSEHWHEEL = 0x020E;
     const int GWL_EXSTYLE = -20, SM_XVIRTUALSCREEN = 76, SM_CXVIRTUALSCREEN = 78, SettleMs = 150, HoldMs = 300;

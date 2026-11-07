@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 // 4 bits lost words in the Windows OCR bench); then lossy. Windows has no lossy WebP encoder (WIC only decodes), so
 // the lossy steps are JPEG from quality 82 (GDI+), at the same pixel size. Only when none fits does the caller shrink
 // the image and run the chain again.
-static class ImageEncoding
+static partial class ImageEncoding
 {
     internal const int Limit = 3 * 1024 * 1024;
     internal static readonly int[] DroppedBits = [2, 3];
@@ -115,12 +115,14 @@ static class ImageEncoding
     [StructLayout(LayoutKind.Sequential)]
     struct EncoderParameters { public uint Count; public EncoderParameter Parameter; }
 
-    [DllImport("gdiplus.dll")] static extern int GdiplusStartup(out nuint token, ref StartupInput input, nint output);
-    [DllImport("gdiplus.dll")] static extern int GdipCreateBitmapFromScan0(int width, int height, int stride, int format, nint scan0, out nint bitmap);
-    [DllImport("gdiplus.dll")] static extern int GdipSaveImageToStream(nint image, nint stream, ref Guid encoder, ref EncoderParameters parameters);
-    [DllImport("gdiplus.dll")] static extern int GdipDisposeImage(nint image);
-    [DllImport("ole32.dll")] static extern int CreateStreamOnHGlobal(nint global, bool deleteOnRelease, out nint stream);
-    [DllImport("ole32.dll")] static extern int GetHGlobalFromStream(nint stream, out nint global);
-    [DllImport("kernel32.dll")] static extern nint GlobalLock(nint memory);
-    [DllImport("kernel32.dll")] static extern bool GlobalUnlock(nint memory);
+    [LibraryImport("gdiplus.dll")] private static partial int GdiplusStartup(out nuint token, ref StartupInput input, nint output);
+    [LibraryImport("gdiplus.dll")] private static partial int GdipCreateBitmapFromScan0(int width, int height, int stride, int format, nint scan0, out nint bitmap);
+    [LibraryImport("gdiplus.dll")] private static partial int GdipSaveImageToStream(nint image, nint stream, ref Guid encoder, ref EncoderParameters parameters);
+    [LibraryImport("gdiplus.dll")] private static partial int GdipDisposeImage(nint image);
+    [LibraryImport("ole32.dll")] private static partial int CreateStreamOnHGlobal(nint global, [MarshalAs(UnmanagedType.Bool)] bool deleteOnRelease, out nint stream);
+    [LibraryImport("ole32.dll")] private static partial int GetHGlobalFromStream(nint stream, out nint global);
+    [LibraryImport("kernel32.dll")] private static partial nint GlobalLock(nint memory);
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GlobalUnlock(nint memory);
 }

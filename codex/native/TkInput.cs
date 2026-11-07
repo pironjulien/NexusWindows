@@ -7,15 +7,23 @@ using System.Runtime.InteropServices;
 // une pression simulee a la fois par fil ; relachement sans reponse : fil ferme aux pressions simulees tant que la
 // fenetre existe. Molette : Tk la renvoie a la fenetre sous le point (WindowFromPoint), perdue si elle est recouverte ;
 // une liste defile par sa barre native (tk.Scrollbar) COLLEE au widget vise, position relue (GetScrollInfo).
-static class TkInput
+static partial class TkInput
 {
-    [DllImport("user32.dll")] static extern bool GetKeyboardState(byte[] state);
-    [DllImport("user32.dll")] static extern bool SetKeyboardState(byte[] state);
-    [DllImport("user32.dll")] static extern short GetAsyncKeyState(int vk);
-    [DllImport("user32.dll")] static extern nint SendMessageTimeoutW(nint hwnd, uint msg, nint wparam, nint lparam, uint flags, uint timeout, out nint result);
-    [DllImport("user32.dll")] static extern bool GetScrollInfo(nint hwnd, int bar, ref ScrollInfo info);
-    [DllImport("user32.dll")] static extern bool GetWindowRect(nint hwnd, out Win32.Rect rect);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassNameW(nint hwnd, char[] name, int max);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetKeyboardState(byte[] state);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetKeyboardState(byte[] state);
+    [LibraryImport("user32.dll")] private static partial short GetAsyncKeyState(int vk);
+    [LibraryImport("user32.dll")] private static partial nint SendMessageTimeoutW(nint hwnd, uint msg, nint wparam, nint lparam, uint flags, uint timeout, out nint result);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetScrollInfo(nint hwnd, int bar, ref ScrollInfo info);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetWindowRect(nint hwnd, out Win32.Rect rect);
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int GetClassNameW(nint hwnd, [Out] char[] name, int max);
     [StructLayout(LayoutKind.Sequential)] struct ScrollInfo { public uint Size, Mask; public int Min, Max; public uint Page; public int Pos, TrackPos; }
 
     const uint WM_MOUSEMOVE = 0x0200, WM_VSCROLL = 0x0115, WM_HSCROLL = 0x0114;

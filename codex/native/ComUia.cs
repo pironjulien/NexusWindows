@@ -54,13 +54,13 @@ unsafe sealed partial class ComUia
         [FieldOffset(8)] public short Bool;
     }
 
-    [DllImport("ole32.dll")] static extern int CoCreateInstance(in Guid clsid, nint outer, uint context, in Guid iid, out nint instance);
-    [DllImport("oleaut32.dll")] static extern nint SafeArrayCreateVector(ushort vt, int lowerBound, uint count);
-    [DllImport("oleaut32.dll")] static extern int SafeArrayAccessData(nint array, out nint data);
-    [DllImport("oleaut32.dll")] static extern int SafeArrayUnaccessData(nint array);
-    [DllImport("oleaut32.dll")] static extern int SafeArrayGetLBound(nint array, uint dimension, out int bound);
-    [DllImport("oleaut32.dll")] static extern int SafeArrayGetUBound(nint array, uint dimension, out int bound);
-    [DllImport("oleaut32.dll")] static extern int VariantClear(ref Variant value);
+    [LibraryImport("ole32.dll")] private static partial int CoCreateInstance(in Guid clsid, nint outer, uint context, in Guid iid, out nint instance);
+    [LibraryImport("oleaut32.dll")] private static partial nint SafeArrayCreateVector(ushort vt, int lowerBound, uint count);
+    [LibraryImport("oleaut32.dll")] private static partial int SafeArrayAccessData(nint array, out nint data);
+    [LibraryImport("oleaut32.dll")] private static partial int SafeArrayUnaccessData(nint array);
+    [LibraryImport("oleaut32.dll")] private static partial int SafeArrayGetLBound(nint array, uint dimension, out int bound);
+    [LibraryImport("oleaut32.dll")] private static partial int SafeArrayGetUBound(nint array, uint dimension, out int bound);
+    [LibraryImport("oleaut32.dll")] private static partial int VariantClear(ref Variant value);
 
     static ComUia? shared;
     readonly nint automation, treeRequest, wpfTreeRequest, elementRequest, childrenRequest, walker;
@@ -181,7 +181,7 @@ unsafe sealed partial class ComUia
         if (((delegate* unmanaged[Stdcall]<nint, nint*, int>)Vt(element)[4])(element, &array) < 0 || array == 0) return null; // GetRuntimeId
         try { return ReadArray<int>(array); } finally { SafeArrayDestroy(array); }
     }
-    [DllImport("oleaut32.dll")] static extern int SafeArrayDestroy(nint array);
+    [LibraryImport("oleaut32.dll")] private static partial int SafeArrayDestroy(nint array);
 
     // ---- Lecture de l'arbre ------------------------------------------------------------------------------------------
     // Un seul aller-retour (portee Subtree). Exception mesuree : une liste deroulante Win32/WinForms OUVERTE rend son

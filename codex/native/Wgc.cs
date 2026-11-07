@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 // 27/10 : +1 par capture sur 300 ; la meme perte que NexusWindows Claude avec windows-capture) : un element par fenetre,
 // garde et reutilise (16 fenetres au plus, la plus ancienne rendue). Pool, session et image : fermes a chaque capture.
 // L'autotest mesure les handles.
-static unsafe class Wgc
+static unsafe partial class Wgc
 {
     const int TimeoutMs = 1500;
     const int Bgra8 = 87; // DirectXPixelFormat.B8G8R8A8UIntNormalized
@@ -24,8 +24,8 @@ static unsafe class Wgc
     static readonly Guid ID3D11Texture2D = new("6f15aaf2-d208-4e89-9ab4-489535d34f9c");
     static readonly Guid IDXGIDevice = new("54ec77fa-1377-44e6-8c32-88fd5f44c84c");
 
-    [DllImport("d3d11.dll")] static extern int D3D11CreateDevice(nint adapter, int driverType, nint software, uint flags, nint levels, uint count, uint sdk, nint* device, int* level, nint* context);
-    [DllImport("d3d11.dll")] static extern int CreateDirect3D11DeviceFromDXGIDevice(nint dxgi, nint* graphics);
+    [LibraryImport("d3d11.dll")] private static partial int D3D11CreateDevice(nint adapter, int driverType, nint software, uint flags, nint levels, uint count, uint sdk, nint* device, int* level, nint* context);
+    [LibraryImport("d3d11.dll")] private static partial int CreateDirect3D11DeviceFromDXGIDevice(nint dxgi, nint* graphics);
 
     [StructLayout(LayoutKind.Sequential)] struct SizeInt32 { public int Width, Height; }
     [StructLayout(LayoutKind.Sequential)]
@@ -36,7 +36,9 @@ static unsafe class Wgc
     static nint device, context, graphics, interop, pools;
     const int ItemCacheSize = 16;
     static readonly List<(nint Hwnd, nint Item)> Items = [];
-    [DllImport("user32.dll")] static extern bool IsWindow(nint hwnd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsWindow(nint hwnd);
 
     static nint Item(nint hwnd)
     {
@@ -172,17 +174,29 @@ static unsafe class Wgc
 
     // Autotest : fenetre STATIC de l'autotest lui-meme, hors de tous les ecrans (jamais visible ni active), capturee par
     // WGC puis relue par OCR ; 40 captures ensuite, handles du processus compares (fuite : echec).
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern nint CreateWindowExW(uint ex, string cls, string title, uint style, int x, int y, int w, int h, nint parent, nint menu, nint instance, nint param);
-    [DllImport("user32.dll")] static extern bool DestroyWindow(nint hwnd);
-    [DllImport("user32.dll")] static extern bool SetWindowPos(nint hwnd, nint after, int x, int y, int w, int h, uint flags);
-    [DllImport("user32.dll")] static extern bool UpdateWindow(nint hwnd);
-    [DllImport("user32.dll")] static extern nint SendMessageW(nint hwnd, uint msg, nint wparam, nint lparam);
-    [DllImport("user32.dll")] static extern bool PeekMessageW(out Msg msg, nint hwnd, uint min, uint max, uint remove);
-    [DllImport("user32.dll")] static extern bool TranslateMessage(in Msg msg);
-    [DllImport("user32.dll")] static extern nint DispatchMessageW(in Msg msg);
-    [DllImport("user32.dll")] static extern bool PostThreadMessageW(uint thread, uint msg, nint wparam, nint lparam);
-    [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
-    [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] static extern nint CreateFontW(int height, int width, int escapement, int orientation, int weight, uint italic, uint underline, uint strike, uint charset, uint precision, uint clip, uint quality, uint pitch, string face);
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial nint CreateWindowExW(uint ex, string cls, string title, uint style, int x, int y, int w, int h, nint parent, nint menu, nint instance, nint param);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool DestroyWindow(nint hwnd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetWindowPos(nint hwnd, nint after, int x, int y, int w, int h, uint flags);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool UpdateWindow(nint hwnd);
+    [LibraryImport("user32.dll")] private static partial nint SendMessageW(nint hwnd, uint msg, nint wparam, nint lparam);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PeekMessageW(out Msg msg, nint hwnd, uint min, uint max, uint remove);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool TranslateMessage(in Msg msg);
+    [LibraryImport("user32.dll")] private static partial nint DispatchMessageW(in Msg msg);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PostThreadMessageW(uint thread, uint msg, nint wparam, nint lparam);
+    [LibraryImport("kernel32.dll")] private static partial uint GetCurrentThreadId();
+    [LibraryImport("gdi32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial nint CreateFontW(int height, int width, int escapement, int orientation, int weight, uint italic, uint underline, uint strike, uint charset, uint precision, uint clip, uint quality, uint pitch, string face);
     [StructLayout(LayoutKind.Sequential)] struct Msg { public nint Hwnd; public uint Message; public nint W, L; public uint Time; public int X, Y; }
 
     // Banc : capture WGC d'une fenetre existante (lecture seule), deviation et duree rendues.

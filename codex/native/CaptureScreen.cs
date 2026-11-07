@@ -5,11 +5,17 @@ using System.Text;
 
 static partial class Capture
 {
-    [DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
-    [DllImport("gdi32.dll", SetLastError = true)] static extern bool BitBlt(nint target, int x, int y, int width, int height, nint source, int sourceX, int sourceY, uint operation);
-    [DllImport("user32.dll", SetLastError = true)] static extern nint OpenInputDesktop(uint flags, bool inherit, uint access);
-    [DllImport("user32.dll")] static extern bool CloseDesktop(nint desktop);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool GetUserObjectInformationW(nint handle, int index, StringBuilder value, uint length, out uint needed);
+    [LibraryImport("user32.dll")] private static partial int GetSystemMetrics(int index);
+    [LibraryImport("gdi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool BitBlt(nint target, int x, int y, int width, int height, nint source, int sourceX, int sourceY, uint operation);
+    [LibraryImport("user32.dll", SetLastError = true)] private static partial nint OpenInputDesktop(uint flags, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint access);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseDesktop(nint desktop);
+    [LibraryImport("user32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetUserObjectInformationW(nint handle, int index, [Out] char[] value, uint length, out uint needed);
 
     static void CheckDesktopCapture()
     {
@@ -17,8 +23,8 @@ static partial class Capture
         if (desktop == 0) throw new ActionRefusedException("Secure or unavailable input desktop: no screenshot taken");
         try
         {
-            var name = new StringBuilder(256);
-            if (!GetUserObjectInformationW(desktop, 2 /* UOI_NAME */, name, 512, out _) || name.ToString() != "Default")
+            var name = new char[256];
+            if (!GetUserObjectInformationW(desktop, 2 /* UOI_NAME */, name, (uint)name.Length * 2, out _) || Win32.Terminated(name) != "Default")
                 throw new ActionRefusedException("Only the normal user desktop may be captured");
         }
         finally { CloseDesktop(desktop); }

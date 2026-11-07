@@ -28,6 +28,11 @@ and npm (`nexus-windows-codex`).
   ECMAScript engine (Jint) inside xUnit instead of `node --test`, which was skipped in silence where Node.js was
   absent, the CI included.
 - xunit.v3 4.0.2.
+- The engine's Win32 calls are source-generated (`LibraryImport`, 265 of 269) instead of marshalled at run time,
+  `StringBuilder` buffers included (character arrays now); the four remaining `DllImport` pass a structure that
+  carries a delegate or an inline string (window class registration, process snapshot).
+  The packaged app activation manager is a source-generated COM interface (`GeneratedComInterface`) instead of a
+  runtime callable wrapper, checked against the real activation manager by an xUnit test.
 - The real-process checks of the shared emergency stop (stop file, guard, refusals) and foreground token (exclusion,
   deferral, release when the holder ends or dies) moved from the Node suites to xUnit
   (`SharedProtocolProcessTests`); the foreground token cases hold the PC's real lock and run with `test.ps1 -Full`.

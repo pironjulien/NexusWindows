@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 // Declarations Win32 partagees par les techniques d'arriere-plan, la capture, les fenetres liees et la presence.
-static class Win32
+static partial class Win32
 {
     [StructLayout(LayoutKind.Sequential)]
     public struct Rect
@@ -30,79 +30,117 @@ static class Win32
     public const int LBS_MULTIPLESEL = 0x8, LBS_EXTENDEDSEL = 0x800;
     public const int WS_DISABLED = 0x08000000;
 
-    [DllImport("user32.dll")] public static extern nint GetForegroundWindow();
-    [DllImport("user32.dll")] public static extern bool GetClientRect(nint hwnd, out Rect rect);
-    [DllImport("user32.dll")] public static extern bool ClientToScreen(nint hwnd, ref Point point);
-    [DllImport("user32.dll")] static extern nint SendMessageTimeoutW(nint hwnd, uint msg, nint wparam, ref Rect lparam, uint flags, uint timeout, out nint result);
+    [LibraryImport("user32.dll")] public static partial nint GetForegroundWindow();
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetClientRect(nint hwnd, out Rect rect);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ClientToScreen(nint hwnd, ref Point point);
+    [LibraryImport("user32.dll")] private static partial nint SendMessageTimeoutW(nint hwnd, uint msg, nint wparam, ref Rect lparam, uint flags, uint timeout, out nint result);
     // Rectangle (client) de l'element `index` d'une LISTBOX (LB_GETITEMRECT), sans attente infinie (SMTO_ABORTIFHUNG).
     public static bool ItemRect(nint list, int index, out Rect rect)
     {
         rect = default;
         return SendMessageTimeoutW(list, 0x0198, index, ref rect, 0x0002, 1000, out var ok) != 0 && ok != -1;
     }
-    [DllImport("user32.dll")] public static extern bool GetCursorPos(out Point point);
-    [DllImport("user32.dll")] public static extern bool GetLastInputInfo(ref LastInputInfo info);
-    [DllImport("kernel32.dll")] public static extern uint GetTickCount();
-    [DllImport("user32.dll")] public static extern bool IsWindow(nint hwnd);
-    [DllImport("user32.dll")] public static extern bool IsWindowVisible(nint hwnd);
-    [DllImport("user32.dll")] public static extern bool IsWindowEnabled(nint hwnd);
-    [DllImport("user32.dll")] public static extern bool IsIconic(nint hwnd);
-    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(nint hwnd, out uint pid);
-    [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
-    [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint attach, uint to, bool doAttach);
-    [DllImport("user32.dll")] public static extern bool BringWindowToTop(nint hwnd);
-    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(nint hwnd);
-    [DllImport("dwmapi.dll", EntryPoint = "DwmGetWindowAttribute")] static extern int DwmGetWindowAttributeInt(nint hwnd, int attribute, out int value, int size);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetCursorPos(out Point point);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetLastInputInfo(ref LastInputInfo info);
+    [LibraryImport("kernel32.dll")] public static partial uint GetTickCount();
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool IsWindow(nint hwnd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool IsWindowVisible(nint hwnd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool IsWindowEnabled(nint hwnd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool IsIconic(nint hwnd);
+    [LibraryImport("user32.dll")] public static partial uint GetWindowThreadProcessId(nint hwnd, out uint pid);
+    [LibraryImport("kernel32.dll")] public static partial uint GetCurrentThreadId();
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool AttachThreadInput(uint attach, uint to, [MarshalAs(UnmanagedType.Bool)] bool doAttach);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool BringWindowToTop(nint hwnd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool SetForegroundWindow(nint hwnd);
+    [LibraryImport("dwmapi.dll", EntryPoint = "DwmGetWindowAttribute")] private static partial int DwmGetWindowAttributeInt(nint hwnd, int attribute, out int value, int size);
     // Fenetre masquee par le gestionnaire de fenetres (bureau virtuel, application suspendue) : DWMWA_CLOAKED.
     public static bool IsCloaked(nint hwnd) => DwmGetWindowAttributeInt(hwnd, 14, out var cloaked, sizeof(int)) == 0 && cloaked != 0;
-    [DllImport("user32.dll")] public static extern nint GetWindow(nint hwnd, uint command);
-    [DllImport("user32.dll")] public static extern nint GetAncestor(nint hwnd, uint flags);
-    [DllImport("user32.dll")] public static extern nint GetParent(nint hwnd);
-    [DllImport("user32.dll")] public static extern int GetDlgCtrlID(nint hwnd);
-    [DllImport("user32.dll")] public static extern int GetWindowLongW(nint hwnd, int index);
-    [DllImport("user32.dll")] public static extern nint GetNextDlgGroupItem(nint dialog, nint control, bool previous);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassNameW(nint hwnd, StringBuilder name, int max);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowTextW(nint hwnd, StringBuilder text, int max);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern nint FindWindowExW(nint parent, nint after, string? cls, string? title);
+    [LibraryImport("user32.dll")] public static partial nint GetWindow(nint hwnd, uint command);
+    [LibraryImport("user32.dll")] public static partial nint GetAncestor(nint hwnd, uint flags);
+    [LibraryImport("user32.dll")] public static partial nint GetParent(nint hwnd);
+    [LibraryImport("user32.dll")] public static partial int GetDlgCtrlID(nint hwnd);
+    [LibraryImport("user32.dll")] public static partial int GetWindowLongW(nint hwnd, int index);
+    [LibraryImport("user32.dll")] public static partial nint GetNextDlgGroupItem(nint dialog, nint control, [MarshalAs(UnmanagedType.Bool)] bool previous);
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int GetClassNameW(nint hwnd, [Out] char[] name, int max);
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int GetWindowTextW(nint hwnd, [Out] char[] text, int max);
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] public static partial nint FindWindowExW(nint parent, nint after, string? cls, string? title);
     public delegate bool EnumProc(nint hwnd, nint data);
-    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc callback, nint data);
-    [DllImport("user32.dll")] public static extern bool EnumChildWindows(nint parent, EnumProc callback, nint data);
-    [DllImport("user32.dll", SetLastError = true)] public static extern bool PostMessageW(nint hwnd, uint msg, nint wparam, nint lparam);
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "SendMessageTimeoutW")]
-    static extern nint SendMessageTimeout(nint hwnd, uint msg, nint wparam, nint lparam, uint flags, uint timeout, out nint result);
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "SendMessageTimeoutW")]
-    static extern nint SendMessageTimeoutText(nint hwnd, uint msg, nint wparam, string lparam, uint flags, uint timeout, out nint result);
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "SendMessageTimeoutW")]
-    static extern nint SendMessageTimeoutBuffer(nint hwnd, uint msg, nint wparam, [Out] char[] lparam, uint flags, uint timeout, out nint result);
-    [DllImport("user32.dll")] public static extern bool GetWindowRect(nint hwnd, out Rect rect);
-    [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(nint hwnd, int attribute, out Rect rect, int size);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool EnumWindows(EnumProc callback, nint data);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool EnumChildWindows(nint parent, EnumProc callback, nint data);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool PostMessageW(nint hwnd, uint msg, nint wparam, nint lparam);
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageTimeoutW", SetLastError = true)]
+    private static partial nint SendMessageTimeout(nint hwnd, uint msg, nint wparam, nint lparam, uint flags, uint timeout, out nint result);
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageTimeoutW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial nint SendMessageTimeoutText(nint hwnd, uint msg, nint wparam, string lparam, uint flags, uint timeout, out nint result);
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageTimeoutW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial nint SendMessageTimeoutBuffer(nint hwnd, uint msg, nint wparam, [Out] char[] lparam, uint flags, uint timeout, out nint result);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetWindowRect(nint hwnd, out Rect rect);
+    [LibraryImport("dwmapi.dll")] public static partial int DwmGetWindowAttribute(nint hwnd, int attribute, out Rect rect, int size);
 
     // Menus Win32 (HMENU) : objets utilisateur globaux, lisibles depuis un autre processus.
-    [DllImport("user32.dll")] public static extern nint GetMenu(nint hwnd);
-    [DllImport("user32.dll")] public static extern int GetMenuItemCount(nint menu);
-    [DllImport("user32.dll")] public static extern nint GetSubMenu(nint menu, int position);
-    [DllImport("user32.dll")] public static extern uint GetMenuItemID(nint menu, int position);
-    [DllImport("user32.dll")] public static extern uint GetMenuState(nint menu, uint id, uint flags);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetMenuStringW(nint menu, uint id, StringBuilder text, int max, uint flags);
+    [LibraryImport("user32.dll")] public static partial nint GetMenu(nint hwnd);
+    [LibraryImport("user32.dll")] public static partial int GetMenuItemCount(nint menu);
+    [LibraryImport("user32.dll")] public static partial nint GetSubMenu(nint menu, int position);
+    [LibraryImport("user32.dll")] public static partial uint GetMenuItemID(nint menu, int position);
+    [LibraryImport("user32.dll")] public static partial uint GetMenuState(nint menu, uint id, uint flags);
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int GetMenuStringW(nint menu, uint id, [Out] char[] text, int max, uint flags);
 
     // DPI
-    [DllImport("user32.dll")] public static extern nint SetThreadDpiAwarenessContext(nint context);
-    [DllImport("user32.dll")] public static extern nint GetWindowDpiAwarenessContext(nint hwnd);
-    [DllImport("user32.dll")] public static extern int GetAwarenessFromDpiAwarenessContext(nint context);
-    [DllImport("user32.dll")] public static extern nint MonitorFromWindow(nint hwnd, uint flags);
-    [DllImport("shcore.dll")] public static extern int GetDpiForMonitor(nint monitor, int type, out uint x, out uint y);
-    [DllImport("user32.dll")] public static extern uint GetDpiForWindow(nint hwnd);
+    [LibraryImport("user32.dll")] public static partial nint SetThreadDpiAwarenessContext(nint context);
+    [LibraryImport("user32.dll")] public static partial nint GetWindowDpiAwarenessContext(nint hwnd);
+    [LibraryImport("user32.dll")] public static partial int GetAwarenessFromDpiAwarenessContext(nint context);
+    [LibraryImport("user32.dll")] public static partial nint MonitorFromWindow(nint hwnd, uint flags);
+    [LibraryImport("shcore.dll")] public static partial int GetDpiForMonitor(nint monitor, int type, out uint x, out uint y);
+    [LibraryImport("user32.dll")] public static partial uint GetDpiForWindow(nint hwnd);
 
     // GDI
-    [DllImport("user32.dll")] public static extern nint GetDC(nint hwnd);
-    [DllImport("user32.dll")] public static extern int ReleaseDC(nint hwnd, nint dc);
-    [DllImport("gdi32.dll")] public static extern nint CreateCompatibleDC(nint dc);
-    [DllImport("gdi32.dll")] public static extern nint CreateDIBSection(nint dc, ref BitmapInfoHeader header, uint usage, out nint bits, nint section, uint offset);
-    [DllImport("gdi32.dll")] public static extern nint SelectObject(nint dc, nint obj);
-    [DllImport("gdi32.dll")] public static extern bool DeleteObject(nint obj);
-    [DllImport("gdi32.dll")] public static extern bool DeleteDC(nint dc);
-    [DllImport("gdi32.dll")] public static extern bool GdiFlush();
-    [DllImport("user32.dll")] public static extern bool PrintWindow(nint hwnd, nint dc, uint flags);
+    [LibraryImport("user32.dll")] public static partial nint GetDC(nint hwnd);
+    [LibraryImport("user32.dll")] public static partial int ReleaseDC(nint hwnd, nint dc);
+    [LibraryImport("gdi32.dll")] public static partial nint CreateCompatibleDC(nint dc);
+    [LibraryImport("gdi32.dll")] public static partial nint CreateDIBSection(nint dc, ref BitmapInfoHeader header, uint usage, out nint bits, nint section, uint offset);
+    [LibraryImport("gdi32.dll")] public static partial nint SelectObject(nint dc, nint obj);
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool DeleteObject(nint obj);
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool DeleteDC(nint dc);
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GdiFlush();
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool PrintWindow(nint hwnd, nint dc, uint flags);
     [StructLayout(LayoutKind.Sequential)]
     public struct BitmapInfoHeader
     {
@@ -133,8 +171,15 @@ static class Win32
 
     public static string ClassName(nint hwnd)
     {
-        var name = new StringBuilder(256);
-        return GetClassNameW(hwnd, name, name.Capacity) > 0 ? name.ToString() : "";
+        var name = new char[256];
+        var length = GetClassNameW(hwnd, name, name.Length);
+        return length > 0 ? new string(name, 0, length) : "";
+    }
+    // Text of a NUL-terminated buffer filled by a Win32 call (what a StringBuilder argument used to give).
+    internal static string Terminated(char[] buffer)
+    {
+        var end = Array.IndexOf(buffer, '\0');
+        return new string(buffer, 0, end < 0 ? buffer.Length : end);
     }
     // Classe Win32 sous-jacente, en minuscules : « WindowsForms10.BUTTON.app.0.x » -> « button ».
     public static string BaseClass(nint hwnd)
@@ -149,14 +194,15 @@ static class Win32
     }
     public static string Title(nint hwnd)
     {
-        var text = new StringBuilder(512);
-        return GetWindowTextW(hwnd, text, text.Capacity) > 0 ? text.ToString() : "";
+        var text = new char[512];
+        var length = GetWindowTextW(hwnd, text, text.Length);
+        return length > 0 ? new string(text, 0, length) : "";
     }
     public static string MenuLabel(nint menu, int position)
     {
-        var text = new StringBuilder(256);
-        GetMenuStringW(menu, (uint)position, text, text.Capacity, 0x400 /* MF_BYPOSITION */);
-        return text.ToString();
+        var text = new char[256];
+        var length = GetMenuStringW(menu, (uint)position, text, text.Length, 0x400 /* MF_BYPOSITION */);
+        return length > 0 ? new string(text, 0, length) : "";
     }
     public static int Style(nint hwnd) => GetWindowLongW(hwnd, GWL_STYLE);
     public static int ExStyle(nint hwnd) => GetWindowLongW(hwnd, -20 /* GWL_EXSTYLE */);

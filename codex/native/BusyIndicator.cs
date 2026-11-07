@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 // clics, jamais activee, absente de la barre des taches (fenetre d'outil) et des captures (WDA_EXCLUDEFROMCAPTURE).
 // Rendu analytique (ombre, piece) a partir de logo.png decode par GDI+ : aucune dependance ajoutee.
 // NEXUS_WINDOWS_INDICATOR=0 le coupe.
-static class BusyIndicator
+static partial class BusyIndicator
 {
     public const int LingerMs = 1618, PeriodMs = 1618, Frames = 48, FadeMs = 300, Size = 72, Margin = 28;
     const double Canvas = 2.0;
@@ -257,37 +257,56 @@ static class BusyIndicator
     [StructLayout(LayoutKind.Sequential)] struct GpRect { public int X, Y, Width, Height; }
     [StructLayout(LayoutKind.Sequential)] struct BitmapData { public uint Width, Height; public int Stride, PixelFormat; public nint Scan0; public nuint Reserved; }
 
+    // WndClassEx carries a delegate and strings: runtime marshalling (DllImport), not source-generated.
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern ushort RegisterClassExW(ref WndClassEx wc);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    static extern nint CreateWindowExW(uint exStyle, string cls, string? title, uint style, int x, int y, int w, int h, nint parent, nint menu, nint instance, nint param);
-    [DllImport("user32.dll")] static extern nint DefWindowProcW(nint hwnd, uint msg, nint wparam, nint lparam);
-    [DllImport("user32.dll")] static extern bool SetWindowDisplayAffinity(nint hwnd, uint affinity);
-    [DllImport("user32.dll")] static extern bool SetWindowPos(nint hwnd, nint after, int x, int y, int cx, int cy, uint flags);
-    [DllImport("user32.dll")] static extern bool ShowWindow(nint hwnd, int cmd);
-    [DllImport("user32.dll")] static extern bool UpdateLayeredWindow(nint hwnd, nint dst, ref Point pos, ref SizeS size, nint src, ref Point srcPos, uint key, ref Blend blend, uint flags);
-    [DllImport("user32.dll")] static extern bool PeekMessageW(out Msg msg, nint hwnd, uint min, uint max, uint remove);
-    [DllImport("user32.dll")] static extern bool TranslateMessage(ref Msg msg);
-    [DllImport("user32.dll")] static extern nint DispatchMessageW(ref Msg msg);
-    [DllImport("user32.dll")] static extern nint GetDC(nint hwnd);
-    [DllImport("user32.dll")] static extern bool IsWindow(nint hwnd);
-    [DllImport("user32.dll")] static extern nint GetForegroundWindow();
-    [DllImport("user32.dll")] static extern nint MonitorFromWindow(nint hwnd, uint flags);
-    [DllImport("user32.dll")] static extern bool GetMonitorInfoW(nint monitor, ref MonitorInfo info);
-    [DllImport("user32.dll")] static extern nint SetThreadDpiAwarenessContext(nint context);
-    [DllImport("shcore.dll")] static extern int GetDpiForMonitor(nint monitor, int type, out uint x, out uint y);
-    [DllImport("gdi32.dll")] static extern nint CreateCompatibleDC(nint dc);
-    [DllImport("gdi32.dll")] static extern nint CreateDIBSection(nint dc, ref BitmapInfoHeader header, uint usage, out nint bits, nint section, uint offset);
-    [DllImport("gdi32.dll")] static extern nint SelectObject(nint dc, nint obj);
-    [DllImport("gdi32.dll")] static extern bool DeleteObject(nint obj);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern nint GetModuleHandleW(string? name);
-    [DllImport("gdiplus.dll")] static extern int GdiplusStartup(out nuint token, ref GdiplusStartupInput input, nint output);
-    [DllImport("gdiplus.dll")] static extern void GdiplusShutdown(nuint token);
-    [DllImport("gdiplus.dll", CharSet = CharSet.Unicode)] static extern int GdipCreateBitmapFromFile(string path, out nint bitmap);
-    [DllImport("gdiplus.dll")] static extern int GdipGetImageWidth(nint image, out uint width);
-    [DllImport("gdiplus.dll")] static extern int GdipGetImageHeight(nint image, out uint height);
-    [DllImport("gdiplus.dll")] static extern int GdipBitmapLockBits(nint bitmap, ref GpRect rect, uint flags, int format, ref BitmapData data);
-    [DllImport("gdiplus.dll")] static extern int GdipBitmapUnlockBits(nint bitmap, ref BitmapData data);
-    [DllImport("gdiplus.dll")] static extern int GdipDisposeImage(nint image);
+    [LibraryImport("user32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial nint CreateWindowExW(uint exStyle, string cls, string? title, uint style, int x, int y, int w, int h, nint parent, nint menu, nint instance, nint param);
+    [LibraryImport("user32.dll")] private static partial nint DefWindowProcW(nint hwnd, uint msg, nint wparam, nint lparam);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetWindowDisplayAffinity(nint hwnd, uint affinity);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetWindowPos(nint hwnd, nint after, int x, int y, int cx, int cy, uint flags);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ShowWindow(nint hwnd, int cmd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool UpdateLayeredWindow(nint hwnd, nint dst, ref Point pos, ref SizeS size, nint src, ref Point srcPos, uint key, ref Blend blend, uint flags);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PeekMessageW(out Msg msg, nint hwnd, uint min, uint max, uint remove);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool TranslateMessage(ref Msg msg);
+    [LibraryImport("user32.dll")] private static partial nint DispatchMessageW(ref Msg msg);
+    [LibraryImport("user32.dll")] private static partial nint GetDC(nint hwnd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsWindow(nint hwnd);
+    [LibraryImport("user32.dll")] private static partial nint GetForegroundWindow();
+    [LibraryImport("user32.dll")] private static partial nint MonitorFromWindow(nint hwnd, uint flags);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetMonitorInfoW(nint monitor, ref MonitorInfo info);
+    [LibraryImport("user32.dll")] private static partial nint SetThreadDpiAwarenessContext(nint context);
+    [LibraryImport("shcore.dll")] private static partial int GetDpiForMonitor(nint monitor, int type, out uint x, out uint y);
+    [LibraryImport("gdi32.dll")] private static partial nint CreateCompatibleDC(nint dc);
+    [LibraryImport("gdi32.dll")] private static partial nint CreateDIBSection(nint dc, ref BitmapInfoHeader header, uint usage, out nint bits, nint section, uint offset);
+    [LibraryImport("gdi32.dll")] private static partial nint SelectObject(nint dc, nint obj);
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool DeleteObject(nint obj);
+    [LibraryImport("kernel32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial nint GetModuleHandleW(string? name);
+    [LibraryImport("gdiplus.dll")] private static partial int GdiplusStartup(out nuint token, ref GdiplusStartupInput input, nint output);
+    [LibraryImport("gdiplus.dll")] private static partial void GdiplusShutdown(nuint token);
+    [LibraryImport("gdiplus.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int GdipCreateBitmapFromFile(string path, out nint bitmap);
+    [LibraryImport("gdiplus.dll")] private static partial int GdipGetImageWidth(nint image, out uint width);
+    [LibraryImport("gdiplus.dll")] private static partial int GdipGetImageHeight(nint image, out uint height);
+    [LibraryImport("gdiplus.dll")] private static partial int GdipBitmapLockBits(nint bitmap, ref GpRect rect, uint flags, int format, ref BitmapData data);
+    [LibraryImport("gdiplus.dll")] private static partial int GdipBitmapUnlockBits(nint bitmap, ref BitmapData data);
+    [LibraryImport("gdiplus.dll")] private static partial int GdipDisposeImage(nint image);
 
     const uint WsPopup = 0x80000000;
     const uint WsEx = 0x80000 | 0x20 | 0x8 | 0x80 | 0x08000000; // LAYERED | TRANSPARENT | TOPMOST | TOOLWINDOW | NOACTIVATE

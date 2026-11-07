@@ -568,7 +568,7 @@ static partial class ComWorker
 // Cote helper gere : un enfant --com-worker reutilise, une requete a la fois, delai borne. L'enfant est rattache a un
 // Job Object (KILL_ON_JOB_CLOSE) : si le helper meurt (delai depasse cote Node, qui le tue), Windows tue aussi l'enfant,
 // qui ne peut donc plus agir apres coup sur une action deja rapportee « inconnue ».
-static class ComBridge
+static partial class ComBridge
 {
     static Process? child;
     public const int TimeoutMs = 10000; // borne d'un appel au processus des motifs UI Automation
@@ -583,9 +583,13 @@ static class ComBridge
     [StructLayout(LayoutKind.Sequential)] struct IoCounters { public ulong ReadOperations, WriteOperations, OtherOperations, ReadBytes, WriteBytes, OtherBytes; }
     [StructLayout(LayoutKind.Sequential)]
     struct ExtendedLimit { public BasicLimit Basic; public IoCounters Io; public nuint ProcessMemoryLimit, JobMemoryLimit, PeakProcessMemoryUsed, PeakJobMemoryUsed; }
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)] static extern nint CreateJobObjectW(nint attributes, string? name);
-    [DllImport("kernel32.dll", SetLastError = true)] static extern bool SetInformationJobObject(nint job, int infoClass, ref ExtendedLimit info, int size);
-    [DllImport("kernel32.dll", SetLastError = true)] static extern bool AssignProcessToJobObject(nint job, nint process);
+    [LibraryImport("kernel32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)] private static partial nint CreateJobObjectW(nint attributes, string? name);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetInformationJobObject(nint job, int infoClass, ref ExtendedLimit info, int size);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool AssignProcessToJobObject(nint job, nint process);
     const int JobObjectExtendedLimitInformation = 9;
     const uint KillOnJobClose = 0x2000;
 

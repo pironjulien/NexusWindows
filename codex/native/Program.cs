@@ -7,9 +7,11 @@ using System.Security.Cryptography;
 
 static partial class Program
 {
-    [DllImport("user32.dll")] static extern bool IsWindow(nint hwnd);
-    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(nint hwnd, out uint pid);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern int GetApplicationUserModelId(nint process, ref uint length, StringBuilder? appId);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsWindow(nint hwnd);
+    [LibraryImport("user32.dll")] private static partial uint GetWindowThreadProcessId(nint hwnd, out uint pid);
+    [LibraryImport("kernel32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int GetApplicationUserModelId(nint process, ref uint length, [Out] char[]? appId);
     // Lectures : permises pendant l'arret d'urgence, n'envoient aucune entree.
     static readonly HashSet<string> ReadOnlyOperations = new(StringComparer.Ordinal) { "inspect", "capture", "ocr", "related", "windows", "probe", "alive", "table" };
     static readonly HashSet<string> ActionOperations = new(StringComparer.Ordinal) { "click", "setValue", "secondary", "select", "typeText", "physical", "focus", "realizeNamed", "key" };
@@ -981,8 +983,8 @@ static partial class Program
         return (target, string.Join(" ", new[] { inline, args }.Where(part => part.Length > 0)));
     }
 
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern nint CommandLineToArgvW(string commandLine, out int count);
-    [DllImport("kernel32.dll")] static extern nint LocalFree(nint memory);
+    [LibraryImport("shell32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)] private static partial nint CommandLineToArgvW(string commandLine, out int count);
+    [LibraryImport("kernel32.dll")] private static partial nint LocalFree(nint memory);
     // Arguments decoupes comme Windows les decoupe pour le programme lance (« x » : nom de programme, regles a part).
     internal static List<string> SplitArgs(string args)
     {
@@ -1242,24 +1244,28 @@ static partial class Program
         uint length = 0;
         if (GetApplicationUserModelId(process.Handle, ref length, null) == 122 && length > 0)
         {
-            var id = new StringBuilder((int)length);
-            if (GetApplicationUserModelId(process.Handle, ref length, id) == 0) return id.ToString();
+            var id = new char[length];
+            if (GetApplicationUserModelId(process.Handle, ref length, id) == 0) return Win32.Terminated(id);
         }
         return "process:" + (ImagePath(process.Id) ?? throw new InvalidOperationException("Process path unavailable"));
     }
     // Chemin de l'executable (QueryFullProcessImageName : sans enumerer les modules du processus).
-    [DllImport("kernel32.dll", SetLastError = true)] static extern nint OpenProcess(uint access, bool inherit, int pid);
-    [DllImport("kernel32.dll")] static extern bool CloseHandle(nint handle);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool QueryFullProcessImageNameW(nint process, uint flags, StringBuilder name, ref uint size);
+    [LibraryImport("kernel32.dll", SetLastError = true)] private static partial nint OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, int pid);
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseHandle(nint handle);
+    [LibraryImport("kernel32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool QueryFullProcessImageNameW(nint process, uint flags, [Out] char[] name, ref uint size);
     static string? ImagePath(int pid)
     {
         var handle = OpenProcess(0x1000 /* PROCESS_QUERY_LIMITED_INFORMATION */, false, pid);
         if (handle == 0) return null;
         try
         {
-            var buffer = new StringBuilder(32768);
-            var size = (uint)buffer.Capacity;
-            return QueryFullProcessImageNameW(handle, 0, buffer, ref size) ? buffer.ToString(0, (int)size) : null;
+            var buffer = new char[32768];
+            var size = (uint)buffer.Length;
+            return QueryFullProcessImageNameW(handle, 0, buffer, ref size) ? new string(buffer, 0, (int)size) : null;
         }
         finally { CloseHandle(handle); }
     }

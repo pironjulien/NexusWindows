@@ -11,16 +11,26 @@ using System.Runtime.InteropServices;
 // reveal is done whenever the page published nothing; covered, nothing changes on screen, a visible strip blinks once.
 // Its minimize/restore animation disabled, under the shared foreground token; Chrome may activate itself on the restore while the user has been
 // idle past the foreground lock timeout: the foreground is given back at once, as after a launch.
-static class ChromiumReveal
+static partial class ChromiumReveal
 {
-    [DllImport("user32.dll")] static extern bool ShowWindow(nint hwnd, int command);
-    [DllImport("user32.dll")] static extern bool IsZoomed(nint hwnd);
-    [DllImport("user32.dll")] static extern bool SetWindowPos(nint hwnd, nint after, int x, int y, int cx, int cy, uint flags);
-    [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(nint hwnd, int attribute, ref int value, int size);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ShowWindow(nint hwnd, int command);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsZoomed(nint hwnd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetWindowPos(nint hwnd, nint after, int x, int y, int cx, int cy, uint flags);
+    [LibraryImport("dwmapi.dll")] private static partial int DwmSetWindowAttribute(nint hwnd, int attribute, ref int value, int size);
     [StructLayout(LayoutKind.Sequential)]
     struct Placement { public int Length, Flags, ShowCommand; public Win32.Point Min, Max; public Win32.Rect Normal; }
-    [DllImport("user32.dll")] static extern bool GetWindowPlacement(nint hwnd, ref Placement placement);
-    [DllImport("user32.dll")] static extern bool SetWindowPlacement(nint hwnd, ref Placement placement);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetWindowPlacement(nint hwnd, ref Placement placement);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetWindowPlacement(nint hwnd, ref Placement placement);
     const int WPF_RESTORETOMAXIMIZED = 2;
     const int SW_SHOWMINNOACTIVE = 7, SW_SHOWNOACTIVATE = 4, DWMWA_TRANSITIONS_FORCEDISABLED = 3;
     const uint GW_HWNDPREV = 3, SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10;
@@ -31,8 +41,10 @@ static class ChromiumReveal
     internal static string? Refusal(bool visible, bool minimized, bool foreground, bool cloaked, bool covered, bool browser = true) =>
         !browser ? "not a browser window with pages (an app may hide to the tray on a minimize; a dialog is owned)" : !visible ? "hidden window" : minimized ? "minimized by the user" : foreground && !covered ? "already in front and visible" : cloaked ? "cloaked (another virtual desktop)" : null;
 
-    [DllImport("user32.dll")] static extern bool GetLayeredWindowAttributes(nint hwnd, out uint key, out byte alpha, out uint flags);
-    [DllImport("user32.dll")] static extern int GetWindowRgnBox(nint hwnd, out Win32.Rect rect);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetLayeredWindowAttributes(nint hwnd, out uint key, out byte alpha, out uint flags);
+    [LibraryImport("user32.dll")] private static partial int GetWindowRgnBox(nint hwnd, out Win32.Rect rect);
     const int WS_EX_TRANSPARENT = 0x20, WS_EX_TOOLWINDOW = 0x80, WS_EX_LAYERED = 0x80000;
     const uint LWA_COLORKEY = 0x1, LWA_ALPHA = 0x2;
 

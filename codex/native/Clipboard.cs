@@ -8,25 +8,35 @@ using System.Text.Json.Nodes;
 // ExcludeClipboardContentFromMonitorProcessing / CanIncludeInClipboardHistory = 0) n'est jamais lu ; les codes de
 // securite sont masques comme dans les notifications. Ce que l'agent ecrit est une copie ordinaire : la marquer hors
 // historique la ferait passer pour un secret, illisible a la relecture suivante (essai reel du 31/10).
-static class Clipboard
+static partial class Clipboard
 {
     const uint CfUnicodeText = 13, CfHdrop = 15, CfDib = 8, GmemMoveable = 0x2;
     const int MaxText = 32768;
-    [DllImport("user32.dll", SetLastError = true)] static extern bool OpenClipboard(nint owner);
-    [DllImport("user32.dll")] static extern bool CloseClipboard();
-    [DllImport("user32.dll")] static extern bool EmptyClipboard();
-    [DllImport("user32.dll")] static extern bool IsClipboardFormatAvailable(uint format);
-    [DllImport("user32.dll")] static extern nint GetClipboardData(uint format);
-    [DllImport("user32.dll")] static extern nint SetClipboardData(uint format, nint data);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern uint RegisterClipboardFormatW(string name);
-    [DllImport("kernel32.dll")] static extern nint GlobalAlloc(uint flags, nuint bytes);
-    [DllImport("kernel32.dll")] static extern nint GlobalLock(nint memory);
-    [DllImport("kernel32.dll")] static extern bool GlobalUnlock(nint memory);
-    [DllImport("kernel32.dll")] static extern nint GlobalFree(nint memory);
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern uint DragQueryFileW(nint drop, uint index, char[]? file, uint length);
-    [DllImport("user32.dll")] static extern uint EnumClipboardFormats(uint format);
-    [DllImport("user32.dll")] static extern uint GetClipboardSequenceNumber();
-    [DllImport("kernel32.dll")] static extern nuint GlobalSize(nint memory);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool OpenClipboard(nint owner);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseClipboard();
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool EmptyClipboard();
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsClipboardFormatAvailable(uint format);
+    [LibraryImport("user32.dll")] private static partial nint GetClipboardData(uint format);
+    [LibraryImport("user32.dll")] private static partial nint SetClipboardData(uint format, nint data);
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial uint RegisterClipboardFormatW(string name);
+    [LibraryImport("kernel32.dll")] private static partial nint GlobalAlloc(uint flags, nuint bytes);
+    [LibraryImport("kernel32.dll")] private static partial nint GlobalLock(nint memory);
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GlobalUnlock(nint memory);
+    [LibraryImport("kernel32.dll")] private static partial nint GlobalFree(nint memory);
+    [LibraryImport("shell32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial uint DragQueryFileW(nint drop, uint index, [Out] char[]? file, uint length);
+    [LibraryImport("user32.dll")] private static partial uint EnumClipboardFormats(uint format);
+    [LibraryImport("user32.dll")] private static partial uint GetClipboardSequenceNumber();
+    [LibraryImport("kernel32.dll")] private static partial nuint GlobalSize(nint memory);
     // GDI or owner-drawn formats are no memory blocks; Windows synthesizes CF_BITMAP and metafiles from what is kept.
     static readonly HashSet<uint> NotMemory = [2, 3, 9, 14, 0x80, 0x82, 0x83, 0x8E];
     public const int LendMs = 61_800;

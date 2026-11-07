@@ -8,7 +8,7 @@ using System.Text.Json;
 
 // Le client Valve emploie CEF dans steamwebhelper, pas les commutateurs Chromium d'une application Electron.
 // Aucun lancement/arret implicite d'un client deja ouvert : sa session reste celle de Julien.
-static class Steam
+static partial class Steam
 {
     public const int ShutdownWaitMs = 60000, StartWaitMs = 90000, DevtoolsWaitMs = 10000, DevtoolsPort = 8080;
     public const string ViewSwitches = "-cef-disable-occlusion -cef-force-accessibility";
@@ -30,20 +30,23 @@ static class Steam
         public uint Size, Usage, Pid; public nuint DefaultHeap; public uint Module, Threads, Parent; public int Priority; public uint Flags;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string Exe;
     }
-    [DllImport("kernel32.dll", SetLastError = true)] static extern nint CreateToolhelp32Snapshot(uint flags, uint pid);
+    [LibraryImport("kernel32.dll", SetLastError = true)] private static partial nint CreateToolhelp32Snapshot(uint flags, uint pid);
+    // ProcessEntry holds an inline string (ByValTStr): runtime marshalling (DllImport), not source-generated.
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool Process32FirstW(nint snapshot, ref ProcessEntry entry);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool Process32NextW(nint snapshot, ref ProcessEntry entry);
-    [DllImport("kernel32.dll")] static extern bool CloseHandle(nint handle);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string path, uint access, uint share, nint security, uint disposition, uint flags, nint template);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern uint GetFinalPathNameByHandleW(Microsoft.Win32.SafeHandles.SafeFileHandle handle, StringBuilder path, uint length, uint flags);
-    [DllImport("iphlpapi.dll")] static extern uint GetExtendedTcpTable(nint table, ref int size, bool sorted, int family, int tableClass, uint reserved);
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseHandle(nint handle);
+    [LibraryImport("kernel32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)] private static partial Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string path, uint access, uint share, nint security, uint disposition, uint flags, nint template);
+    [LibraryImport("kernel32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)] private static partial uint GetFinalPathNameByHandleW(Microsoft.Win32.SafeHandles.SafeFileHandle handle, [Out] char[] path, uint length, uint flags);
+    [LibraryImport("iphlpapi.dll")] private static partial uint GetExtendedTcpTable(nint table, ref int size, [MarshalAs(UnmanagedType.Bool)] bool sorted, int family, int tableClass, uint reserved);
     [StructLayout(LayoutKind.Sequential)]
     struct StartupInfo
     {
         public uint Size; public nint Reserved, Desktop, Title; public uint X, Y, Width, Height, XChars, YChars, Fill, Flags;
         public ushort ShowWindow, ReservedSize; public nint ReservedBytes, Input, Output, Error;
     }
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern void GetStartupInfoW(out StartupInfo startup);
+    [LibraryImport("kernel32.dll")] private static partial void GetStartupInfoW(out StartupInfo startup);
 
     public static void StartNoActivate(ProcessStartInfo info, Action? started = null) =>
         UserApplication.Start(info, started ?? (() => { }), 4 /* SW_SHOWNOACTIVATE */);
@@ -62,10 +65,10 @@ static class Steam
         if (path == null || !Path.IsPathFullyQualified(path)) return null;
         using var handle = CreateFileW(path, 0, 7 /* lecture/ecriture/suppression partagees */, 0, 3 /* OPEN_EXISTING */, 0, 0);
         if (handle.IsInvalid) return null;
-        var buffer = new StringBuilder(32768);
-        var size = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Capacity, 0);
-        if (size == 0 || size >= buffer.Capacity) return null;
-        var value = buffer.ToString();
+        var buffer = new char[32768];
+        var size = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Length, 0);
+        if (size == 0 || size >= buffer.Length) return null;
+        var value = new string(buffer, 0, (int)size);
         return value.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase) ? @"\\" + value[8..]
             : value.StartsWith(@"\\?\", StringComparison.Ordinal) ? value[4..] : value;
     }

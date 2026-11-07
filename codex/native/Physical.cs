@@ -11,7 +11,7 @@ using System.Text.Json;
 //    s'intercale, le clic ne tombe jamais sous le curseur de Julien) ;
 // 4. curseur remis a sa place si nous l'avons deplace et qu'il n'a pas bouge depuis.
 // Pixels reels de chaque ecran (app.manifest PerMonitorV2), comme la capture native.
-static class Physical
+static partial class Physical
 {
     const uint INPUT_MOUSE = 0, INPUT_KEYBOARD = 1;
     const uint MOUSEEVENTF_MOVE = 0x0001, MOUSEEVENTF_LEFTDOWN = 0x0002, MOUSEEVENTF_LEFTUP = 0x0004, MOUSEEVENTF_RIGHTDOWN = 0x0008,
@@ -25,13 +25,17 @@ static class Physical
     [StructLayout(LayoutKind.Explicit)] struct InputUnion { [FieldOffset(0)] public MouseInput Mouse; [FieldOffset(0)] public KeyboardInput Keyboard; }
     [StructLayout(LayoutKind.Sequential)] struct Input { public uint Type; public InputUnion U; }
 
-    [DllImport("user32.dll", SetLastError = true)] static extern uint SendInput(uint count, Input[] inputs, int size);
-    [DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
-    [DllImport("user32.dll")] static extern bool SetCursorPos(int x, int y);
-    [DllImport("user32.dll")] static extern bool ShowWindow(nint hwnd, int command);
-    [DllImport("user32.dll")] static extern nint WindowFromPoint(Win32.Point point);
-    [DllImport("user32.dll")] static extern nint GetKeyboardLayout(uint thread);
-    [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(nint hwnd, int attribute, out Win32.Rect rect, int size);
+    [LibraryImport("user32.dll", SetLastError = true)] private static partial uint SendInput(uint count, Input[] inputs, int size);
+    [LibraryImport("user32.dll")] private static partial int GetSystemMetrics(int index);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetCursorPos(int x, int y);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ShowWindow(nint hwnd, int command);
+    [LibraryImport("user32.dll")] private static partial nint WindowFromPoint(Win32.Point point);
+    [LibraryImport("user32.dll")] private static partial nint GetKeyboardLayout(uint thread);
+    [LibraryImport("dwmapi.dll")] private static partial int DwmGetWindowAttribute(nint hwnd, int attribute, out Win32.Rect rect, int size);
 
     static readonly Dictionary<string, (uint Down, uint Up)> Buttons = new()
     {

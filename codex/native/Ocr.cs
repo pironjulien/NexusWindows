@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 // Reference de comportement : NexusWindows Claude (ocr.py, 10 a 21 ms par fenetre au labo du 20/10). Lecture seule et
 // locale : rien ne sort du poste. Aucune langue OCR installee ou WinRT indisponible : l'OCR est indisponible, jamais
 // une erreur d'outil.
-static unsafe class Ocr
+static unsafe partial class Ocr
 {
     public const int MaxLines = 120; // une page de texte entiere n'a rien a faire dans une liste d'elements
     const int TimeoutMs = 5000;
@@ -205,10 +205,14 @@ static unsafe class Ocr
     }
 
     // Autotest hors ligne : texte dessine par GDI dans une image en memoire, relu par le vrai moteur ; rien a l'ecran.
-    [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] static extern nint CreateFontW(int height, int width, int escapement, int orientation, int weight, uint italic, uint underline, uint strike, uint charset, uint precision, uint clip, uint quality, uint pitch, string face);
-    [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] static extern bool TextOutW(nint dc, int x, int y, string text, int length);
-    [DllImport("gdi32.dll")] static extern bool PatBlt(nint dc, int x, int y, int w, int h, uint rop);
-    [DllImport("gdi32.dll")] static extern int SetBkMode(nint dc, int mode);
+    [LibraryImport("gdi32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial nint CreateFontW(int height, int width, int escapement, int orientation, int weight, uint italic, uint underline, uint strike, uint charset, uint precision, uint clip, uint quality, uint pitch, string face);
+    [LibraryImport("gdi32.dll", StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool TextOutW(nint dc, int x, int y, string text, int length);
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PatBlt(nint dc, int x, int y, int w, int h, uint rop);
+    [LibraryImport("gdi32.dll")] private static partial int SetBkMode(nint dc, int mode);
     public static int SelfTest()
     {
         const int width = 900, height = 200;

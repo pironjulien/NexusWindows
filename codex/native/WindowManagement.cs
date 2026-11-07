@@ -4,7 +4,7 @@ using System.Text.Json;
 
 // Gestion des fenetres nommees. L'appelant tient le jeton et controle la pause de l'utilisateur ; Program a deja
 // revalide l'application et le HWND. Une seule commande, puis des lectures : jamais de nouvelle commande sur timeout.
-static class WindowManagement
+static partial class WindowManagement
 {
     const uint NoSize = 0x0001, NoMove = 0x0002, NoZOrder = 0x0004, NoActivate = 0x0010;
     const int ShowNoActivate = 4, MinimizeNoActivate = 7, Maximize = 3;
@@ -15,13 +15,23 @@ static class WindowManagement
         public Win32.Point Minimum, Maximum;
         public Win32.Rect Normal;
     }
-    [DllImport("user32.dll")] static extern bool IsZoomed(nint hwnd);
-    [DllImport("user32.dll")] static extern bool ShowWindowAsync(nint hwnd, int command);
-    [DllImport("user32.dll")] static extern bool SetWindowPos(nint hwnd, nint after, int x, int y, int width, int height, uint flags);
-    [DllImport("user32.dll")] static extern bool GetWindowPlacement(nint hwnd, ref Placement placement);
-    [DllImport("user32.dll")] static extern bool SetWindowPlacement(nint hwnd, in Placement placement);
-    [DllImport("user32.dll")] static extern nint GetShellWindow();
-    [DllImport("user32.dll")] static extern nint GetDesktopWindow();
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsZoomed(nint hwnd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ShowWindowAsync(nint hwnd, int command);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetWindowPos(nint hwnd, nint after, int x, int y, int width, int height, uint flags);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetWindowPlacement(nint hwnd, ref Placement placement);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetWindowPlacement(nint hwnd, in Placement placement);
+    [LibraryImport("user32.dll")] private static partial nint GetShellWindow();
+    [LibraryImport("user32.dll")] private static partial nint GetDesktopWindow();
 
     // Le bureau du shell reste parfois SOUS HWND_BOTTOM (banc WinForms). Seules ses identites Win32 publiques
     // sont permises : on parcourt jusqu'au bout, y compris apres le shell, sans filtrer les applications masquees.

@@ -15,7 +15,7 @@ sealed class MarkReport
     public object Json() => new { drawn = Drawn, omitted = Omitted, outside = Outside, foreign = Foreign, reason = Reason };
 }
 
-static class Marks
+static partial class Marks
 {
     const int MaxDrawn = 120;
     const int Dot = 2, Gap = 2, Pad = 2;
@@ -109,5 +109,7 @@ static class Marks
 
     static void Put(byte[] image, int w, int x, int y, byte[] color) => Buffer.BlockCopy(color, 0, image, (y * w + x) * 4, 4);
 
-    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool IsChild(nint parent, nint child);
+    [System.Runtime.InteropServices.LibraryImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static partial bool IsChild(nint parent, nint child);
 }

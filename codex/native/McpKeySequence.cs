@@ -104,9 +104,13 @@ static partial class McpServer
 
     [StructLayout(LayoutKind.Sequential)] struct KeyGuiThreadInfo
     { public int Size, Flags; public nint Active, Focus, Capture, MenuOwner, MoveSize, Caret; public Win32.Rect CaretRect; }
-    [DllImport("user32.dll", EntryPoint = "GetGUIThreadInfo")] static extern bool KeyGetGuiThreadInfo(uint thread, ref KeyGuiThreadInfo info);
-    [DllImport("user32.dll", EntryPoint = "GetKeyboardLayout")] static extern nint KeyGetKeyboardLayout(uint thread);
-    [DllImport("user32.dll", EntryPoint = "IsChild")] static extern bool KeyIsChild(nint parent, nint child);
+    [LibraryImport("user32.dll", EntryPoint = "GetGUIThreadInfo")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool KeyGetGuiThreadInfo(uint thread, ref KeyGuiThreadInfo info);
+    [LibraryImport("user32.dll", EntryPoint = "GetKeyboardLayout")] private static partial nint KeyGetKeyboardLayout(uint thread);
+    [LibraryImport("user32.dll", EntryPoint = "IsChild")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool KeyIsChild(nint parent, nint child);
 
     static readonly Dictionary<string, string> ClaudeKeyModifiers = new(StringComparer.OrdinalIgnoreCase)
     {

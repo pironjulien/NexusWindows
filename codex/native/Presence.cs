@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 // chaine d'entree, ni contenu de touche lu ou garde ; seulement l'instant. Evenements limites a un par 100 ms.
 // Repli : GetLastInputInfo (entrees injectees comprises), interroge toutes les 100 ms ; la session ecarte alors les
 // evenements qui tombent pendant ses propres injections.
-static class Presence
+static partial class Presence
 {
     delegate nint WndProc(nint hwnd, uint msg, nint wparam, nint lparam);
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -18,15 +18,18 @@ static class Presence
     [StructLayout(LayoutKind.Sequential)] struct RawInputDevice { public ushort UsagePage, Usage; public uint Flags; public nint Target; }
     [StructLayout(LayoutKind.Sequential)] struct Msg { public nint Hwnd; public uint Message; public nuint WParam; public nint LParam; public uint Time; public int X, Y; }
 
+    // WndClass carries a delegate and a string: runtime marshalling (DllImport), not source-generated.
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern ushort RegisterClassW(ref WndClass wc);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    static extern nint CreateWindowExW(uint exStyle, string cls, string? title, uint style, int x, int y, int w, int h, nint parent, nint menu, nint instance, nint param);
-    [DllImport("user32.dll")] static extern nint DefWindowProcW(nint hwnd, uint msg, nint wparam, nint lparam);
-    [DllImport("user32.dll", SetLastError = true)] static extern bool RegisterRawInputDevices([In] RawInputDevice[] devices, uint count, uint size);
-    [DllImport("user32.dll")] static extern uint GetRawInputData(nint input, uint command, byte[] data, ref uint size, uint headerSize);
-    [DllImport("user32.dll")] static extern int GetMessageW(out Msg msg, nint hwnd, uint min, uint max);
-    [DllImport("user32.dll")] static extern nint DispatchMessageW(ref Msg msg);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern nint GetModuleHandleW(string? name);
+    [LibraryImport("user32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial nint CreateWindowExW(uint exStyle, string cls, string? title, uint style, int x, int y, int w, int h, nint parent, nint menu, nint instance, nint param);
+    [LibraryImport("user32.dll")] private static partial nint DefWindowProcW(nint hwnd, uint msg, nint wparam, nint lparam);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool RegisterRawInputDevices([In] RawInputDevice[] devices, uint count, uint size);
+    [LibraryImport("user32.dll")] private static partial uint GetRawInputData(nint input, uint command, byte[] data, ref uint size, uint headerSize);
+    [LibraryImport("user32.dll")] private static partial int GetMessageW(out Msg msg, nint hwnd, uint min, uint max);
+    [LibraryImport("user32.dll")] private static partial nint DispatchMessageW(ref Msg msg);
+    [LibraryImport("kernel32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial nint GetModuleHandleW(string? name);
 
     const uint WM_INPUT = 0x00FF, RID_INPUT = 0x10000003, RIDEV_INPUTSINK = 0x100;
     const uint RIM_TYPEMOUSE = 0, RIM_TYPEKEYBOARD = 1;

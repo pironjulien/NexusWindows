@@ -9,7 +9,7 @@ using System.Text.Json;
 // in memory on a monotonic clock: deleting the file or moving the wall clock never lifts it; only time does.
 sealed class EmergencyStopException(string message) : InvalidOperationException(message);
 
-static class EmergencyStop
+static partial class EmergencyStop
 {
     public const double HoldSeconds = 120;
     const int HeartbeatMs = 3000, WatchMs = 200;
@@ -76,9 +76,11 @@ static class EmergencyStop
     }
 
     // ---- Hotkey guard (--stop-guard): lives as long as its client keeps stdin open. ----
-    [DllImport("user32.dll", SetLastError = true)] static extern bool RegisterHotKey(nint hwnd, int id, uint modifiers, uint vk);
-    [DllImport("user32.dll")] static extern int GetMessageW(out Msg msg, nint hwnd, uint min, uint max);
-    [DllImport("user32.dll")] static extern nuint SetTimer(nint hwnd, nuint id, uint ms, nint callback);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool RegisterHotKey(nint hwnd, int id, uint modifiers, uint vk);
+    [LibraryImport("user32.dll")] private static partial int GetMessageW(out Msg msg, nint hwnd, uint min, uint max);
+    [LibraryImport("user32.dll")] private static partial nuint SetTimer(nint hwnd, nuint id, uint ms, nint callback);
     [StructLayout(LayoutKind.Sequential)] struct Msg { public nint Hwnd; public uint Message; public nuint WParam; public nint LParam; public uint Time; public int X, Y; }
     const uint ModAlt = 0x1, ModControl = 0x2, ModShift = 0x4, ModNoRepeat = 0x4000, VkEscape = 0x1B, WmHotkey = 0x312, WmTimer = 0x113;
     const int HotkeyId = 0x4E58; // "NX"

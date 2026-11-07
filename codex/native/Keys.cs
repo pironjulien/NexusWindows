@@ -8,24 +8,34 @@ using System.Runtime.InteropServices;
 // session, jamais annonce (« sent »). Tk : focus simule (WM_SETFOCUS envoye, WM_KILLFOCUS poste apres les touches).
 // Chromium : activation simulee (ChromiumInput.Keys). Alt et Windows : refus (les raccourcis systeme attendent
 // WM_SYSKEYDOWN). WPF, UWP, Firefox : non applicable (ignorent les touches postees, mesure).
-static class Keys
+static partial class Keys
 {
     [StructLayout(LayoutKind.Sequential)]
     struct GuiThreadInfo { public int Size, Flags; public nint Active, Focus, Capture, MenuOwner, MoveSize, Caret; public Win32.Rect CaretRect; }
-    [DllImport("user32.dll")] static extern bool GetGUIThreadInfo(uint thread, ref GuiThreadInfo info);
-    [DllImport("user32.dll")] static extern bool IsChild(nint parent, nint child);
-    [DllImport("user32.dll")] static extern bool GetKeyboardState(byte[] state);
-    [DllImport("user32.dll")] static extern bool SetKeyboardState(byte[] state);
-    [DllImport("user32.dll")] static extern uint MapVirtualKeyExW(uint code, uint type, nint layout);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern short VkKeyScanExW(char ch, nint layout);
-    [DllImport("user32.dll")] static extern nint GetKeyboardLayout(uint thread);
-    [DllImport("user32.dll")] static extern uint WaitForInputIdle(nint process, uint ms);
-    [DllImport("kernel32.dll")] static extern nint OpenProcess(uint access, bool inherit, uint pid);
-    [DllImport("kernel32.dll")] static extern bool CloseHandle(nint handle);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassNameW(nint hwnd, char[] name, int max);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetGUIThreadInfo(uint thread, ref GuiThreadInfo info);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsChild(nint parent, nint child);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetKeyboardState(byte[] state);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetKeyboardState(byte[] state);
+    [LibraryImport("user32.dll")] private static partial uint MapVirtualKeyExW(uint code, uint type, nint layout);
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial short VkKeyScanExW(char ch, nint layout);
+    [LibraryImport("user32.dll")] private static partial nint GetKeyboardLayout(uint thread);
+    [LibraryImport("user32.dll")] private static partial uint WaitForInputIdle(nint process, uint ms);
+    [LibraryImport("kernel32.dll")] private static partial nint OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint pid);
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseHandle(nint handle);
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int GetClassNameW(nint hwnd, [Out] char[] name, int max);
 
-    [DllImport("user32.dll")] static extern short GetAsyncKeyState(int vk);
-    [DllImport("user32.dll")] static extern nint SendMessageTimeoutW(nint hwnd, uint msg, nint wparam, nint lparam, uint flags, uint timeout, out nint result);
+    [LibraryImport("user32.dll")] private static partial short GetAsyncKeyState(int vk);
+    [LibraryImport("user32.dll")] private static partial nint SendMessageTimeoutW(nint hwnd, uint msg, nint wparam, nint lparam, uint flags, uint timeout, out nint result);
 
     const uint WM_SYSKEYDOWN = 0x0104, WM_SYSKEYUP = 0x0105;
     const uint WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101, WM_SETFOCUS = 0x0007, WM_KILLFOCUS = 0x0008;
