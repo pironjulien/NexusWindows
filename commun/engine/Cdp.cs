@@ -7,20 +7,20 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-// Molette Chromium (Chrome, Edge, Electron) par le protocole DevTools, seulement quand la cible a ete lancee avec un port
-// de debogage (banc commun du 21/10, recette B de Codex, meme mecanisme que nexus-windows for Claude). Molette « de
-// confiance » rendue par la page, sans activation de la fenetre ni curseur. Avant toute entree, quatre preuves
-// (relectures de Codex du 21/10) :
-// 1. le port figure dans la ligne de commande du processus de la fenetre ;
-// 2. l'adresse CONTACTEE (127.0.0.1:port, ou un listener 0.0.0.0:port) est ecoutee par le PID EXACT de la fenetre, et
-//    par lui seul (jamais un parent ou un enfant : Electron A lancant B avec le meme port) ; HTTP et WebSocket restent
-//    sur cet hote et ce port ;
-// 3. une seule page dont le titre decode egale celui de la fenetre (au suffixe de navigateur pres) ;
-// 4. preuve ACTIVE de la liaison fenetre <-> page : un titre aleatoire pose sur la page doit apparaitre dans le titre de
-//    CETTE fenetre en moins de 0,5 s ; le titre d'origine est toujours remis avant la molette (effet visible : titre de
-//    la fenetre change moins d'une demi-seconde). Une page qui ne reflete pas son titre (Electron setTitle) : refus.
-// Sinon : non applicable, RIEN n'est envoye. Un seul envoi : reponse absente apres l'envoi = issue inconnue, jamais
-// rejouee ni suivie d'une autre technique.
+// Chromium wheel (Chrome, Edge, Electron) through the DevTools protocol, only when the target was started with a
+// debugging port (shared bench of 21/10, Codex's recipe B, the same mechanism as nexus-windows for Claude). A "trusted"
+// wheel delivered by the page, without activating the window or moving the cursor. Before any input, four proofs
+// (Codex's reviews of 21/10):
+// 1. the port appears in the command line of the window's process;
+// 2. the CONTACTED address (127.0.0.1:port, or a 0.0.0.0:port listener) is listened on by the EXACT PID of the window,
+//    and by it alone (never a parent or a child: Electron A starting B with the same port); HTTP and WebSocket stay on
+//    that host and port;
+// 3. a single page whose decoded title equals the window's (up to the browser suffix);
+// 4. ACTIVE proof of the window <-> page binding: a random title set on the page must appear in the title of THIS
+//    window within 0.5 s; the original title is always put back before the wheel (visible effect: the window title
+//    changes for less than half a second). A page that does not reflect its title (Electron setTitle): refused.
+// Otherwise: not applicable, NOTHING is sent. A single send: no answer after the send = unknown outcome, never replayed
+// nor followed by another technique.
 static partial class Cdp
 {
     // Sec-WebSocket-Accept of the fixture servers: RFC 6455 section 4.2.2 fixes SHA-1 (a handshake check, not a security hash).
@@ -35,7 +35,7 @@ static partial class Cdp
     [LibraryImport("ntdll.dll")] private static partial int NtQueryInformationProcess(nint process, int infoClass, nint buffer, int length, out int returned);
     [LibraryImport("iphlpapi.dll")] private static partial uint GetExtendedTcpTable(nint table, ref int size, [MarshalAs(UnmanagedType.Bool)] bool sorted, int family, int tableClass, uint reserved);
 
-    // Ligne de commande d'un processus (ProcessCommandLineInformation, Windows 8.1+), sans WMI ; null si illisible.
+    // Command line of a process (ProcessCommandLineInformation, Windows 8.1+), without WMI; null if unreadable.
     static string? CommandLine(uint pid)
     {
         var process = OpenProcess(0x1000 /* PROCESS_QUERY_LIMITED_INFORMATION */, false, pid);
@@ -45,13 +45,13 @@ static partial class Cdp
         {
             if (NtQueryInformationProcess(process, 60, buffer, 65536, out _) < 0) return null;
             var length = (ushort)Marshal.ReadInt16(buffer); // UNICODE_STRING.Length (octets)
-            var text = Marshal.ReadIntPtr(buffer, 8);       // UNICODE_STRING.Buffer (dans notre tampon)
+            var text = Marshal.ReadIntPtr(buffer, 8);       // UNICODE_STRING.Buffer (in our buffer)
             return length == 0 || text == 0 ? null : Marshal.PtrToStringUni(text, length / 2);
         }
         finally { Marshal.FreeHGlobal(buffer); CloseHandle(process); }
     }
 
-    // Listeners TCP IPv4 du port : (adresse locale, PID proprietaire).
+    // IPv4 TCP listeners of the port: (local address, owning PID).
     static List<(string Address, uint Pid)> Listeners(int port)
     {
         var found = new List<(string, uint)>();
@@ -65,7 +65,7 @@ static partial class Cdp
             var count = Marshal.ReadInt32(table);
             for (var i = 0; i < count; i++)
             {
-                var row = table + 4 + i * 24; // MIB_TCPROW_OWNER_PID : etat, adresse, port, adresse distante, port distant, PID
+                var row = table + 4 + i * 24; // MIB_TCPROW_OWNER_PID: state, address, port, remote address, remote port, PID
                 var raw = (uint)Marshal.ReadInt32(row, 8);
                 if ((int)(((raw & 0xFF) << 8) | ((raw >> 8) & 0xFF)) != port) continue;
                 found.Add((new IPAddress((uint)Marshal.ReadInt32(row, 4)).ToString(), (uint)Marshal.ReadInt32(row, 20)));
@@ -75,14 +75,14 @@ static partial class Cdp
         return found;
     }
 
-    // L'adresse contactee (127.0.0.1:port, a defaut un listener 0.0.0.0:port) est-elle ecoutee par CE PID et lui seul ?
+    // Is the contacted address (127.0.0.1:port, failing that a 0.0.0.0:port listener) listened on by THIS PID alone?
     public static bool OwnsPort(uint windowPid, IEnumerable<(string Address, uint Pid)> listeners)
     {
         var reached = listeners.Where(l => l.Address is "127.0.0.1" or "0.0.0.0").ToList();
         return reached.Count > 0 && reached.All(l => l.Pid == windowPid);
     }
 
-    // Port 0 (« choisi par Chromium ») ou absent : pas de port connu.
+    // Port 0 ("chosen by Chromium") or absent: no known port.
     public static bool HasPort(nint window) => PortFrom(CommandLine(Win32.ProcessOf(window))) != null;
     public static int? PortFrom(string? commandLine)
     {
@@ -90,16 +90,16 @@ static partial class Cdp
         return match is { Success: true } && int.TryParse(match.Groups[1].Value, out var port) && port is > 0 and < 65536 ? port : null;
     }
 
-    // Titre de fenetre d'un navigateur : « page - [profil - ]Microsoft Edge|Google Chrome|Chromium » ; Edge a onglets ecrit
-    // « page - Profil 1 – Microsoft Edge » (tiret demi-cadratin, mesure le 22/10, preuve C) ; Electron : la page.
+    // Window title of a browser: "page - [profile - ]Microsoft Edge|Google Chrome|Chromium"; Edge with tabs writes
+    // "page - Profil 1 – Microsoft Edge" (en dash, measured on 22/10, proof C); Electron: the page.
     static readonly Regex BrowserSuffix = new("^ [-–] (?:[^\\r\\n]+? [-–] )?(?:Microsoft​? Edge|Google Chrome|Chromium|Brave)$", RegexOptions.CultureInvariant);
     public static bool TitleMatches(string windowTitle, string pageTitle) =>
         pageTitle.Length > 0 && (windowTitle == pageTitle ||
             windowTitle.StartsWith(pageTitle, StringComparison.Ordinal) && BrowserSuffix.IsMatch(windowTitle[pageTitle.Length..]));
 
-    // Page candidate : titre decode (/json/list echappe en HTML : « A &amp; B ») egal a celui de la fenetre au suffixe de
-    // navigateur pres, exactement une ; son WebSocket doit rester sur l'hote et le port prouves. Sinon : refus. La liaison
-    // reelle est ensuite prouvee activement (Prove).
+    // Candidate page: decoded title (/json/list is HTML-escaped: "A &amp; B") equal to the window's up to the browser
+    // suffix, exactly one; its WebSocket must stay on the proven host and port. Otherwise: refused. The real binding is
+    // then actively proven (Prove).
     public static string PickPage(JsonElement targets, string windowTitle, int port)
     {
         var pages = targets.EnumerateArray()
@@ -114,8 +114,8 @@ static partial class Cdp
         return $"ws://127.0.0.1:{port}{url.PathAndQuery}";
     }
 
-    // Controle hors ligne (tests) : stdin = {"title", "targets", "port", "commandLine", "pid", "listeners": [{"address",
-    // "pid"}]} ; sortie {"url"} ou {"error"}, "port" (lu dans la ligne de commande) et "owned".
+    // Offline check (tests): stdin = {"title", "targets", "port", "commandLine", "pid", "listeners": [{"address",
+    // "pid"}]}; output {"url"} or {"error"}, "port" (read in the command line) and "owned".
     public static int SelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
@@ -132,7 +132,7 @@ static partial class Cdp
         return 0;
     }
 
-    // Zones de rendu VISIBLES de toute la fenetre (Chrome_RenderWidgetHostHWND), a l'ecran.
+    // VISIBLE render areas of the whole window (Chrome_RenderWidgetHostHWND), on screen.
     static List<Win32.Rect> Surfaces(nint window)
     {
         var found = new List<Win32.Rect>();
@@ -145,9 +145,9 @@ static partial class Cdp
         return found;
     }
 
-    // Regle COMMUNE aux trois NexusWindows (relecture de Codex du 21/10 a 19:18) : exactement UNE zone de rendu visible dans
-    // toute la fenetre, le point dedans, et sa taille physique egale a round(innerWidth x DPR) / round(innerHeight x DPR)
-    // a ceil(DPR) px pres. Plusieurs zones visibles (applis multi-vues) : hors perimetre, refus. Rend l'ecart mesure.
+    // Rule SHARED by the three NexusWindows profiles (Codex's review of 21/10 at 19:18): exactly ONE visible render area in
+    // the whole window, the point inside it, and its physical size equal to round(innerWidth x DPR) / round(innerHeight x
+    // DPR) within ceil(DPR) px. Several visible areas (multi-view apps): out of scope, refused. Returns the measured gap.
     public static (int Index, int GapWidth, int GapHeight) PickSurface(IReadOnlyList<Win32.Rect> surfaces, int x, int y, double innerWidth, double innerHeight, double ratio)
     {
         if (!(double.IsFinite(innerWidth) && double.IsFinite(innerHeight) && double.IsFinite(ratio)) || innerWidth <= 0 || innerHeight <= 0 || ratio is <= 0.1 or >= 16)
@@ -164,8 +164,8 @@ static partial class Cdp
         return (0, gapWidth, gapHeight);
     }
 
-    // Controle hors ligne (tests) : stdin = {"surfaces": [[gauche, haut, droite, bas]], "point": [x, y], "inner": [l, h],
-    // "ratio"} ; sortie {"index", "gap"} ou {"error"}.
+    // Offline check (tests): stdin = {"surfaces": [[left, top, right, bottom]], "point": [x, y], "inner": [w, h],
+    // "ratio"}; output {"index", "gap"} or {"error"}.
     public static int SurfaceSelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
@@ -185,8 +185,8 @@ static partial class Cdp
         return 0;
     }
 
-    // Une connexion DevTools a une page (une requete a la fois, reponses correlees par id ; les evenements recus en chemin
-    // sont gardes pour qui les attend : Input.dragIntercepted).
+    // A DevTools connection to a page (one request at a time, answers matched by id; events received on the way are kept
+    // for whoever waits for them: Input.dragIntercepted).
     sealed class Session : IDisposable
     {
         readonly ClientWebSocket socket = new();
@@ -239,7 +239,7 @@ static partial class Cdp
                 return reply.RootElement.GetProperty("result").Clone();
             }
         }
-        // Exception JavaScript (exceptionDetails) : jamais un resultat (relecture de Codex du 22/10 11:27).
+        // JavaScript exception (exceptionDetails): never a result (Codex's review of 22/10 11:27).
         public JsonElement Evaluate(string expression)
         {
             var reply = Call("Runtime.evaluate", new CdpEvaluateJson(expression: expression, returnByValue: true));
@@ -261,11 +261,11 @@ static partial class Cdp
         }
     }
 
-    // Glisser-deposer dans la page, en arriere-plan (banc commun du 01/11 : refuse sans premier plan jusque-la). Bouton
-    // presse au depart, deplacements, puis relache a l'arrivee. Un glisser HTML5 (draggable) est intercepte par Chromium
-    // (Input.setInterceptDrags) au lieu d'ouvrir la boucle de glisser du systeme, qui lirait la vraie souris : ses donnees
-    // sont deposees a l'arrivee par Input.dispatchDragEvent (dragEnter, dragOver, drop). Un glisser a la souris (pointeur,
-    // canevas) recoit les memes evenements de souris. Memes preuves que la molette avant toute entree ; envoi unique.
+    // Drag and drop in the page, in the background (shared bench of 01/11: refused without the foreground until then).
+    // Button pressed at the start, moves, then released at the arrival. An HTML5 drag (draggable) is intercepted by
+    // Chromium (Input.setInterceptDrags) instead of opening the system's drag loop, which would read the real mouse: its
+    // data is dropped at the arrival through Input.dispatchDragEvent (dragEnter, dragOver, drop). A mouse drag (pointer,
+    // canvas) receives the same mouse events. The same proofs as the wheel before any input; a single send.
     public static Outcome Drag(nint window, int x, int y, int toX, int toY, Action started)
     {
         var page = Open(window, x, y);
@@ -288,7 +288,7 @@ static partial class Cdp
                 const int Steps = 12;
                 for (var i = 1; i <= Steps; i++)
                     s.Call("Input.dispatchMouseEvent", new CdpDragJson4(type: "mouseMoved", x: ax + (bx - ax) * i / Steps, y: ay + (by - ay) * i / Steps, button: "left", buttons: 1));
-                s.Evaluate("0"); // un aller-retour de plus : l'interception emise au dernier deplacement est lue
+                s.Evaluate("0"); // one more round trip: the interception emitted at the last move is read
                 var intercepted = s.Events.FirstOrDefault(e => e.Method == "Input.dragIntercepted");
                 if (intercepted.Method is not null)
                 {
@@ -307,8 +307,8 @@ static partial class Cdp
 
     sealed record Page(Session Session, int Port, Win32.Rect Surface, double Ratio, string Measured);
 
-    // Page DevTools prouvee de la fenetre et surface rendue sous le point : port de la ligne de commande, ecoute par le seul
-    // processus de la fenetre, page au titre prouve, taille CSS et DPR. Tout echec : non applicable, rien n'est envoye.
+    // Proven DevTools page of the window and render surface under the point: port from the command line, listened on by
+    // the window's process alone, page with a proven title, CSS size and DPR. Any failure: not applicable, nothing is sent.
     static Page Open(nint window, int x, int y)
     {
         var pid = Win32.ProcessOf(window);
@@ -342,7 +342,7 @@ static partial class Cdp
             if (values is not { Length: 3 }) throw new BackgroundNotApplicableException("Page size or devicePixelRatio unreadable: nothing was sent");
             var (index, gapWidth, gapHeight) = PickSurface(surfaces, x, y, values[0], values[1], values[2]);
             var surface = surfaces[index];
-            // Releve pour le banc : taille CSS, DPR, rectangle de la zone et ecart mesure.
+            // Recorded for the bench: CSS size, DPR, the area's rectangle and the measured gap.
             var measured = $"inner {values[0]}x{values[1]} at DPR {values[2]}, surface [{surface.Left},{surface.Top},{surface.Right},{surface.Bottom}], gap {gapWidth}/{gapHeight} px";
             return new Page(session, port, surface, values[2], measured);
         }
@@ -354,9 +354,9 @@ static partial class Cdp
         }
     }
 
-    // Envoi UNIQUE de la molette : arret d'urgence verifie au dernier moment (un arret survenu pendant la preparation, preuve
-    // ou mesures, n'envoie rien) ; reponse absente apres l'envoi = issue inconnue, jamais rejouee ni suivie d'une autre
-    // technique (traces D de la relecture de Codex du 22/10, tests/CdpTests.cs).
+    // SINGLE send of the wheel: emergency stop checked at the last moment (a stop raised during the preparation, proof or
+    // measurements, sends nothing); no answer after the send = unknown outcome, never replayed nor followed by another
+    // technique (traces D of Codex's review of 22/10, tests/CdpTests.cs).
     static void Dispatch(Func<string, object, JsonElement> call, object wheel, Action started)
     {
         EmergencyStop.ThrowIfStopped();
@@ -365,21 +365,21 @@ static partial class Cdp
         catch (Exception error) { throw new InvalidOperationException("DevTools wheel sent without acknowledgement; outcome unknown, do not replay", error); }
     }
 
-    // Une operation sur une NOUVELLE connexion a la page : ouvre, evalue PUIS ferme, dans le meme appel (relecture de Codex
-    // de 19:28 : la session etait fermee avant son usage, le nettoyage de secours echouait toujours).
+    // An operation on a NEW connection to the page: opens, evaluates THEN closes, in the same call (Codex's review of
+    // 19:28: the session was closed before it was used, the emergency cleanup always failed).
     public static Func<string, JsonElement> FreshEvaluator(string url) => expression =>
     {
         using var session = new Session(url);
         return session.Evaluate(expression);
     };
 
-    // Preuve active de la liaison fenetre <-> page : un titre aleatoire pose sur la page doit apparaitre dans le titre de
-    // CETTE fenetre (au suffixe de navigateur pres) en moins de ProofMs. Pose CONDITIONNELLE (le titre n'a pas change
-    // depuis sa lecture) faite SOUS le nettoyage : pose appliquee mais reponse perdue = nettoyage quand meme. Nettoyage
-    // conditionnel (le nonce y est encore : un titre legitimement change n'est jamais ecrase), retente sur une NOUVELLE
-    // connexion si la premiere casse. Puis le titre FINAL reel de la page (document.title) doit etre celui de la fenetre :
-    // un autre onglet active pendant le nettoyage ne passe plus (relecture de Codex de 19:28). Tout echec : refus, rien
-    // n'est envoye ; un nettoyage impossible est dit explicitement.
+    // Active proof of the window <-> page binding: a random title set on the page must appear in the title of THIS window
+    // (up to the browser suffix) within ProofMs. CONDITIONAL setting (the title has not changed since it was read) done
+    // UNDER the cleanup: setting applied but answer lost = cleanup anyway. Conditional cleanup (the nonce is still there:
+    // a title legitimately changed is never overwritten), tried again on a NEW connection if the first one breaks. Then
+    // the page's real FINAL title (document.title) must be the window's: another tab activated during the cleanup no
+    // longer passes (Codex's review of 19:28). Any failure: refused, nothing is sent; an impossible cleanup is stated
+    // explicitly.
     public static void Prove(Func<string, JsonElement> evaluate, Func<string, JsonElement> fresh, Func<string> windowTitle, string? nonce = null)
     {
         nonce ??= "nexus-" + Guid.NewGuid().ToString("N");
@@ -387,8 +387,8 @@ static partial class Cdp
         var (quotedTitle, quotedNonce) = (EngineJson.Serialize(title), EngineJson.Serialize(nonce));
         var restore = $"(() => {{ if (document.title === {quotedNonce}) document.title = {quotedTitle}; return true; }})()";
         var seen = false;
-        string? dressing = null; // habillage EXACT de la fenetre autour du titre de la page, observe avec le nonce
-        var touched = false;     // pose envoyee : appliquee, ou reponse perdue (issue inconnue)
+        string? dressing = null; // the window's EXACT dressing around the page title, observed with the nonce
+        var touched = false;     // setting sent: applied, or answer lost (unknown outcome)
         Exception? failure = null;
         try
         {
@@ -409,8 +409,8 @@ static partial class Cdp
             }
         }
         catch (Exception error) { failure = error; }
-        // Remise VERIFIEE sur tous les chemins, avant de propager toute erreur (relecture de Codex du 22/10 11:27) : page puis
-        // titre de la fenetre ; nonce restant ou remise invérifiable = refus terminal.
+        // CHECKED restore on every path, before raising any error (Codex's review of 22/10 11:27): page then window title;
+        // a remaining nonce or an unverifiable restore = terminal refusal.
         if (touched) VerifyCleanup(evaluate, fresh, windowTitle, restore, nonce);
         if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
         if (!seen) throw new BackgroundNotApplicableException("This DevTools page is not proven to be the window (its title never showed up in the window): nothing was sent");
@@ -419,8 +419,8 @@ static partial class Cdp
         catch (Exception) { final = Text(fresh("document.title")); }
         if (final is null || final.Contains(nonce, StringComparison.Ordinal))
             throw new ActionRefusedException($"Test title « {nonce} » may remain on the page (unreadable after the proof): no wheel was sent and no other technique may follow");
-        // Titre final + l'habillage EXACT vu avec le nonce (relecture de Codex de 19:36) : le suffixe de navigateur n'est plus
-        // reinterprete (onglet B « Rapport - Personnel » devant ne passe plus pour la page A « Rapport »).
+        // Final title + the EXACT dressing seen with the nonce (Codex's review of 19:36): the browser suffix is no longer
+        // reinterpreted (tab B "Rapport - Personnel" in front no longer passes for page A "Rapport").
         var back = Stopwatch.StartNew();
         while (windowTitle() != final + dressing)
         {
@@ -430,9 +430,9 @@ static partial class Cdp
         }
     }
 
-    // Remise du titre apres une pose : nettoyage conditionnel (deux connexions), puis titre de la PAGE relu sans le nonce,
-    // puis titre de la FENETRE sans le nonce en moins de ProofMs. Tout echec : refus terminal, la page est peut-etre
-    // modifiee ; aucune autre technique ne suit, premier plan permis ou non (preuve C).
+    // Restoring the title after setting it: conditional cleanup (two connections), then the PAGE title read again without
+    // the nonce, then the WINDOW title without the nonce within ProofMs. Any failure: terminal refusal, the page may be
+    // modified; no other technique follows, foreground allowed or not (proof C).
     static void VerifyCleanup(Func<string, JsonElement> evaluate, Func<string, JsonElement> fresh, Func<string> windowTitle, string restore, string nonce)
     {
         ActionRefusedException Terminal(string why) =>
@@ -455,16 +455,16 @@ static partial class Cdp
         }
     }
 
-    // Classement d'une erreur de preparation (preuve, mesures) : refus, arret et non applicable gardes ; toute autre
-    // erreur, avant l'entree, devient « non applicable » (rien n'a ete envoye).
+    // Sorting of a preparation error (proof, measurements): refusal, stop and not applicable kept; any other error, before
+    // the input, becomes "not applicable" (nothing was sent).
     static Exception BeforeInput(Exception error) =>
         error is BackgroundNotApplicableException or ActionRefusedException or EmergencyStopException ? error
             : new BackgroundNotApplicableException($"DevTools page unreachable before input ({error.GetType().Name}): nothing was sent");
 
     static string? Text(JsonElement result) => result.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
-    // Nettoyage conditionnel, sur la connexion courante puis, si elle a casse, sur une nouvelle connexion a la meme page.
-    // Reussi seulement si le script a rendu `true` (un objet d'erreur ou autre valeur ne vaut pas nettoyage).
+    // Conditional cleanup, on the current connection then, if it broke, on a new connection to the same page. Succeeds
+    // only if the script returned `true` (an error object or any other value does not count as a cleanup).
     static bool Clean(Func<string, JsonElement> evaluate, Func<string, JsonElement> fresh, string restore)
     {
         static bool Done(JsonElement result) => result.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.True;
@@ -474,12 +474,11 @@ static partial class Cdp
         catch (Exception) { return false; }
     }
 
-    // Controle hors ligne (tests) de la preuve par le titre sur une page et une fenetre simulees, DECOUPLEES (le titre de la
-    // fenetre n'est pas deduit de la page). stdin = {"scenario"} : « nominal », « lost-pose » (pose appliquee, reponse
-    // perdue, connexion cassee), « title-changed », « dead » (deux connexions cassees apres la pose), « never-shown »,
-    // « tab-switched » (un autre onglet est affiche pendant le nettoyage), « page-retitled » (la page change elle-meme
-    // de titre pendant la preuve), « profile-confusion » (l'onglet B « Labo - Personnel » passe devant). Sortie : {"ok"}
-    // ou {"error"}, et "pageTitle" final.
+    // Offline check (tests) of the title proof on a simulated page and window, DECOUPLED (the window title is not derived
+    // from the page). stdin = {"scenario"}: "nominal", "lost-pose" (setting applied, answer lost, connection broken),
+    // "title-changed", "dead" (two connections broken after the setting), "never-shown", "tab-switched" (another tab is
+    // shown during the cleanup), "page-retitled" (the page changes its own title during the proof), "profile-confusion"
+    // (tab B "Labo - Personnel" comes in front). Output: {"ok"} or {"error"}, and the final "pageTitle".
     public static int ProveSelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
@@ -514,7 +513,7 @@ static partial class Cdp
         var dressing = scenario == "profile-confusion" ? " - Google Chrome" : " - Microsoft Edge";
         string Window()
         {
-            if (stuck && posedOnce) return "nexus-test" + dressing; // titre de la fenetre reste sur le nonce
+            if (stuck && posedOnce) return "nexus-test" + dressing; // the window title stays on the nonce
             if (scenario == "page-retitled" && shown.StartsWith("nexus-", StringComparison.Ordinal)) { var nonce = shown; page = "Nouveau"; shown = "Nouveau"; return nonce + dressing; }
             return (scenario == "never-shown" && shown.StartsWith("nexus-", StringComparison.Ordinal) ? "Labo" : shown) + dressing;
         }
@@ -525,13 +524,13 @@ static partial class Cdp
         return 0;
     }
 
-    // Preuve C (relecture de Codex du 22/10) sur un VRAI navigateur (fenetre lancee avec un port DevTools) : la preuve par
-    // le titre et son nettoyage passent par les vraies connexions, ruptures provoquees aux points critiques. stdin =
-    // {"hwnd", "scenario"} : « nominal » ; « lost-pose » (pose APPLIQUEE puis connexion coupee sans reponse) ; « dead »
-    // (en plus, toute nouvelle connexion refusee) ; « legit-retitle » (la page change elle-meme de titre pendant la
-    // preuve) ; « tab-switch » (un autre onglet passe devant juste avant le nettoyage). Sortie : issue (ok ou erreur et son
-    // type), connexions neuves ouvertes, titre DOM et titre de la FENETRE avant et apres ; « dead » : titre d'origine remis
-    // ensuite par le controle lui-meme (indique). Jamais de molette envoyee.
+    // Proof C (Codex's review of 22/10) on a REAL browser (a window started with a DevTools port): the title proof and its
+    // cleanup go through the real connections, breaks caused at the critical points. stdin = {"hwnd", "scenario"}:
+    // "nominal"; "lost-pose" (setting APPLIED then connection cut without an answer); "dead" (on top of that, any new
+    // connection refused); "legit-retitle" (the page changes its own title during the proof); "tab-switch" (another tab
+    // comes in front just before the cleanup). Output: outcome (ok or error and its type), fresh connections opened, DOM
+    // title and WINDOW title before and after; "dead": original title put back afterwards by the check itself (stated).
+    // Never a wheel sent.
     public static int ProveLiveSelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
@@ -603,10 +602,10 @@ static partial class Cdp
         return 0;
     }
 
-    // Traces D (relecture de Codex du 22/10), par la VRAIE connexion (Session) contre un serveur DevTools local instrumente :
-    // « ack-lost » : la molette est recue puis la connexion coupee sans reponse ; « stop-during-prepare » : l'arret
-    // d'urgence est pose pendant la preparation (evaluation). Sortie : {"outcome", "started", "dispatched", "evaluated"}.
-    // Exige NEXUS_SHARED_HOME (dossier de test) : le vrai fichier d'arret n'est jamais ecrit.
+    // Traces D (Codex's review of 22/10), through the REAL connection (Session) against an instrumented local DevTools
+    // server: "ack-lost": the wheel is received then the connection cut without an answer; "stop-during-prepare": the
+    // emergency stop is set during the preparation (evaluation). Output: {"outcome", "started", "dispatched", "evaluated"}.
+    // Requires NEXUS_SHARED_HOME (test folder): the real stop file is never written.
     public static int WheelTraceSelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
@@ -630,7 +629,7 @@ static partial class Cdp
         return 0;
     }
 
-    // Serveur DevTools local : repond a Runtime.evaluate ; a Input.dispatchMouseEvent, compte puis coupe sans reponse.
+    // Local DevTools server: answers Runtime.evaluate; on Input.dispatchMouseEvent, counts then cuts without an answer.
     static (int Port, List<string> Dispatched, List<string> Evaluated, Thread Server) InstrumentedServer()
     {
         var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
@@ -689,8 +688,8 @@ static partial class Cdp
         stream.Write(frame.ToArray());
     }
 
-    // Controle hors ligne (tests) du nettoyage de secours par la VRAIE fabrique de connexion (FreshEvaluator, Session) contre
-    // un serveur WebSocket local minimal qui repond a Runtime.evaluate. Sortie : {"cleaned", "received"}.
+    // Offline check (tests) of the emergency cleanup through the REAL connection factory (FreshEvaluator, Session) against
+    // a minimal local WebSocket server that answers Runtime.evaluate. Output: {"cleaned", "received"}.
     public static int SessionSelfTest()
     {
         var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);

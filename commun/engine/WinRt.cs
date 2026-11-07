@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-// Operation asynchrone annulee qui n'a pas atteint d'etat terminal : jamais fermee (contrat IAsyncInfo.Close), ses
-// objets sont laisses vivants ; l'appelant cesse d'utiliser le service jusqu'a la fin du processus.
+// A cancelled asynchronous operation that did not reach a terminal state: never closed (IAsyncInfo.Close contract), its
+// objects are left alive; the caller stops using the service until the process ends.
 sealed class WinRtStuckException(string message) : TimeoutException(message);
 
 sealed class WinRtException(string what, int hr) : InvalidOperationException($"{what} failed (0x{hr:X8})")
@@ -10,9 +10,9 @@ sealed class WinRtException(string what, int hr) : InvalidOperationException($"{
     public int HResult32 { get; } = hr;
 }
 
-// WinRT appele en COM brut (combase + vtables) : OCR (Ocr.cs) et Windows.Graphics.Capture (Wgc.cs) sans la projection
-// CsWinRT (Microsoft.Windows.SDK.NET.dll, ~25 Mo) ni aucun paquet. IID et ordre des methodes (emplacement 6 = premiere
-// methode apres IInspectable) relus dans les metadonnees du systeme (System32\WinMetadata\*.winmd) le 27/10.
+// WinRT called as raw COM (combase + vtables): OCR (Ocr.cs) and Windows.Graphics.Capture (Wgc.cs) without the CsWinRT
+// projection (Microsoft.Windows.SDK.NET.dll, ~25 MB) or any package. IIDs and method order (slot 6 = first method after
+// IInspectable) read from the system metadata (System32\WinMetadata\*.winmd) on 27/10.
 static unsafe partial class WinRt
 {
     [LibraryImport("combase.dll")] private static partial int RoGetActivationFactory(nint classId, Guid* iid, nint* factory);
@@ -35,7 +35,7 @@ static unsafe partial class WinRt
         return factory;
     }
 
-    // 0 si l'objet n'offre pas l'interface (Windows plus ancien : reglage facultatif ignore).
+    // 0 when the object does not offer the interface (older Windows: optional setting ignored).
     public static nint Query(nint obj, Guid iid)
     {
         nint result;
@@ -50,7 +50,7 @@ static unsafe partial class WinRt
 
     public static void Release(nint obj) { if (obj != 0) ((delegate* unmanaged<nint, uint>)Slot(obj, 2))(obj); }
 
-    // Close (IClosable) puis Release : ressources natives rendues tout de suite, jamais au gre du ramasse-miettes.
+    // Close (IClosable) then Release: native resources given back at once, never at the garbage collector's leisure.
     public static void Close(nint obj)
     {
         if (obj == 0) return;
@@ -59,7 +59,7 @@ static unsafe partial class WinRt
         Release(obj);
     }
 
-    // HSTRING rendue par une methode : lue puis liberee.
+    // HSTRING returned by a method: read, then freed.
     public static string Take(nint hstring)
     {
         if (hstring == 0) return "";
@@ -67,10 +67,10 @@ static unsafe partial class WinRt
         finally { _ = WindowsDeleteString(hstring); }
     }
 
-    // Attente bornee d'une IAsyncOperation<T> par IAsyncInfo.Status (aucun delegue COM a implementer), puis GetResults
-    // (emplacement 8). Delai depasse : annulee, puis attente bornee de son etat terminal ; Close seulement une fois
-    // terminee (IAsyncInfo.Close est interdit avant, relecture de Codex du 27/10). Jamais terminee : WinRtStuckException,
-    // operation laissee vivante (aucun Close, aucun Release).
+    // Bounded wait on an IAsyncOperation<T> through IAsyncInfo.Status (no COM delegate to implement), then GetResults
+    // (slot 8). Timeout: cancelled, then a bounded wait for its terminal state; Close only once it has ended
+    // (IAsyncInfo.Close is forbidden before, Codex's review of 27/10). Never ended: WinRtStuckException, operation left
+    // alive (no Close, no Release).
     const int CancelWaitMs = 2000;
     public static nint Await(nint operation, int timeoutMs, string what)
     {

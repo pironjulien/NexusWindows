@@ -15,6 +15,14 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 - Tests: no test can show a Windows error box. The test process sets the error mode (no critical-error, crash or
   missing-file box) when it loads, and every process it starts inherits it; a test checks it in a child process.
 
+### Changed
+- The engine's source comments are all in English: the 31 files that still held comments written in French before the
+  profiles were merged are translated (comments only, no code change), and the English comments test no longer keeps a
+  list of exceptions. It now also reads the comments of every versioned PowerShell and batch script (`commun/native-runtime.ps1`
+  translated).
+- CI: the Tests, Fuzz and Release workflows install the .NET SDK named by `global.json` (`global-json-file`) instead of
+  the latest 10.0.x, so the CI and the local build use the same reference.
+
 ## [3.17.5] - 2026-11-07
 
 ### Fixed

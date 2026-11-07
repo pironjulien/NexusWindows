@@ -1,12 +1,13 @@
 using System.Runtime.InteropServices;
 
-// Tk en arriere-plan (recette de NexusClaude du 23/10, relue par Codex en six tours ; portee dans NexusAGY 3.0.2, relue
-// en cinq tours). Tk lit l'etat des boutons par GetKeyState au traitement du message (TkWinGetModifierState) : un clic
-// poste sans bouton « enfonce » est ignore. Pression ENVOYEE avec le bouton simule pour le seul fil de Tk, par un fil
-// auxiliaire qui possede pression ET relachement (le delai de SendMessageTimeout n'est pas garanti sous AttachThreadInput) ;
-// une pression simulee a la fois par fil ; relachement sans reponse : fil ferme aux pressions simulees tant que la
-// fenetre existe. Molette : Tk la renvoie a la fenetre sous le point (WindowFromPoint), perdue si elle est recouverte ;
-// une liste defile par sa barre native (tk.Scrollbar) COLLEE au widget vise, position relue (GetScrollInfo).
+// Tk in the background (NexusClaude's recipe of 23/10, reviewed by Codex in six rounds; ported to NexusAGY 3.0.2,
+// reviewed in five rounds). Tk reads the button state through GetKeyState when it handles the message
+// (TkWinGetModifierState): a click posted without a "pressed" button is ignored. Press SENT with the button simulated
+// for Tk's thread only, by an auxiliary thread that owns both press AND release (SendMessageTimeout's delay is not
+// guaranteed under AttachThreadInput); one simulated press at a time per thread; a release without an answer: the
+// thread is closed to simulated presses while the window exists. Wheel: Tk sends it to the window under the point
+// (WindowFromPoint), lost if it is covered; a list scrolls through its native bar (tk.Scrollbar) ATTACHED to the
+// targeted widget, position read back (GetScrollInfo).
 static partial class TkInput
 {
     [LibraryImport("user32.dll")]
@@ -42,8 +43,8 @@ static partial class TkInput
     static bool InFront(uint thread) { var fg = Win32.GetForegroundWindow(); return fg != 0 && ThreadOf(fg) == thread; }
     static bool Send(nint hwnd, uint msg, nint wparam, nint lparam) => SendMessageTimeoutW(hwnd, msg, wparam, lparam, 0x0002 /* ABORTIFHUNG */, 1000, out _) != 0;
 
-    // Touche `vk` « enfoncee » pour le seul fil de `target` ; en sortie, elle seule reprend sa valeur d'avant (son etat
-    // physique si l'utilisateur a pris la fenetre) ; lecture impossible : l'etat d'avant entier.
+    // Key `vk` "pressed" for the thread of `target` only; on exit, it alone gets its previous value back (its physical
+    // state if the user took the window); unreadable: the whole previous state.
     sealed class SimulatedKey : IDisposable
     {
         readonly uint own = Win32.GetCurrentThreadId(), thread;
@@ -81,7 +82,7 @@ static partial class TkInput
         var thread = ThreadOf(target);
         lock (Gate) if (!Pending.Add(thread)) throw new ActionRefusedException("A previous simulated press in this application is not finished");
         var sync = new object();
-        var abandoned = false; // sous `sync` : l'abandon et la decision de presser s'excluent (relecture de Codex du 24/10)
+        var abandoned = false; // under `sync`: giving up and the decision to press exclude each other (Codex's review of 24/10)
         var done = new ManualResetEventSlim();
         Exception? error = null;
         var worker = new Thread(() =>
@@ -92,10 +93,10 @@ static partial class TkInput
                 lock (sync) if (abandoned) return;
                 using (new SimulatedKey(target, vk))
                 {
-                    EmergencyStop.ThrowIfStopped(); // relu juste avant la pression
+                    EmergencyStop.ThrowIfStopped(); // read again just before the press
                     lock (sync)
                     {
-                        if (abandoned) return; // le fil de travail a deja rendu : plus aucune pression
+                        if (abandoned) return; // the working thread has already returned: no more press
                         pressed = true;
                     }
                     if (!Send(target, down, mk, lp)) error ??= new InvalidOperationException("The press got no answer within 1 s; outcome unknown");
@@ -106,11 +107,11 @@ static partial class TkInput
             {
                 try
                 {
-                    if (pressed && !Send(target, up, 0, lp)) // relachement de nettoyage, etat deja restaure : toujours envoye
+                    if (pressed && !Send(target, up, 0, lp)) // cleanup release, state already restored: always sent
                     {
                         error ??= new InvalidOperationException("The release got no answer within 1 s; outcome unknown");
                         done.Set();
-                        while (Win32.IsWindow(target)) Thread.Sleep(1000); // jamais prouve solde : fil ferme aux pressions simulees
+                        while (Win32.IsWindow(target)) Thread.Sleep(1000); // never proven settled: thread closed to simulated presses
                     }
                 }
                 finally { lock (Gate) Pending.Remove(thread); done.Set(); }
@@ -122,7 +123,7 @@ static partial class TkInput
         {
             while (!done.Wait(20))
             {
-                EmergencyStop.ThrowIfStopped(); // arret d'urgence : abandon, l'auxiliaire non parti n'envoie plus rien
+                EmergencyStop.ThrowIfStopped(); // emergency stop: given up, the auxiliary thread that has not left sends nothing more
                 if (Environment.TickCount64 >= deadline) throw new InvalidOperationException("The press got no answer within 1 s; outcome unknown");
             }
         }
@@ -130,7 +131,7 @@ static partial class TkInput
         if (error != null) throw error;
     }
 
-    // Survol Tk : WM_MOUSEMOVE ENVOYE (Tk le traite comme un vrai mouvement : <Enter>, <Motion>), curseur intact.
+    // Tk hover: WM_MOUSEMOVE SENT (Tk handles it as a real move: <Enter>, <Motion>), cursor untouched.
     public static Outcome Hover(nint target, nint lp, Action started)
     {
         if (InFront(ThreadOf(target))) throw new BackgroundNotApplicableException("The Tk window is in the foreground: nothing simulated");
@@ -140,20 +141,20 @@ static partial class TkInput
         return new("background:messages", "sent WM_MOUSEMOVE (hover)", "sent");
     }
 
-    // Invoke d'un bouton Tk : BN_CLICKED (0) poste au bouton lui-meme, wParam non nul (ButtonProc de tkWinButton.c ignore
-    // un 0 sans parametre, le « ping » WM_NULL). Tk refuse lui-meme un bouton desactive (STATE_DISABLED) : effet relu par
-    // la postcondition de la session, jamais annonce.
+    // Invoke of a Tk button: BN_CLICKED (0) posted to the button itself, non-zero wParam (ButtonProc in tkWinButton.c
+    // ignores a 0 without a parameter, the WM_NULL "ping"). Tk itself refuses a disabled button (STATE_DISABLED): the
+    // effect is read back by the session's postcondition, never announced.
     public static Outcome Invoke(nint button, Action started)
     {
         if (!Win32.IsWindowEnabled(button)) throw new ActionRefusedException("Button is disabled");
         EmergencyStop.ThrowIfStopped();
         started();
-        Win32.Post(button, 0 /* BN_CLICKED, lu par ButtonProc de Tk */, 1, button);
+        Win32.Post(button, 0 /* BN_CLICKED, read by Tk's ButtonProc */, 1, button);
         return new("background:messages", "Tk button invoke (BN_CLICKED posted to the button, tkWinButton.c)", "sent");
     }
 
-    // Clic Tk : survol envoye puis, pour chaque pression, le bouton simule pour le seul fil de Tk. started() avant le
-    // premier envoi : au-dela, toute erreur est une issue inconnue (jamais rejouee, jamais de vraie souris par-dessus).
+    // Tk click: hover sent then, for each press, the button simulated for Tk's thread only. started() before the first
+    // send: past it, any error is an unknown outcome (never replayed, never a real mouse on top).
     public static Outcome Click(nint target, nint lp, string button, int count, Action started)
     {
         if (!Buttons.TryGetValue(button, out var b)) throw new InvalidOperationException("Invalid mouse button");
@@ -171,8 +172,8 @@ static partial class TkInput
         return new("background:messages", count == 2 ? "sent double click, button marked pressed for Tk's thread" : $"sent {button} click, button marked pressed for Tk's thread", "sent");
     }
 
-    // Barre native visible du bon sens, soeur du widget sous le point, COLLEE a lui sur toute sa hauteur (largeur), et
-    // collee a aucun autre widget frere ; exactement une, sinon 0 (rien devine).
+    // A visible native bar of the right direction, sibling of the widget under the point, ATTACHED to it over its whole
+    // height (width), and attached to no other sibling widget; exactly one, otherwise 0 (nothing guessed).
     static nint BarBeside(nint under, bool vertical)
     {
         if (under == 0 || ClassOf(under).Equals("ScrollBar", StringComparison.OrdinalIgnoreCase)) return 0;
@@ -206,19 +207,19 @@ static partial class TkInput
 
     public static bool HasBar(nint under, bool vertical) => BarBeside(under, vertical) != 0;
 
-    // Defilement d'une liste Tk par sa barre native : un seul axe ; aucune barre, ou deja en butee : refus avant toute
-    // entree ; lignes envoyees comme un clic sur la fleche, position relue 1 s au plus (« applied » si elle a bouge).
+    // Scrolling a Tk list through its native bar: a single axis; no bar, or already at the end: refused before any
+    // input; lines sent like a click on the arrow, position read back for 1 s at most ("applied" if it moved).
     public static Outcome Scroll(nint under, int deltaY, int deltaX, Action started)
     {
         if ((deltaY == 0) == (deltaX == 0)) throw new BackgroundNotApplicableException("Tk scroll bar: one axis at a time");
         var vertical = deltaY != 0;
-        var forward = vertical ? deltaY < 0 : deltaX > 0; // deltaY negatif = vers le bas (WHEEL_DELTA)
+        var forward = vertical ? deltaY < 0 : deltaX > 0; // negative deltaY = down (WHEEL_DELTA)
         var bar = BarBeside(under, vertical);
         if (bar == 0) throw new BackgroundNotApplicableException("No native scroll bar drives what is under the point (Tk routes the wheel to the window on top)");
         var before = State(bar) ?? throw new BackgroundNotApplicableException("The scroll bar position cannot be read");
         var end = Math.Max(before.Min, before.Max - Math.Max((int)before.Page, 1) + 1);
         if (forward ? before.Pos >= end : before.Pos <= before.Min) throw new BackgroundNotApplicableException("The scroll bar is already at the " + (forward ? "end" : "start"));
-        // Au plus 50 crans (150 lignes) par geste, comme NexusClaude : jamais des milliers de messages d'un coup.
+        // At most 50 notches (150 lines) per gesture, like NexusClaude: never thousands of messages at once.
         var lines = Math.Min(50, Math.Max(1, Math.Abs(vertical ? deltaY : deltaX) / 120)) * LinesPerNotch;
         var parent = Win32.GetParent(bar);
         var msg = vertical ? WM_VSCROLL : WM_HSCROLL;
@@ -229,13 +230,13 @@ static partial class TkInput
         {
             for (var i = 0; i < lines; i++)
             {
-                if (i > 0) EmergencyStop.ThrowIfStopped(); // arret d'urgence entre deux lignes : la suivante ne part pas
+                if (i > 0) EmergencyStop.ThrowIfStopped(); // emergency stop between two lines: the next one does not leave
                 Win32.Post(parent, msg, forward ? SB_LINEDOWN : SB_LINEUP, bar);
             }
         }
         catch (Exception error) { pending = error; }
-        // Fin du defilement toujours signalee ; son echec ne masque jamais l'erreur en cours (arret d'urgence compris,
-        // relecture de Codex du 24/10) : il n'est propage seul que si tout le reste a reussi.
+        // The end of scrolling is always signalled; its failure never hides the current error (emergency stop included,
+        // Codex's review of 24/10): it is raised alone only if everything else succeeded.
         try { Win32.Post(parent, msg, SB_ENDSCROLL, bar); }
         catch (Exception cleanup) when (pending is not null) { System.Diagnostics.Trace.WriteLine("SB_ENDSCROLL: " + cleanup.Message); }
         if (pending is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(pending).Throw();

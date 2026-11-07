@@ -1,26 +1,26 @@
 using System.Diagnostics;
 using System.Text.Json;
 
-// Aucune entree n'a ete envoyee : la session peut essayer la technique suivante (entree physique sous jeton).
+// No input has been sent: the session may try the next technique (physical input under the token).
 sealed class BackgroundNotApplicableException(string message) : InvalidOperationException(message);
-// Refus avant toute entree (mot de passe, application exclue, identite changee, commande desactivee) : aucun repli.
+// Refused before any input (password, excluded application, changed identity, disabled command): no fallback.
 class ActionRefusedException(string message) : InvalidOperationException(message);
-// Geste sans technique d'arriere-plan ici mais possible avec la vraie souris ou le vrai clavier (01/11) : refus uniforme
-// pour les trois profils, qui dit qu'il faut l'avant-plan et que l'IA doit demander l'accord de l'utilisateur.
+// A gesture with no background technique here but possible with the real mouse or keyboard (01/11): a uniform refusal
+// for the three profiles, which says the foreground is needed and the AI must ask for the user's agreement.
 sealed class ForegroundNeededException(string reason) : ActionRefusedException(
     $"Needs the foreground: {reason.TrimEnd('.')}. Ask the user's agreement, then repeat this step with foreground:true (real mouse and keyboard, foreground given back after); nothing was sent");
 
 readonly record struct Outcome(string Technique, string Mechanism, string Effect);
 
-// Choix de la technique par famille d'interface, d'apres les mesures du banc NexusClaude (bench/RESULTS.md) :
-// - Win32 natif : messages directs (BN_CLICKED, BM_SETCHECK, EM_REPLACESEL, CB/LB_SETCURSEL + notification,
-//   CB_SHOWDROPDOWN, TCM_SETCURFOCUS, WM_COMMAND de menu). Jamais UIA Invoke (le proxy Win32 appelle
-//   SetForegroundWindow), jamais SelectionItem.Select sur une liste Win32/WinForms (la selection change sans prevenir
-//   l'application).
-// - WinForms : UIA Invoke/Toggle (BN_CLICKED est sans effet sur une case WinForms), messages pour Edit/ComboBox/ListBox.
-// - WPF, UWP/WinUI, Chromium/Electron : UIA COM avec AutoSetFocus = FALSE (Invoke, Toggle, Value, SelectionItem, ExpandCollapse).
-// Effet : « applied » = etat relu change comme demande ; « none » = etat relu inchange (pas une preuve d'absence d'envoi) ;
-// « sent » = transmis sans relecture possible (la postcondition de la session decide).
+// Choice of the technique by interface family, from the measurements of the NexusClaude bench (bench/RESULTS.md):
+// - Native Win32: direct messages (BN_CLICKED, BM_SETCHECK, EM_REPLACESEL, CB/LB_SETCURSEL + notification,
+//   CB_SHOWDROPDOWN, TCM_SETCURFOCUS, menu WM_COMMAND). Never UIA Invoke (the Win32 proxy calls
+//   SetForegroundWindow), never SelectionItem.Select on a Win32/WinForms list (the selection changes without notifying
+//   the application).
+// - WinForms: UIA Invoke/Toggle (BN_CLICKED has no effect on a WinForms checkbox), messages for Edit/ComboBox/ListBox.
+// - WPF, UWP/WinUI, Chromium/Electron: UIA COM with AutoSetFocus = FALSE (Invoke, Toggle, Value, SelectionItem, ExpandCollapse).
+// Effect: "applied" = the state read back changed as asked; "none" = the state read back is unchanged (not a proof that
+// nothing was sent); "sent" = transmitted with no read-back possible (the session's postcondition decides).
 static partial class Program
 {
     static readonly HashSet<string> EditClasses = new(StringComparer.Ordinal) { "edit", "richedit", "richedit20a", "richedit20w", "richedit50w", "richeditd2dpt" };
@@ -28,7 +28,7 @@ static partial class Program
 
     static ProgramRunActionJson RunAction(string op, string mode, Node target, List<Node> nodes, nint window, JsonElement request)
     {
-        InputStarted = true; // au-dela, toute erreur peut suivre une entree : resultat inconnu
+        InputStarted = true; // past this, any error may follow an input: unknown result
         var before = Win32.Probe();
         bool? takenUnderToken = null;
         string? giveBack = null;
@@ -36,10 +36,10 @@ static partial class Program
         var outcome = mode == "foreground"
             ? ForegroundAction(op, target, window, request, out takenUnderToken, out giveBack)
             : BackgroundAction(op, target, nodes, window, request);
-        // Activation simulee Chromium : prise et restitution temporaires du premier plan rapportees (relecture du 22/10).
+        // Chromium simulated activation: temporary taking and giving back of the foreground reported (review of 22/10).
         if (mode != "foreground" && (ChromiumInput.LastTaken || ChromiumInput.LastGiveBack is not null))
             (takenUnderToken, giveBack) = (ChromiumInput.LastTaken, ChromiumInput.LastGiveBack);
-        // Les messages postes sont traites de facon asynchrone : un court delai attrape une fenetre qui s'active elle-meme.
+        // Posted messages are handled asynchronously: a short delay catches a window that activates itself.
         Thread.Sleep(30);
         var after = Win32.Probe();
         var targetPid = Win32.ProcessOf(window);
@@ -49,7 +49,7 @@ static partial class Program
             ok: true, technique: outcome.Technique, mechanism: outcome.Mechanism, effect: outcome.Effect,
             foregroundTaken: taken, foregroundReturned: giveBack,
             cursorMoved: before.Cursor.X != after.Cursor.X || before.Cursor.Y != after.Cursor.Y,
-            // Toute entree (de Julien ou injectee) pendant l'action : les techniques d'arriere-plan n'en injectent aucune.
+            // Any input (the user's or injected) during the action: background techniques inject none.
             inputDuringAction: before.LastInput != after.LastInput,
             foreground: new ProgramRunActionJson2(before: (long)before.Foreground, after: (long)after.Foreground)
         );
@@ -91,16 +91,16 @@ static partial class Program
             exe.Length > 0 && string.Equals(ProcessName(Win32.ProcessOf(candidate)), exe, StringComparison.OrdinalIgnoreCase) && Win32.GetWindow(candidate, Win32.GW_OWNER) != 0;
     }
 
-    // Repli des observations natives : UIA sous le jeton de premier plan commun (peut prendre le premier plan). Une fois
-    // le jeton pris (attente jusqu'a 8 s), la pause de Julien est recontrolee juste avant Invoke ou SetFocus ; la fenetre
-    // active notee alors lui est rendue sous le jeton, meme si l'action echoue.
+    // Fallback of native observations: UIA under the shared foreground token (may take the foreground). Once the token is
+    // taken (a wait of up to 8 s), the user's pause is checked again just before Invoke or SetFocus; the active window
+    // noted then is given back to them under the token, even if the action fails.
     static Outcome ForegroundAction(string op, Node target, nint window, JsonElement request, out bool? taken, out string? giveBack)
     {
         taken = null; giveBack = null;
-        InputStarted = false; // attentes et controles ci-dessous avant toute entree (relecture de Codex du 24/10)
+        InputStarted = false; // waits and checks below come before any input (Codex's review of 24/10)
         if (op is not ("click" or "focus")) throw NothingSent("Only a semantic click or explicit focus has a foreground UI Automation path");
         if (ComUia.IsSynthetic(target.RuntimeId)) throw NothingSent("Combo box options read by messages have no UI Automation path");
-        // Elements de liste Win32 servis par MSAA : leur action par defaut est un double clic par SendInput.
+        // Win32 list items served by MSAA: their default action is a double click through SendInput.
         if (target.FrameworkId == "Win32" && target.Role == "listitem") throw NothingSent("Win32 list items have no safe UI Automation path");
         var (purpose, call) = op == "focus" ? ("UIA SetFocus", "setFocus") : target.HasInvoke ? ("UIA Invoke (foreground)", "invoke")
             : target.Role is "edit" or "document" ? ("UIA SetFocus", "setFocus")
@@ -110,15 +110,15 @@ static partial class Program
         JulienPause.ThrowIfActive(quietMs);
         EmergencyStop.ThrowIfStopped();
         var noted = Win32.GetForegroundWindow();
-        var input = Win32.Probe().LastInput; // UIA n'injecte aucune entree : tout changement vient de Julien ou d'un pair
-        InputStarted = true; // l'appel UIA peut agir
+        var input = Win32.Probe().LastInput; // UIA injects no input: any change comes from the user or a peer
+        InputStarted = true; // the UIA call may act
         try
         {
             return FirstCall(() => ComBridge.Call(new ProgramForegroundActionJson(op: call, windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow))) with { Technique = "foreground:uia" };
         }
         finally
         {
-            Thread.Sleep(30); // une activation postee par le fournisseur arrive de facon asynchrone
+            Thread.Sleep(30); // an activation posted by the provider arrives asynchronously
             var now = Win32.GetForegroundWindow();
             taken = now != noted && now != 0 && Win32.ProcessOf(now) == Win32.ProcessOf(window);
             giveBack = ForegroundReturn.GiveBack(noted, window, input);
@@ -153,15 +153,15 @@ static partial class Program
                 () => RevalidateClaudeTextTarget(window, target, request)).Outcome;
         }
         if (op == "click" && request.TryGetProperty("count", out var count) && count.ValueKind == JsonValueKind.Number && count.GetInt32() == 2) return Open(window, target);
-        // Chromium (Chrome, Edge, Electron) : surfaces editables et <select> par activation simulee (ChromiumInput.cs,
-        // recette commune du banc du 21/10) ; le reste suit les techniques ci-dessous.
-        // Fenetre deja au premier plan : voies habituelles (UIA selectOption, etc. ; relecture du 22/10).
+        // Chromium (Chrome, Edge, Electron): editable surfaces and <select> through simulated activation (ChromiumInput.cs,
+        // shared recipe of the bench of 21/10); the rest follows the techniques below.
+        // A window already in the foreground: the usual paths (UIA selectOption, etc.; review of 22/10).
         if (ChromiumInput.IsChromium(window) && !ChromiumInput.InForeground(window) && !ComUia.IsSynthetic(target.RuntimeId))
         {
             int? quiet = request.TryGetProperty("quietMs", out var qm) && qm.ValueKind == JsonValueKind.Number ? qm.GetInt32() : null;
             var editable = target.Role is "edit" or "document";
-            // Frontiere Chromium : preconditions, jeton, pause de Julien et STOP precedent toute entree ; « entree partie »
-            // seulement au premier message d'activation (relecture de Codex du 24/10).
+            // Chromium boundary: preconditions, token, the user's pause and STOP come before any input; "input left" only
+            // at the first activation message (Codex's review of 24/10).
             void Started() => InputStarted = true;
             if (op == "click" && editable) { InputStarted = false; return ChromiumInput.Focus(window, target, quiet, Started).Outcome; }
             if (op == "typeText" && editable && !replaceText) { InputStarted = false; return ChromiumInput.Type(window, target, Text(request, "text"), quiet, Started).Outcome; }
@@ -170,11 +170,11 @@ static partial class Program
         var framework = target.FrameworkId;
         var classic = framework is "Win32" or "WinForm";
         var cls = own != 0 ? Win32.BaseClass(own) : "";
-        // Noeud synthetique d'une liste deroulante classique : option choisie par la liste deroulante a son rang (homonymes
-        // distingues), libelle controle ; champ par messages Edit ; la liste elle-meme n'a pas d'action.
+        // Synthetic node of a classic combo box: the option picked by the combo box at its rank (namesakes told apart),
+        // label checked; the field through Edit messages; the list itself has no action.
         if (ComUia.IsSynthetic(target.RuntimeId))
         {
-            // Element d'une liste WinForms lu par messages : choisi a son rang, libelle relu (homonymes distingues).
+            // Item of a WinForms list read through messages: picked at its rank, label read back (namesakes told apart).
             var listBox = target.Ancestors.Length > 0 && ComUia.IsClassicListBox(nodes[target.Ancestors[^1]]) ? nodes[target.Ancestors[^1]].NativeWindow : 0;
             if (listBox != 0)
             {
@@ -192,16 +192,16 @@ static partial class Program
         {
             case "click":
                 if (framework == "Win32" && cls == "button") return ButtonClick(own);
-                // Bouton poussoir WinForms (dessine par l'application : BS_OWNERDRAW, ou BS_PUSHBUTTON) : BN_CLICKED POSTE.
-                // UIA Invoke est synchrone : un bouton qui ouvre une boite modale le bloque jusqu'a sa fermeture (banc
-                // commun des trois NexusWindows, 21/10). Jamais pour une case ou un bouton radio (role != button).
+                // WinForms push button (drawn by the application: BS_OWNERDRAW, or BS_PUSHBUTTON): BN_CLICKED POSTED.
+                // UIA Invoke is synchronous: a button that opens a modal dialog blocks it until the dialog closes (shared
+                // bench of the three NexusWindows profiles, 21/10). Never for a checkbox or a radio button (role != button).
                 if (framework == "WinForm" && cls == "button" && target.Role == "button" && (Win32.Style(own) & 0xF) is 0 or 1 or 0xB)
                     return ButtonClick(own);
                 if (classic && target.Role == "listitem")
                 {
                     var list = AncestorWindow(target, nodes, "listbox");
                     if (list != 0) return ListBoxSelect(list, target.Name);
-                    // Element de la liste (ouverte ou non) d'une liste deroulante : choix par la liste deroulante elle-meme.
+                    // Item of the list (open or not) of a combo box: picked through the combo box itself.
                     var combo = AncestorWindow(target, nodes, "combobox");
                     if (combo != 0) return ComboSelect(combo, target.Name);
                     throw NothingSent("Classic list item outside a ListBox or ComboBox: UIA Select would be silent");
@@ -218,7 +218,7 @@ static partial class Program
                 }
                 if (target.Role == "listitem" && AncestorNode(target, nodes, "combobox") is { } container)
                 {
-                    // Option d'une liste deroulante UIA ouverte : choisie, puis la liste refermee.
+                    // Option of an open UIA combo box: picked, then the list closed again.
                     return FirstCall(() => ComBridge.Call(new ProgramBackgroundActionJson(op: "selectItem", windowId: (long)window, runtimeId: target.RuntimeId, containerRuntimeId: container.RuntimeId)));
                 }
                 return UiaClick(window, target, invoke: true, select: framework != "WinForm");
@@ -258,13 +258,13 @@ static partial class Program
         }
     }
 
-    // Refus d'applicabilite de BackgroundAction/ForegroundAction, leves avant tout appel qui peut agir (seule la mesure
-    // Win32.Probe de RunAction les precede) : rien n'est parti, InputStarted redevient faux (relecture de Codex du 24/10 :
-    // sinon le client les lisait comme une issue inconnue, sans repli et accord consomme).
+    // Applicability refusals of BackgroundAction/ForegroundAction, raised before any call that can act (only RunAction's
+    // Win32.Probe measurement comes before them): nothing left, InputStarted becomes false again (Codex's review of 24/10:
+    // otherwise the client read them as an unknown outcome, without a fallback and with the accord consumed).
     static BackgroundNotApplicableException NothingSent(string message) { InputStarted = false; return new(message); }
     static ActionRefusedException RefusedBeforeInput(string message) { InputStarted = false; return new(message); }
-    // Premiere action de RunAction confiee au processus COM : son refus marque « avant tout motif » (beforeInput) precede
-    // toute entree de cette requete.
+    // First action of RunAction handed to the COM process: its refusal marked "before any reason" (beforeInput) comes
+    // before any input of this request.
     static Outcome FirstCall(Func<Outcome> call)
     {
         try { return call(); }
@@ -272,7 +272,7 @@ static partial class Program
         catch (ActionRefusedException error) when (error.Data["beforeInput"] is true) { InputStarted = false; throw; }
         catch (EmergencyStopException error) when (error.Data["beforeInput"] is true) { InputStarted = false; throw; }
     }
-    // Lecture prealable d'un auxiliaire (choix d'option sur des libelles lus) : son refus precede toute entree.
+    // Prior read of an auxiliary (option picked among read labels): its refusal comes before any input.
     static T PreInput<T>(Func<T> read)
     {
         try { return read(); }
@@ -296,7 +296,7 @@ static partial class Program
     static string Norm(string text) => text.Replace("\r\n", "\n").Replace('\r', '\n');
     internal static string Label(string text) => string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
-    // Option voulue : egalite exacte unique, sinon egalite sans casse unique ; jamais de correspondance partielle.
+    // Wanted option: a unique exact match, otherwise a unique case-insensitive match; never a partial match.
     internal static int MatchOption(IReadOnlyList<string?> items, string wanted)
     {
         var target = Label(wanted);
@@ -322,7 +322,7 @@ static partial class Program
         if (!Win32.IsWindowEnabled(button)) throw NothingSent("Button is disabled");
         var kind = Win32.Style(button) & 0xF;
         if (kind == 7) throw NothingSent("Group box is not clickable");
-        if (kind is 3 or 6) // BS_AUTOCHECKBOX, BS_AUTO3STATE : la case change d'etat puis notifie, comme un vrai clic.
+        if (kind is 3 or 6) // BS_AUTOCHECKBOX, BS_AUTO3STATE: the box changes state then notifies, like a real click.
         {
             var state = Win32.Send(button, Win32.BM_GETCHECK) ?? throw NothingSent("Button does not answer");
             var next = (state + 1) % (kind == 6 ? 3 : 2);
@@ -330,7 +330,7 @@ static partial class Program
             NotifyParent(button, 0 /* BN_CLICKED */);
             return new(Messages, "BM_SETCHECK+BN_CLICKED", Win32.Send(button, Win32.BM_GETCHECK) == next ? "applied" : "sent");
         }
-        if (kind == 9) // BS_AUTORADIOBUTTON : les autres boutons radio automatiques du groupe sont decoches.
+        if (kind == 9) // BS_AUTORADIOBUTTON: the other automatic radio buttons of the group are cleared.
         {
             var parent = Win32.GetParent(button);
             var others = new List<nint>();
@@ -362,8 +362,8 @@ static partial class Program
     {
         if ((Win32.Style(list) & (Win32.LBS_MULTIPLESEL | Win32.LBS_EXTENDEDSEL)) != 0) throw NothingSent("Multiple-selection list");
         if (!Win32.IsWindowEnabled(list)) throw NothingSent("List is disabled");
-        // Liste dessinee par l'application (LBS_OWNERDRAWFIXED/VARIABLE) sans LBS_HASSTRINGS : LB_GETTEXT rend les donnees
-        // de l'element, pas son libelle ; le choix par libelle serait faux (relecture de Codex, 21/10).
+        // A list drawn by the application (LBS_OWNERDRAWFIXED/VARIABLE) without LBS_HASSTRINGS: LB_GETTEXT returns the
+        // item's data, not its label; picking by label would be wrong (Codex's review, 21/10).
         var style = Win32.Style(list);
         if ((style & 0x30) != 0 && (style & 0x40 /* LBS_HASSTRINGS */) == 0) throw NothingSent("Owner-drawn list without strings: labels cannot be read by messages");
         var items = Items(list, Win32.LB_GETCOUNT, Win32.LB_GETTEXTLEN, Win32.LB_GETTEXT);
@@ -374,10 +374,10 @@ static partial class Program
         NotifyParent(list, 1 /* LBN_SELCHANGE */);
         return new(Messages, "LB_SETCURSEL+LBN_SELCHANGE", "applied");
     }
-    // Choix dans une liste deroulante Win32/WinForms, liste ouverte ou non. Ordre impose : si la liste est ouverte, la
-    // FERMER d'abord (CB_SHOWDROPDOWN(FALSE), relu par CB_GETDROPPEDSTATE) ; cette fermeture est une annulation
-    // (CBN_SELENDCANCEL) qui rend la selection d'avant l'ouverture : un choix pose avant elle serait perdu (mesure du banc :
-    // « Formule= » vide). Puis CB_SETCURSEL relu, et CBN_SELCHANGE + CBN_SELENDOK au parent, comme un choix de l'utilisateur.
+    // Choice in a Win32/WinForms combo box, list open or not. Mandatory order: if the list is open, CLOSE it first
+    // (CB_SHOWDROPDOWN(FALSE), read back through CB_GETDROPPEDSTATE); that closing is a cancellation (CBN_SELENDCANCEL)
+    // that restores the selection from before the opening: a choice made before it would be lost (bench measurement:
+    // "Formule=" empty). Then CB_SETCURSEL read back, and CBN_SELCHANGE + CBN_SELENDOK to the parent, like a user's choice.
     static Outcome ComboSelect(nint combo, string option, int? rank = null)
     {
         if (!Win32.IsWindowEnabled(combo)) throw NothingSent("Combo box is disabled");
@@ -395,13 +395,13 @@ static partial class Program
         }
         EmergencyStop.ThrowIfStopped();
         Win32.Send(combo, Win32.CB_SETCURSEL, index);
-        // Liste deja refermee : un echec de selection n'est pas « sans effet » (un repli viserait une liste fermee).
+        // List already closed again: a selection failure is not "without effect" (a fallback would target a closed list).
         if (Win32.Send(combo, Win32.CB_GETCURSEL) != index) return new(Messages, mechanism, dropped ? "sent" : "none");
         NotifyParent(combo, 1 /* CBN_SELCHANGE */);
         NotifyParent(combo, 9 /* CBN_SELENDOK */);
         return new(Messages, mechanism, "applied");
     }
-    // Ouverture ou fermeture de la liste d'une liste deroulante Win32/WinForms, relue par CB_GETDROPPEDSTATE.
+    // Opening or closing the list of a Win32/WinForms combo box, read back through CB_GETDROPPEDSTATE.
     static Outcome ComboDropDown(nint combo, string action)
     {
         if (action is not ("Expand" or "Collapse")) throw NothingSent("Only Expand and Collapse are background secondary actions");
@@ -433,7 +433,7 @@ static partial class Program
         var payload = multiline ? Norm(text).Replace("\n", "\r\n") : text;
         var before = Norm(Win32.WindowText(edit));
         if (replaceAll && Win32.Send(edit, Win32.EM_SETSEL, 0, -1) is null) throw new BackgroundNotApplicableException("Field does not answer");
-        // EM_REPLACESEL se comporte comme une saisie : EN_CHANGE, annulation possible, texte inseré au curseur.
+        // EM_REPLACESEL behaves like typing: EN_CHANGE, undo possible, text inserted at the caret.
         if (Win32.SendText(edit, Win32.EM_REPLACESEL, 1, payload) is null) throw new InvalidOperationException("Field stopped answering during input; outcome unknown");
         var after = Norm(Win32.SendGetText(edit, Win32.WM_GETTEXTLENGTH, Win32.WM_GETTEXT, 0, false) ?? before);
         var wanted = Norm(text);
@@ -446,17 +446,17 @@ static partial class Program
     {
         var count = Win32.Send(tabs, Win32.TCM_GETITEMCOUNT) ?? throw NothingSent("Tab control does not answer");
         if (index < 0 || index >= count) throw NothingSent("Tab not found in the control");
-        // TCM_SETCURFOCUS choisit l'onglet et notifie le parent (TCN_SELCHANGING/TCN_SELCHANGE), sans souris.
+        // TCM_SETCURFOCUS picks the tab and notifies the parent (TCN_SELCHANGING/TCN_SELCHANGE), without a mouse.
         Win32.Send(tabs, Win32.TCM_SETCURFOCUS, index);
         return new(Messages, "TCM_SETCURFOCUS", Win32.Send(tabs, Win32.TCM_GETCURSEL) == index ? "applied" : "none");
     }
 
-    // Menu Win32 (HMENU) de la fenetre : la commande est postee comme un choix de menu (WM_COMMAND).
-    // Element de menu WinForms designe par son chemin (elements de menu ancetres puis lui, noms et identifiants
-    // d'automatisation observes), dans la fenetre liee (barre de menus ou menu contextuel ouvert), invoque par UIA.
+    // Win32 menu (HMENU) of the window: the command is posted as a menu choice (WM_COMMAND).
+    // WinForms menu item named by its path (ancestor menu items then itself, observed names and automation ids), in the
+    // bound window (menu bar or open context menu), invoked through UIA.
     static ProgramMenuByNamesJson4 MenuItemByPath(nint window, (string Name, string? AutomationId)[] path) => MenuByNames(window, path);
 
-    // Menu WinForms (MenuStrip, ContextMenuStrip) par les noms de son chemin, commande par UIA Invoke (ComWorker.MenuPath).
+    // WinForms menu (MenuStrip, ContextMenuStrip) by the names of its path, command through UIA Invoke (ComWorker.MenuPath).
     static ProgramMenuByNamesJson4 MenuByNames(nint window, (string Name, string? AutomationId)[] segments)
     {
         var names = segments.Select(s => s.AutomationId is { Length: > 0 } id ? (object)new ProgramMenuByNamesJson(name: s.Name, automationId: id) : new ProgramMenuByNamesJson2(name: s.Name)).ToArray();
@@ -476,13 +476,13 @@ static partial class Program
 
     static ProgramMenuByNamesJson4 MenuCommand(nint window, string path)
     {
-        // Une fenetre desactivee (dialogue modal ouvert) n'accepte pas de commande : la poster contournerait la modalite.
+        // A disabled window (modal dialog open) accepts no command: posting it would get around the modality.
         if (!Win32.IsWindowEnabled(window)) throw new ActionRefusedException("Window is disabled (a modal dialog may be open)");
         var menu = Win32.GetMenu(window);
         if (menu == 0 || Win32.GetMenuItemCount(menu) <= 0)
         {
-            // Menu WinForms (MenuStrip) ou WPF (Menu) : chemin par les noms, sous-menus deplies et commande par UIA Invoke
-            // (ComWorker.MenuPath ; WPF depuis le 01/11 : « No Win32 menu bar » au banc commun).
+            // WinForms (MenuStrip) or WPF (Menu) menu: path by names, submenus expanded and the command through UIA Invoke
+            // (ComWorker.MenuPath; WPF since 01/11: "No Win32 menu bar" on the shared bench).
             var cls = Win32.ClassName(window);
             if (!cls.StartsWith("WindowsForms10.", StringComparison.Ordinal) && !cls.StartsWith("HwndWrapper", StringComparison.Ordinal))
                 throw new BackgroundNotApplicableException("No Win32 menu bar in this window");
@@ -496,8 +496,8 @@ static partial class Program
         }
         var wanted = path.Split('>').Select(s => Clean(s)).ToArray();
         if (wanted.Length == 0 || wanted.Any(s => s.Length == 0)) throw new InvalidOperationException("Invalid menu path");
-        // Chain : sous-menus ouverts pour atteindre la commande (menu parent, rang du sous-menu, sous-menu), puis la
-        // commande elle-meme (menu qui la porte, rang).
+        // Chain: submenus opened to reach the command (parent menu, rank of the submenu, submenu), then the command itself
+        // (the menu that holds it, rank).
         var items = new List<(string[] Path, uint Id, nint Menu, int Index, (nint Parent, int Index, nint Sub)[] Chain)>();
         void Walk(nint m, string[] prefix, int depth, (nint, int, nint)[] chain)
         {
@@ -522,9 +522,9 @@ static partial class Program
         if (found.Count == 0) throw new BackgroundNotApplicableException("Menu command not found in the Win32 menu bar");
         if (found.Count > 1) throw new BackgroundNotApplicableException("Menu path is ambiguous; give the full path");
         var item = found[0];
-        // L'etat grise d'une commande n'est fiable qu'apres l'ouverture de son menu : l'application le met a jour en
-        // traitant WM_INITMENU puis WM_INITMENUPOPUP (MFC, WinForms MainMenu, Win32). Ces messages lui sont envoyes comme
-        // par une vraie ouverture, sans rien afficher ; sans reponse, l'etat est « non verifiable » et rien n'est poste.
+        // A command's greyed state is reliable only after its menu opens: the application updates it while handling
+        // WM_INITMENU then WM_INITMENUPOPUP (MFC, WinForms MainMenu, Win32). These messages are sent to it as by a real
+        // opening, without showing anything; without an answer, the state is "not verifiable" and nothing is posted.
         string Unverifiable(string why) => $"Menu command state cannot be verified ({why}); nothing was sent";
         if (Win32.Send(window, Win32.WM_INITMENU, menu) is null) throw new ActionRefusedException(Unverifiable("the application did not answer WM_INITMENU"));
         var opened = new List<nint>();
@@ -535,7 +535,7 @@ static partial class Program
                 if (Win32.Send(window, Win32.WM_INITMENUPOPUP, sub, index & 0xFFFF) is null) throw new ActionRefusedException(Unverifiable("the application did not answer WM_INITMENUPOPUP"));
                 opened.Add(sub);
             }
-            // Relecture apres initialisation : la commande doit etre restee a sa place (menus dynamiques reconstruits).
+            // Read back after initialization: the command must have stayed in its place (dynamic menus rebuilt).
             if (Win32.GetMenuItemID(item.Menu, item.Index) != item.Id || Clean(Win32.MenuLabel(item.Menu, item.Index)) != item.Path[^1])
                 throw new ActionRefusedException(Unverifiable("the menu changed while it was initialized; inspect again"));
             var state = Win32.GetMenuState(item.Menu, (uint)item.Index, 0x400);
@@ -544,7 +544,7 @@ static partial class Program
         }
         finally
         {
-            // Fermeture symetrique, comme a la destruction d'un menu deroulant reel (sans effet si l'application l'ignore).
+            // Symmetric closing, as when a real drop-down menu is destroyed (no effect if the application ignores it).
             for (var i = opened.Count - 1; i >= 0; i--) Win32.Send(window, Win32.WM_UNINITMENUPOPUP, opened[i]);
         }
         EmergencyStop.ThrowIfStopped();
@@ -562,12 +562,12 @@ static partial class Program
         );
     }
 
-    // Apres un geste poste : une application peut s'activer elle-meme en le traitant (Electron sur un clic, WinForms sur
-    // un double clic : banc commun du 21/10, premier plan pris 1 a 2 s et jamais rendu). Tout l'intervalle noter /
-    // emettre / surveiller / rendre se tient SOUS le jeton de premier plan commun (relecture de Codex : sans lui, un pair
-    // qui activait la cible pendant la surveillance se voyait reprendre le premier plan au milieu de son entree). Le
-    // premier plan n'est rendu que si personne n'a touche clavier ou souris depuis la note : un clic volontaire de Julien,
-    // meme dans l'application cible, est garde (« kept-by-julien »).
+    // After a posted gesture: an application may activate itself while handling it (Electron on a click, WinForms on a
+    // double click: shared bench of 21/10, foreground taken for 1 to 2 s and never given back). The whole span of note /
+    // emit / watch / give back runs UNDER the shared foreground token (Codex's review: without it, a peer that activated
+    // the target during the watch had the foreground taken back in the middle of its input). The foreground is given back
+    // only if nobody touched the keyboard or mouse since the note: a deliberate click by the user, even in the target
+    // application, is kept ("kept-by-julien").
     static (Outcome Outcome, bool Taken, string? GiveBack, (nint Foreground, Win32.Point Cursor, uint LastInput) Before) PostedUnderToken(nint window, string purpose, Func<Outcome> send)
     {
         using var token = ForegroundToken.Acquire(purpose);
@@ -577,8 +577,8 @@ static partial class Program
         try { outcome = send(); }
         catch when (InputStarted)
         {
-            // Entree partielle (controle detruit entre DOWN et UP...) : la cible peut deja s'etre activee. Surveillance et
-            // restitution quand meme, sous le jeton, puis l'erreur d'origine remonte telle quelle, sans rejeu.
+            // Partial input (control destroyed between DOWN and UP...): the target may already have activated. Watch and
+            // give back anyway, under the token, then the original error goes up as is, without a replay.
             Watch();
             throw;
         }
@@ -607,14 +607,14 @@ static partial class Program
         }
     }
 
-    // Clic ou molette a un point d'une capture native (Pointer.cs) : meme compte rendu que les autres actions.
+    // Click or wheel at a point of a native capture (Pointer.cs): the same report as the other actions.
     static ProgramPointActionJson PointAction(nint window, JsonElement request)
     {
         int Int(string key) => request.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
         var frame = request.TryGetProperty("frame", out var f) && f.ValueKind == JsonValueKind.Array ? f.EnumerateArray().Select(e => e.GetInt32()).ToArray() : [];
         var action = Text(request, "action", "click");
         var button = Text(request, "button", "left");
-        // Clic droit : menus ouverts AVANT, pour lire celui que CE clic ouvre (plan de Codex du 22/10).
+        // Right click: menus open BEFORE, to read the one THIS click opens (Codex's plan of 22/10).
         var rightClick = action == "click" && button == "right";
         var menusBefore = rightClick ? Win32.LinkedMenuPopups(window).ToHashSet() : [];
         Pointer.LastTrace = null;
@@ -633,9 +633,9 @@ static partial class Program
         );
     }
 
-    // Menu contextuel ouvert par UN clic droit : surgissante WinForms liee a la fenetre (meme processus, role menu, meme
-    // fil ou possedee), absente avant le clic ; relue jusqu'a son apparition (1 s au plus), jamais un second clic. Ses
-    // commandes sont ensuite resolues dans CETTE surgissante (portee de l'observation suivante, MenuSearch.Scope).
+    // Context menu opened by ONE right click: a WinForms popup bound to the window (same process, menu role, same thread
+    // or owned), absent before the click; read again until it appears (1 s at most), never a second click. Its commands
+    // are then resolved in THIS popup (scope of the next observation, MenuSearch.Scope).
     internal static object? OpenedMenu(nint window, HashSet<nint> before)
     {
         var clock = Stopwatch.StartNew();
@@ -653,7 +653,7 @@ static partial class Program
         }
     }
 
-    // Touche ou raccourci en arriere-plan (Keys.cs) : meme compte rendu que les autres actions.
+    // Key or shortcut in the background (Keys.cs): the same report as the other actions.
     static object KeyAction(nint window, string key, JsonElement request)
     {
         if (!Win32.IsWindowEnabled(window)) throw new ActionRefusedException("Window is disabled (a modal dialog may be open)");
@@ -666,7 +666,7 @@ static partial class Program
         }
         (Outcome, bool, string?, (nint Foreground, Win32.Point Cursor, uint LastInput)) Posted()
         {
-            // Chromium inactif : activation simulee (jeton commun et pause de Julien pris par ChromiumInput).
+            // Inactive Chromium: simulated activation (shared token and the user's pause taken by ChromiumInput).
             if (!ChromiumInput.IsChromium(window) || ChromiumInput.InForeground(window))
                 return PostedUnderToken(window, "posted keys (may activate the target)", () => Keys.Send(window, key, () => InputStarted = true));
             int? quiet = request.TryGetProperty("quietMs", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : null;
@@ -686,11 +686,11 @@ static partial class Program
         );
     }
 
-    // ---- UI Automation COM, AutoSetFocus = FALSE, dans le processus enfant --com-worker ----
-    // Mesure (fixture WPF et WinForms .NET 8, 1.3.0) : des que System.Windows.Automation avait servi dans un processus
-    // (il y enregistre ses fournisseurs cote client pour tout le processus), un Invoke ou Toggle COM du meme processus
-    // activait la fenetre cible malgre AutoSetFocus = FALSE. Depuis 1.4.0 le client gere n'est plus charge du tout (arbre
-    // lu par COM) ; les motifs restent dans le processus enfant --com-worker (ComWorker.cs), isole et borne en temps.
+    // ---- UI Automation COM, AutoSetFocus = FALSE, in the --com-worker child process ----
+    // Measurement (WPF and WinForms .NET 8 fixture, 1.3.0): once System.Windows.Automation had been used in a process (it
+    // registers its client-side providers there for the whole process), a COM Invoke or Toggle from the same process
+    // activated the target window despite AutoSetFocus = FALSE. Since 1.4.0 the managed client is no longer loaded at all
+    // (tree read through COM); the patterns stay in the --com-worker child process (ComWorker.cs), isolated and time-bounded.
     static Outcome UiaClick(nint window, Node target, bool invoke, bool select)
     {
         var cef = target.FrameworkId == "Chrome" && ChromiumInput.IsCefHost(window);
@@ -699,11 +699,11 @@ static partial class Program
     }
     internal static string[] ClickOrder(string role, bool invoke, bool select, bool cef)
     {
-        // CEF/Steam : SelectionItem peut changer l'etat accessible sans declencher l'onglet React. Un clic est Invoke,
-        // ou l'action par defaut MSAA si Invoke n'existe pas ; la postcondition decide apres CET unique envoi.
+        // CEF/Steam: SelectionItem may change the accessible state without triggering the React tab. A click is Invoke, or
+        // the MSAA default action when Invoke does not exist; the postcondition decides after THIS single send.
         if (cef) return (role == "checkbox" ? new[] { "toggle", "invoke", "default" } : new[] { "invoke", "default" })
             .Where(p => p != "invoke" || invoke).ToArray();
-        // Une case a cocher se bascule (Toggle) ; un bouton s'invoque ; un element de liste se selectionne.
+        // A checkbox is toggled (Toggle); a button is invoked; a list item is selected.
         string[] order = role is "checkbox" ? ["toggle", "invoke"] :
             role is "radio" or "listitem" or "tab" or "treeitem" ? ["select", "invoke", "toggle"] : ["invoke", "toggle", "select"];
         return order.Where(p => (p != "invoke" || invoke) && (p != "select" || select)).ToArray();
@@ -713,14 +713,14 @@ static partial class Program
     static Outcome UiaExpandCollapse(nint window, Node target, string action)
     {
         if (action is not ("Expand" or "Collapse")) throw NothingSent("Only Expand and Collapse are background secondary actions");
-        // Repli par Invoke d'un Expand refuse : fournisseur UI Automation propre seulement (jamais le proxy MSAA Win32/WinForms).
+        // Fallback through Invoke of a refused Expand: a proper UI Automation provider only (never the Win32/WinForms MSAA proxy).
         var invokeFallback = target.FrameworkId is not ("Win32" or "WinForm");
         return FirstCall(() => ComBridge.Call(new ProgramUiaExpandCollapseJson(op: "expandCollapse", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow, action: action, invokeFallback: invokeFallback)));
     }
-    // Double clic d'un element de liste ou d'arbre (dossier ou fichier de l'Explorateur, passe 2 du 28/10 : vrai double clic
-    // jusque-la) : son action par defaut, UIA Invoke (ouvrir), sans souris ni premier plan, comme NexusWindows for Claude.
-    // Jamais pour un element Win32/WinForms (servi par MSAA, son action par defaut est un double clic SendInput) ni pour une
-    // page Chromium (Invoke y est un simple clic) : aucune technique d'arriere-plan, le repli physique reste celui d'avant.
+    // Double click of a list or tree item (an Explorer folder or file, pass 2 of 28/10: a real double click until then):
+    // its default action, UIA Invoke (open), without a mouse or the foreground, like NexusWindows for Claude. Never for a
+    // Win32/WinForms item (served by MSAA, its default action is a SendInput double click) nor for a Chromium page (Invoke
+    // there is a mere click): no background technique, the physical fallback stays as before.
     static Outcome Open(nint window, Node target)
     {
         if (target.FrameworkId is "Win32" or "WinForm" || ComUia.IsSynthetic(target.RuntimeId) || ChromiumInput.HasChromiumContent(window) ||

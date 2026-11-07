@@ -4,17 +4,17 @@ using System.IO.Compression;
 
 sealed class CaptureUnavailableException(string message) : InvalidOperationException(message);
 
-// Capture d'une fenetre sans la mettre devant : PrintWindow(PW_RENDERFULLCONTENT), meme recouverte (pas reduite).
-// Coordonnees physiques (fil en DPI par ecran v2), image recadree sur le cadre DWM (sans ombre invisible).
-// Une application non adaptee au DPI se dessine a sa taille logique : bitmap a cette taille, agrandi ensuite a la
-// taille affichee (sinon contenu a 80 % et bande noire, mesure NexusClaude). PrintWindow en echec ou image uniforme :
-// Windows.Graphics.Capture de la fenetre elle-meme (Wgc.cs, method "wgc") ; uniforme encore = vide (blank), image
-// indisponible, jamais une copie de l'ecran (elle montrerait la fenetre du dessus d'une fenetre recouverte).
-// Regle image commune des produits Nexus (27/10) : cote long <= 2000 px et <= 2,56 Mpx (2 500 tuiles GPT en detail high ;
-// Claude Code reduit lui-meme au-dela de 2000 px), WebP sans perte (WebP.cs) tant qu'il tient 3 Mo, puis le repli du
-// 06/11 (ImageEncoding.cs : 2 puis 3 bits retires, puis JPEG 82, 72, 60 a la meme taille) ; jamais plus de 3 Mo
-// (reduction seulement si aucune etape ne tient). L'image peut donc etre
-// plus petite que la fenetre : `frame` reste le cadre ECRAN et un point x,y de l'image vise
+// Capture of a window without bringing it forward: PrintWindow(PW_RENDERFULLCONTENT), even when covered (not minimized).
+// Physical coordinates (thread in per-monitor v2 DPI), image cropped to the DWM frame (without the invisible shadow).
+// An application that is not DPI aware draws itself at its logical size: a bitmap at that size, then enlarged to the
+// displayed size (otherwise the content is at 80 % with a black band, NexusClaude's measurement). PrintWindow failed or
+// a uniform image: Windows.Graphics.Capture of the window itself (Wgc.cs, method "wgc"); still uniform = empty (blank),
+// image unavailable, never a copy of the screen (it would show the window on top of a covered window).
+// Shared image rule of the Nexus products (27/10): long side <= 2000 px and <= 2.56 Mpx (2,500 GPT tiles in high detail;
+// Claude Code downscales by itself beyond 2000 px), lossless WebP (WebP.cs) as long as it fits in 3 MB, then the fallback
+// of 06/11 (ImageEncoding.cs: 2 then 3 bits removed, then JPEG 82, 72, 60 at the same size); never more than 3 MB
+// (downscaling only if no step fits). The image can therefore be
+// smaller than the window: `frame` stays the SCREEN frame and a point x,y of the image targets
 // frame.left + x * frame.width / width (McpSession.NativePoint).
 static partial class Capture
 {
@@ -25,13 +25,13 @@ static partial class Capture
     const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
     static readonly nint PerMonitorAwareV2 = -4;
 
-    // zoom : zone ECRAN [left, top, width, height] (pixels physiques) lue en pleine resolution et agrandie jusqu'a x2
-    // (petit texte), dans les memes plafonds ; `frame` est alors cette zone, et un point de l'image zoomee vise l'ecran
-    // comme pour toute image native (nativeScreen).
+    // zoom: SCREEN area [left, top, width, height] (physical pixels) read at full resolution and enlarged up to x2 (small
+    // text), within the same caps; `frame` is then that area, and a point of the zoomed image targets the screen as for
+    // any native image (nativeScreen).
     const double ZoomMaxEnlarge = 2.0;
 
-    // Cadre ECRAN entier de la fenetre (cadre DWM borne a la fenetre, pixels physiques) : celui que Window rend en
-    // windowFrame. inspect le relit avant et apres l'arbre ; marks n'est dessine que si la capture voit le meme cadre.
+    // The window's whole SCREEN frame (DWM frame bounded to the window, physical pixels): the one Window returns as
+    // windowFrame. inspect reads it again before and after the tree; marks are drawn only if the capture sees the same frame.
     public static Win32.Rect? Area(nint hwnd)
     {
         var previous = Win32.SetThreadDpiAwarenessContext(PerMonitorAwareV2);
@@ -47,8 +47,8 @@ static partial class Capture
 
     static bool Same(Win32.Rect a, Win32.Rect b) => a.Left == b.Left && a.Top == b.Top && a.Right == b.Right && a.Bottom == b.Bottom;
 
-    // marks : elements numerotes (Marks.cs), treeFrame : cadre lu avec l'arbre ; absent ou different du cadre capture
-    // (fenetre deplacee entre les deux lectures) → aucune marque, la raison est rendue.
+    // marks: numbered elements (Marks.cs), treeFrame: frame read with the tree; absent or different from the captured
+    // frame (window moved between the two reads) → no marks, the reason is returned.
     public static object Window(nint hwnd, string directory, int[]? zoom = null, List<Mark>? marks = null, Win32.Rect? treeFrame = null)
     {
         if (!Path.IsPathFullyQualified(directory)) throw new InvalidOperationException("Capture directory must be absolute");
@@ -97,7 +97,7 @@ static partial class Capture
                 }
             }
             var enlarge = 1.0;
-            var windowArea = crop; // cadre ENTIER de la fenetre : celui que les gardes de mouvement comparent (Pointer, Physical)
+            var windowArea = crop; // the window's WHOLE frame: the one the movement guards compare (Pointer, Physical)
             if (zoom != null)
             {
                 if (zoom.Length != 4 || zoom[2] <= 0 || zoom[3] <= 0) throw new ActionRefusedException("Zoom area must be [left, top, width, height] with a size");
@@ -107,15 +107,15 @@ static partial class Capture
                 crop = area;
                 enlarge = ZoomMaxEnlarge;
             }
-            var (deviation, uniformity) = Statistics(pixels, crop.Width, crop.Height); // avant toute marque
+            var (deviation, uniformity) = Statistics(pixels, crop.Width, crop.Height); // before any mark
             var blank = deviation < 1.5;
             MarkReport? report = null;
             Func<byte[], int, int, byte[]>? annotate = null;
             if (marks != null)
             {
                 report = new MarkReport();
-                // Cadre relu APRES PrintWindow aussi : une fenetre agrandie pendant la capture laisserait des marques a
-                // l'ancien emplacement (relecture de Codex du 24/10).
+                // Frame read again AFTER PrintWindow too: a window maximized during the capture would leave marks at the
+                // old place (Codex's review of 24/10).
                 var printed = Area(hwnd);
                 if (treeFrame is not { } t || !Same(t, windowArea) || printed is not { } p || !Same(p, windowArea))
                     report.Reason = "window moved or resized between the tree read and the capture: no numbers";
@@ -137,7 +137,7 @@ static partial class Capture
                 Directory.CreateDirectory(directory);
                 file = Path.Combine(directory, Guid.NewGuid().ToString("N") + encoded.Extension);
                 File.WriteAllBytes(file, encoded.Bytes);
-                lock (LastGate) Last = (file, pixels, crop); // pleine resolution, sans marques : lue par Recognize
+                lock (LastGate) Last = (file, pixels, crop); // full resolution, without marks: read by Recognize
             }
             return new CaptureWindowJson(
                 ok: true, method: method, wgcError: wgcError, path: file, width: imageWidth, height: imageHeight, scale: scale, blank: blank, encoding: encoding, mimeType: mimeType,
@@ -150,12 +150,12 @@ static partial class Capture
         finally { Win32.SetThreadDpiAwarenessContext(previous); }
     }
 
-    // Derniere image ecrite, en pleine resolution (une seule, remplacee a chaque capture) : l'OCR la lit apres coup,
-    // seulement si l'arbre UI Automation s'avere trop pauvre (session MCP), sans recapturer ni relire le WebP.
+    // Last image written, at full resolution (a single one, replaced at each capture): OCR reads it afterwards, only if the
+    // UI Automation tree turns out too poor (MCP session), without capturing again or reading the WebP back.
     static readonly object LastGate = new();
     static (string Path, byte[] Pixels, Win32.Rect Area)? Last;
 
-    // Lignes de texte de l'image `path` (la derniere capture de ce processus), positions en pixels ECRAN.
+    // Text lines of the image `path` (this process's last capture), positions in SCREEN pixels.
     public static object Recognize(string path)
     {
         (string Path, byte[] Pixels, Win32.Rect Area) last;
@@ -172,15 +172,15 @@ static partial class Capture
         );
     }
 
-    // Facteur entre la taille affichee (physique) et la taille dessinee par l'application.
+    // Factor between the displayed (physical) size and the size the application draws.
     internal static double Scale(nint hwnd)
     {
         var awareness = Win32.GetAwarenessFromDpiAwarenessContext(Win32.GetWindowDpiAwarenessContext(hwnd));
-        if (awareness >= 2) return 1.0; // par ecran : dessine en pixels physiques
+        if (awareness >= 2) return 1.0; // per monitor: draws in physical pixels
         var monitor = Win32.MonitorFromWindow(hwnd, 2 /* MONITOR_DEFAULTTONEAREST */);
         if (Win32.GetDpiForMonitor(monitor, 0 /* MDT_EFFECTIVE_DPI */, out var dpi, out _) != 0 || dpi == 0) return 1.0;
-        // DPI de dessin de CETTE fenetre (96 si non adaptee, DPI systeme de son contexte sinon), jamais celui du processus :
-        // un fil SYSTEM_AWARE d'un processus non adapte dessine a 120 (relecture de Codex du 22/10 07:59).
+        // Drawing DPI of THIS window (96 if not DPI aware, the system DPI of its context otherwise), never the process's: a
+        // SYSTEM_AWARE thread of a process that is not DPI aware draws at 120 (Codex's review of 22/10 07:59).
         double drawn = Win32.GetDpiForWindow(hwnd);
         if (drawn <= 0) return 1.0;
         var scale = dpi / drawn;
@@ -212,8 +212,8 @@ static partial class Capture
         finally { Win32.DeleteDC(dc); }
     }
 
-    // Taille et encodage de l'image envoyee au modele (regle commune ci-dessus).
-    // annotate : numeros dessines sur l'image deja reduite, a chaque tentative (taille constante dans l'image finale).
+    // Size and encoding of the image sent to the model (shared rule above).
+    // annotate: numbers drawn on the already downscaled image, at each attempt (constant size in the final image).
     internal static (ImageEncoding.Encoded Image, int Width, int Height, string How) Encode(byte[] pixels, int width, int height, double enlarge = 1.0, Func<byte[], int, int, byte[]>? annotate = null, int limit = ImageEncoding.Limit)
     {
         var fit = Math.Min(enlarge, Math.Min(MaxSide / (double)Math.Max(width, height), Math.Sqrt(MaxPixels / ((double)width * height))));
@@ -222,7 +222,7 @@ static partial class Capture
             int w = Math.Max(1, (int)Math.Floor(width * fit)), h = Math.Max(1, (int)Math.Floor(height * fit));
             var image = w == width && h == height ? pixels : w > width ? Resize(pixels, width, height, w, h) : Shrink(pixels, width, height, w, h);
             if (annotate != null) image = annotate(image, w, h);
-            // Chaine commune a la meme taille ; seulement si rien ne tient, image reduite (x0,85) et chaine reprise.
+            // Shared chain at the same size; only if nothing fits, a downscaled image (x0.85) and the chain again.
             var encoded = ImageEncoding.Fit(image, w, h, limit);
             if (encoded == null && (w <= 64 || attempt >= 8)) encoded = ImageEncoding.Smallest(image, w, h);
             if (encoded is { } done) return (done, w, h, done.How + (fit != 1.0 ? $"-{w}x{h}" : ""));
@@ -230,7 +230,7 @@ static partial class Capture
         }
     }
 
-    // Reduction par moyenne de surface (BGRA) : chaque pixel d'arrivee moyenne les pixels sources qu'il couvre.
+    // Downscale by area averaging (BGRA): each target pixel averages the source pixels it covers.
     internal static byte[] Shrink(byte[] source, int sw, int sh, int dw, int dh)
     {
         var result = new byte[dw * dh * 4];
@@ -262,7 +262,7 @@ static partial class Capture
         return result;
     }
 
-    // Agrandissement bilineaire BGRA (application non adaptee au DPI).
+    // Bilinear BGRA enlargement (application that is not DPI aware).
     static byte[] Resize(byte[] source, int sw, int sh, int dw, int dh)
     {
         var result = new byte[dw * dh * 4];
@@ -296,7 +296,7 @@ static partial class Capture
         return result;
     }
 
-    // Ecart type de la luminance sur une grille de 64 x 64 points ; < 1,5 = image uniforme (noire, blanche ou vide).
+    // Standard deviation of the luminance over a 64 x 64 point grid; < 1.5 = uniform image (black, white or empty).
     public static (double Deviation, double Uniformity) Statistics(byte[] bgra, int width, int height)
     {
         const int grid = 64;
@@ -317,7 +317,7 @@ static partial class Capture
         return (Math.Sqrt(Math.Max(0, squares / samples - mean * mean)), histogram.Max() / (double)samples);
     }
 
-    // PNG RVB 8 bits minimal (filtre 0, zlib) : aucune dependance d'imagerie.
+    // Minimal 8-bit RGB PNG (filter 0, zlib): no imaging dependency.
     public static byte[] Png(byte[] bgra, int width, int height)
     {
         using var raw = new MemoryStream();

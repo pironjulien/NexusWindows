@@ -1,6 +1,6 @@
-# Runtime C# unique des trois adaptateurs. Aucun chemin AppData (virtualisation MSIX), aucun cache Codex.
-# Moteur immuable par empreinte (native\<sha-256>), puis le lanceur STABLE %USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe
-# que toutes les déclarations nomment : il lance le moteur indiqué par installation.json (commun\launcher).
+# Single C# runtime of the three adapters. No AppData path (MSIX virtualization), no Codex cache.
+# Engine immutable by fingerprint (native\<sha-256>), then the STABLE launcher %USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe
+# that every declaration names: it starts the engine named by installation.json (commun\launcher).
 $nexusWindowsSource = Split-Path -Parent $PSScriptRoot
 $nexusWindowsRuntimeHome = Join-Path $env:USERPROFILE '.nexus\nexus-windows'
 $nexusWindowsManifest = Join-Path $nexusWindowsRuntimeHome 'installation.json'

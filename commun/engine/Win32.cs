@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-// Declarations Win32 partagees par les techniques d'arriere-plan, la capture, les fenetres liees et la presence.
+// Win32 declarations shared by the background techniques, capture, bound windows and presence.
 static partial class Win32
 {
     [StructLayout(LayoutKind.Sequential)]
@@ -38,7 +38,7 @@ static partial class Win32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool ClientToScreen(nint hwnd, ref Point point);
     [LibraryImport("user32.dll")] private static partial nint SendMessageTimeoutW(nint hwnd, uint msg, nint wparam, ref Rect lparam, uint flags, uint timeout, out nint result);
-    // Rectangle (client) de l'element `index` d'une LISTBOX (LB_GETITEMRECT), sans attente infinie (SMTO_ABORTIFHUNG).
+    // Client rectangle of item `index` of a LISTBOX (LB_GETITEMRECT), without an endless wait (SMTO_ABORTIFHUNG).
     public static bool ItemRect(nint list, int index, out Rect rect)
     {
         rect = default;
@@ -75,7 +75,7 @@ static partial class Win32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SetForegroundWindow(nint hwnd);
     [LibraryImport("dwmapi.dll", EntryPoint = "DwmGetWindowAttribute")] private static partial int DwmGetWindowAttributeInt(nint hwnd, int attribute, out int value, int size);
-    // Fenetre masquee par le gestionnaire de fenetres (bureau virtuel, application suspendue) : DWMWA_CLOAKED.
+    // Window hidden by the window manager (virtual desktop, suspended application): DWMWA_CLOAKED.
     public static bool IsCloaked(nint hwnd) => DwmGetWindowAttributeInt(hwnd, 14, out var cloaked, sizeof(int)) == 0 && cloaked != 0;
     [LibraryImport("user32.dll")] public static partial nint GetWindow(nint hwnd, uint command);
     [LibraryImport("user32.dll")] public static partial nint GetAncestor(nint hwnd, uint flags);
@@ -142,7 +142,7 @@ static partial class Win32
     public static partial bool GetWindowRect(nint hwnd, out Rect rect);
     [LibraryImport("dwmapi.dll")] public static partial int DwmGetWindowAttribute(nint hwnd, int attribute, out Rect rect, int size);
 
-    // Menus Win32 (HMENU) : objets utilisateur globaux, lisibles depuis un autre processus.
+    // Win32 menus (HMENU): global user objects, readable from another process.
     [LibraryImport("user32.dll")] public static partial nint GetMenu(nint hwnd);
     [LibraryImport("user32.dll")] public static partial int GetMenuItemCount(nint menu);
     [LibraryImport("user32.dll")] public static partial nint GetSubMenu(nint menu, int position);
@@ -186,7 +186,7 @@ static partial class Win32
     const uint SMTO_ABORTIFHUNG = 0x2;
     const uint MessageTimeoutMs = 2000;
 
-    // SendMessage borne : une application figee ne bloque pas le helper ; null = pas de reponse.
+    // Bounded SendMessage: a frozen application does not block the helper; null = no answer.
     public static nint? Send(nint hwnd, uint msg, nint wparam = 0, nint lparam = 0) =>
         SendMessageTimeout(hwnd, msg, wparam, lparam, SMTO_ABORTIFHUNG, MessageTimeoutMs, out var result) == 0 ? null : result;
     public static nint? SendText(nint hwnd, uint msg, nint wparam, string text) =>
@@ -216,7 +216,7 @@ static partial class Win32
         var end = Array.IndexOf(buffer, '\0');
         return new string(buffer, 0, end < 0 ? buffer.Length : end);
     }
-    // Classe Win32 sous-jacente, en minuscules : « WindowsForms10.BUTTON.app.0.x » -> « button ».
+    // Underlying Win32 class, in lower case: « WindowsForms10.BUTTON.app.0.x » -> « button ».
     public static string BaseClass(nint hwnd)
     {
         var cls = ClassName(hwnd).ToLowerInvariant();
@@ -241,10 +241,10 @@ static partial class Win32
     }
     public static int Style(nint hwnd) => GetWindowLongW(hwnd, GWL_STYLE);
     public static int ExStyle(nint hwnd) => GetWindowLongW(hwnd, -20 /* GWL_EXSTYLE */);
-    // Surgissante transitoire : WS_POPUP sans barre de titre qui ne s'active pas (WS_EX_NOACTIVATE : liste deroulante,
-    // infobulle, surgissante WPF), ou liste ouverte d'une liste deroulante Win32 (ComboLBox).
-    // `bound` : fenetre suivie. Menu WinForms : role UIA « menu » de la surgissante et lien a la fenetre suivie (meme fil
-    // d'interface, ou possedee par elle) exiges, lus seulement pour une fenetre outil WinForms sans barre de titre.
+    // Transient popup: a WS_POPUP without a title bar that does not activate (WS_EX_NOACTIVATE: drop-down list, tooltip,
+    // WPF popup), or the open list of a Win32 combo box (ComboLBox).
+    // `bound`: followed window. WinForms menu: the popup's UIA role "menu" and a link to the followed window (same UI
+    // thread, or owned by it) required, read only for a WinForms tool window without a title bar.
     public static bool IsTransientPopup(nint hwnd, string cls, nint bound)
     {
         var (style, ex) = (unchecked((uint)Style(hwnd)), unchecked((uint)ExStyle(hwnd)));
@@ -253,10 +253,10 @@ static partial class Win32
         var linked = winformsTool && (GetWindowThreadProcessId(hwnd, out _) == GetWindowThreadProcessId(bound, out _) || OwnedBy(hwnd, bound));
         return IsTransientPopupStyle(style, ex, cls, menu, linked);
     }
-    // Menus ouverts lies a la fenetre suivie : fenetres de premier niveau visibles du meme processus, dans l'ordre Z.
-    // WinForms (ContextMenuStrip, ToolStripDropDown) : surgissante transitoire prouvee (role menu ET lien). WPF
-    // (ContextMenu, mesure du 22/10) : surgissante HwndWrapper sans activation POSSEDEE par la fenetre suivie, du meme fil,
-    // contenant un menu UIA (sa racine est une « fenetre » : role lu dans son arbre).
+    // Open menus bound to the followed window: visible top-level windows of the same process, in Z order. WinForms
+    // (ContextMenuStrip, ToolStripDropDown): proven transient popup (menu role AND link). WPF (ContextMenu, measured on
+    // 22/10): an HwndWrapper popup without activation OWNED by the followed window, on the same thread, holding a UIA menu
+    // (its root is a "window": role read in its tree).
     public static List<nint> LinkedMenuPopups(nint bound)
     {
         var pid = ProcessOf(bound);
@@ -273,7 +273,7 @@ static partial class Win32
     static bool IsWpfMenuPopup(nint hwnd, nint bound)
     {
         var (style, ex) = (unchecked((uint)Style(hwnd)), unchecked((uint)ExStyle(hwnd)));
-        if ((style & 0x80000000) == 0 || (style & 0x00C00000) == 0x00C00000 || (ex & 0x08000000) == 0) return false; // WS_POPUP, sans titre, NOACTIVATE
+        if ((style & 0x80000000) == 0 || (style & 0x00C00000) == 0x00C00000 || (ex & 0x08000000) == 0) return false; // WS_POPUP, untitled, NOACTIVATE
         if (GetWindow(hwnd, GW_OWNER) != bound || GetWindowThreadProcessId(hwnd, out _) != GetWindowThreadProcessId(bound, out _)) return false;
         try
         {
@@ -293,19 +293,19 @@ static partial class Win32
         return false;
     }
 
-    // Surgissante transitoire d'apres styles et classe (fonction pure, testee hors ligne : tests/CdpTests.cs).
+    // Transient popup judged from styles and class (pure function, tested offline: tests/CdpTests.cs).
     public static bool IsTransientPopupStyle(uint style, uint ex, string cls, bool menuRole = false, bool linked = false)
     {
         if (string.Equals(cls, "ComboLBox", StringComparison.OrdinalIgnoreCase)) return true;
         const uint WS_POPUP = 0x80000000, WS_CAPTION = 0x00C00000, WS_EX_NOACTIVATE = 0x08000000, WS_EX_TOOLWINDOW = 0x00000080, WS_EX_TOPMOST = 0x00000008;
         if ((style & WS_POPUP) == 0 || (style & WS_CAPTION) == WS_CAPTION) return false;
         if ((ex & WS_EX_NOACTIVATE) != 0) return true;
-        // Menu deroulant ou contextuel WinForms (ToolStripDropDown) : fenetre outil sans barre de titre, sans
-        // WS_EX_NOACTIVATE ; jamais suivie comme une nouvelle fenetre, signalee dans obs.popups (banc commun du 21/10 :
-        // le menu contextuel ouvert n'etait ni suivi ni signale, « found 0 »). Le style seul ne prouve rien (une palette
-        // persistante a le meme, relecture de Codex du 22/10) : role UIA « menu » ET lien a la fenetre suivie exiges.
-        // ContextMenuStrip mesure le 22/10 (labo WinForms) : WS_EX_TOPMOST | WS_EX_CONTROLPARENT, SANS WS_EX_TOOLWINDOW ; le
-        // clic droit l'ouvrait mais le helper ne le reconnaissait pas (« contextMenu: null »).
+        // WinForms drop-down or context menu (ToolStripDropDown): a tool window without a title bar, without
+        // WS_EX_NOACTIVATE; never followed as a new window, reported in obs.popups (shared bench of 21/10: the open context
+        // menu was neither followed nor reported, "found 0"). The style alone proves nothing (a persistent palette has the
+        // same, Codex's review of 22/10): UIA role "menu" AND a link to the followed window required.
+        // ContextMenuStrip measured on 22/10 (WinForms lab): WS_EX_TOPMOST | WS_EX_CONTROLPARENT, WITHOUT WS_EX_TOOLWINDOW;
+        // a right click opened it but the helper did not recognize it ("contextMenu: null").
         return (ex & (WS_EX_TOOLWINDOW | WS_EX_TOPMOST)) != 0 && cls.StartsWith("WindowsForms10.", StringComparison.Ordinal) && menuRole && linked;
     }
 
@@ -320,7 +320,7 @@ static partial class Win32
     }
     public static uint ProcessOf(nint hwnd) { GetWindowThreadProcessId(hwnd, out var pid); return pid; }
 
-    // PostMessage verifie : un refus (fenetre disparue, application elevee bloquee par UIPI) n'est jamais un succes.
+    // Checked PostMessage: a refusal (window gone, elevated application blocked by UIPI) is never a success.
     public static void Post(nint hwnd, uint msg, nint wparam, nint lparam)
     {
         if (!PostMessageW(hwnd, msg, wparam, lparam))

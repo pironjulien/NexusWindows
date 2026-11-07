@@ -1,13 +1,13 @@
 using System.IO;
 using System.Runtime.InteropServices;
 
-// Navigation d'une fenetre de l'Explorateur vers un dossier, en arriere-plan, par le shell de Windows (ShellWindows,
-// Navigate2) : ni clavier ni premier plan. Passe 2 du 22/10 : Ctrl+L n'avait pas le focus en arriere-plan, et le premier
-// plan rendu entre deux lectures faisait perdre la saisie de la barre d'adresse.
-// Gardes (relecture de Codex du 23/10) : inventaire COMPLET des vues du shell (une vue illisible : refus, l'unicite ne
-// serait pas prouvee) ; fenetre a UN seul onglet (sinon l'onglet vise serait devine, et il peut etre celui de Julien) ;
-// rattachement vue/HWND relu juste avant l'envoi et a chaque relecture d'arrivee ; dossiers compares par leur identite
-// sur le disque (volume + identifiant de fichier), jamais par une casse normalisee (repertoires sensibles a la casse).
+// Navigation of a File Explorer window to a folder, in the background, through the Windows shell (ShellWindows,
+// Navigate2): neither keyboard nor foreground. Pass 2 of 22/10: Ctrl+L had no focus in the background, and a foreground
+// given back between two reads lost the address bar input.
+// Guards (Codex's review of 23/10): a COMPLETE inventory of the shell views (one unreadable view: refused, uniqueness
+// would not be proven); a window with ONE tab only (otherwise the targeted tab would be guessed, and it may be the
+// user's); view/HWND binding read again just before sending and at each arrival read; folders compared by their identity
+// on disk (volume + file id), never by a normalized case (case-sensitive directories).
 static partial class Explorer
 {
     public static object Navigate(nint hwnd, string path, Action inputStarted)
@@ -18,15 +18,15 @@ static partial class Explorer
         using var tab = SingleTab(hwnd);
         if (Current(tab) is { } before && Identity(before) == wanted)
         {
-            // Rattachement relu APRES les lectures : le succes concerne bien la fenetre liee (relecture de Codex).
+            // Binding read again AFTER the reads: the success really concerns the bound window (Codex's review).
             if (!Attached(tab, hwnd)) throw new ActionRefusedException("The Explorer view changed while reading it; nothing was sent");
             return new ExplorerNavigateJson(ok: true, technique: "background:shell", mechanism: "Navigate2", effect: "already", path: (string?)before, note: (string?)null);
         }
-        // Rattachement relu juste avant l'envoi : meme vue, toujours seule vue de CETTE fenetre ; puis STOP relu en
-        // DERNIER, l'inventaire COM pouvant attendre (relecture de Codex).
+        // Binding read again just before sending: same view, still the only view of THIS window; then STOP read LAST,
+        // as the COM inventory may wait (Codex's review).
         using (var again = SingleTab(hwnd))
             if (!again.SameObject(tab)) throw new ActionRefusedException("The Explorer view changed before input; nothing was sent");
-        // L'inventaire a pu attendre apres avoir lu ce HWND : rattachement de la vue relu en dernier (relecture de Codex).
+        // The inventory may have waited after reading this HWND: the view's binding is read again last (Codex's review).
         if (!Attached(tab, hwnd)) throw new ActionRefusedException("The Explorer view changed before input; nothing was sent");
         EmergencyStop.ThrowIfStopped();
         inputStarted();
@@ -36,7 +36,7 @@ static partial class Explorer
         {
             var shown = Current(tab);
             var arrived = shown is not null && Identity(shown) == wanted;
-            // Rattachement relu APRES les lectures qui fondent le succes : perdu, issue inconnue, jamais rejouee.
+            // Binding read again AFTER the reads the success rests on: lost, unknown outcome, never replayed.
             if (!Attached(tab, hwnd))
                 return new ExplorerNavigateJson(ok: true, technique: "background:shell", mechanism: "Navigate2", effect: "sent", path: (string?)null, note: (string?)"view no longer attached to the bound window");
             if (arrived)
@@ -46,8 +46,8 @@ static partial class Explorer
         return new ExplorerNavigateJson(ok: true, technique: "background:shell", mechanism: "Navigate2", effect: "sent", path: Current(tab), note: (string?)null);
     }
 
-    // La fenetre (un seul onglet, rattache a elle) affiche-t-elle ce dossier ? Preuve d'un lancement de dossier (Program.Launch),
-    // lecture seule ; vue illisible, plusieurs onglets ou dossier illisible : non (jamais une preuve supposee).
+    // Does the window (a single tab, bound to it) show this folder? Proof of a folder launch (Program.Launch), read only;
+    // an unreadable view, several tabs or an unreadable folder: no (never an assumed proof).
     internal static bool Shows(nint hwnd, (ulong Volume, ulong Low, ulong High) wanted)
     {
         try
@@ -102,9 +102,9 @@ static partial class Explorer
         catch { return null; }
     }
 
-    // Identite d'un dossier sur le disque : FILE_ID_INFO (volume 64 bits + identifiant 128 bits), unique y compris sur
-    // ReFS, ou l'index 64 bits de BY_HANDLE_FILE_INFORMATION ne l'est pas (relecture de Codex). Illisible : null, et
-    // l'appelant refuse (ferme).
+    // Identity of a folder on disk: FILE_ID_INFO (64-bit volume + 128-bit file id), unique even on ReFS, where the 64-bit
+    // index of BY_HANDLE_FILE_INFORMATION is not (Codex's review). Unreadable: null, and the caller refuses (fails
+    // closed).
     internal static (ulong Volume, ulong Low, ulong High)? Identity(string path)
     {
         using var handle = CreateFile(path, 0, 7, 0, 3, 0x02000000, 0); // OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS

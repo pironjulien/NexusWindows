@@ -1,11 +1,10 @@
 using System.IO;
 
-// WebP SANS PERTE (VP8L) minimal, sans dependance d'imagerie (Windows ne fournit pas d'encodeur WebP : WIC ne fait que le
-// decoder). Specification : https://developers.google.com/speed/webp/docs/webp_lossless_bitstream_specification
-// Transformations : soustraction du vert puis prediction par blocs de 32 px (gauche ou haut, le moins couteux par bloc) ;
-// image principale en un seul groupe de codes, references arriere LZ77 (gloutonnes, table de hachage) et codes de
-// Huffman canoniques limites a 15 bits (longueurs des codes ecrites sans codes de repetition). Verifie pixel par pixel
-// contre le decodeur de reference (libwebp, tests).
+// Minimal LOSSLESS WebP (VP8L), with no imaging dependency (Windows ships no WebP encoder: WIC only decodes it).
+// Specification: https://developers.google.com/speed/webp/docs/webp_lossless_bitstream_specification
+// Transforms: subtract green, then prediction by 32 px blocks (left or top, the cheaper per block); main image in a
+// single group of codes, LZ77 backward references (greedy, hash table) and canonical Huffman codes limited to 15 bits
+// (code lengths written without repeat codes). Checked pixel by pixel against the reference decoder (libwebp, tests).
 static class WebP
 {
     sealed class BitWriter : IDisposable
@@ -30,10 +29,10 @@ static class WebP
     }
 
     const int NumLengthCodes = 24, NumDistanceCodes = 40, MaxLength = 4096, MinMatch = 3, BlockBits = 5;
-    const int MaxDistance = (1 << 20) - 121; // 40 codes de distance : valeur ecrite (distance + 120) < 2^20
+    const int MaxDistance = (1 << 20) - 121; // 40 distance codes: written value (distance + 120) < 2^20
     static readonly int[] CodeLengthOrder = [17, 18, 0, 1, 2, 3, 4, 5, 16, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
-    // Valeur >= 1 → (code de prefixe, nombre de bits en plus, bits en plus) du schema LZ77 de VP8L.
+    // Value >= 1 → (prefix code, number of extra bits, extra bits) of VP8L's LZ77 scheme.
     static (int Code, int ExtraBits, int Extra) Prefix(int value)
     {
         var d = value - 1;
@@ -44,7 +43,7 @@ static class WebP
         return (2 * high + second, extraBits, d & ((1 << extraBits) - 1));
     }
 
-    // Longueurs de Huffman limitees a `limit` bits ; frequences aplaties tant que la limite est depassee.
+    // Huffman lengths limited to `limit` bits; frequencies flattened while the limit is exceeded.
     static int[] Lengths(long[] freq, int limit)
     {
         var n = freq.Length;
@@ -81,7 +80,7 @@ static class WebP
         }
     }
 
-    // Codes canoniques (comme deflate), bits inverses pour l'ecriture du bit de poids faible d'abord.
+    // Canonical codes (as in deflate), bits reversed to write the least significant bit first.
     static uint[] Codes(int[] lengths)
     {
         var codes = new uint[lengths.Length];
@@ -102,8 +101,8 @@ static class WebP
         return codes;
     }
 
-    // Un code a un seul symbole se lit en zero bit (libwebp : « special case code with only one value ») : rien n'est
-    // ecrit pour lui.
+    // A code with a single symbol reads in zero bits (libwebp: "special case code with only one value"): nothing is
+    // written for it.
     sealed class Code(int[] lengths, uint[] codes)
     {
         public readonly int[] Lengths = lengths;
@@ -112,7 +111,7 @@ static class WebP
         public void Put(BitWriter w, int symbol) { if (!single) w.Put(Codes[symbol], Lengths[symbol]); }
     }
 
-    // Ecrit un code de prefixe et le rend : simple (un symbole < 256, zero bit par symbole), sinon normal.
+    // Writes a prefix code and returns it: simple (one symbol < 256, zero bits per symbol), otherwise normal.
     static Code WriteCode(BitWriter w, long[] freq)
     {
         var used = Enumerable.Range(0, freq.Length).Where(i => freq[i] > 0).ToList();
@@ -120,14 +119,14 @@ static class WebP
         {
             var symbol = used.Count == 0 ? 0 : used[0];
             w.Put(1, 1); // code simple
-            w.Put(0, 1); // un symbole
+            w.Put(0, 1); // one symbol
             if (symbol < 2) { w.Put(0, 1); w.Put((uint)symbol, 1); }
             else { w.Put(1, 1); w.Put((uint)symbol, 8); }
             return new Code(new int[freq.Length], new uint[freq.Length]);
         }
         var lengths = Lengths(freq, 15);
         if (used.Count == 1) { lengths[used[0]] = 1; }
-        // Code des longueurs : symboles 0..15, longueurs limitees a 7 bits.
+        // Code of the lengths: symbols 0..15, lengths limited to 7 bits.
         var clFreq = new long[19];
         foreach (var l in lengths) clFreq[l]++;
         var clLengths = Lengths(clFreq, 7);
@@ -138,19 +137,19 @@ static class WebP
         w.Put(0, 1); // code normal
         w.Put((uint)(numCodes - 4), 4);
         for (var i = 0; i < numCodes; i++) w.Put((uint)clLengths[CodeLengthOrder[i]], 3);
-        w.Put(0, 1); // max_symbol absent : tous les symboles
+        w.Put(0, 1); // no max_symbol: every symbol
         foreach (var l in lengths) clCode.Put(w, l);
         return new Code(lengths, Codes(lengths));
     }
 
     readonly record struct Token(int Literal, int Length, int Distance); // Length 0 : pixel litteral
 
-    // Image entropique : codes ecrits puis jetons. `meta` : bit des codes meta (image principale seulement).
+    // Entropy image: codes written, then tokens. `meta`: bit of the meta codes (main image only).
     static void WriteImage(BitWriter w, uint[] argb, int width, bool main)
     {
         var tokens = Tokens(argb, width);
-        w.Put(0, 1); // pas de cache de couleurs
-        if (main) w.Put(0, 1); // un seul groupe de codes
+        w.Put(0, 1); // no color cache
+        if (main) w.Put(0, 1); // a single group of codes
         var green = new long[256 + NumLengthCodes];
         var red = new long[256];
         var blue = new long[256];
@@ -191,8 +190,8 @@ static class WebP
         }
     }
 
-    // LZ77 glouton : correspondance la plus longue parmi la distance 1 (gauche), la ligne du dessus et la derniere
-    // occurrence du meme triplet (table de hachage).
+    // Greedy LZ77: the longest match among distance 1 (left), the line above and the last occurrence of the same triplet
+    // (hash table).
     static List<Token> Tokens(uint[] p, int width)
     {
         var tokens = new List<Token>();
@@ -251,7 +250,7 @@ static class WebP
         return c(residual) + c(residual >> 8) + c(residual >> 16) + c(residual >> 24);
     }
 
-    // BGRA (capture) → WebP sans perte. `alpha` : la capture est opaque, l'alpha ecrit est 255.
+    // BGRA (capture) → lossless WebP. `alpha`: the capture is opaque, the written alpha is 255.
     public static byte[] Lossless(byte[] bgra, int width, int height)
     {
         if (width < 1 || height < 1 || width > 16384 || height > 16384) throw new ArgumentOutOfRangeException(nameof(width));
@@ -260,10 +259,10 @@ static class WebP
         for (var i = 0; i < n; i++)
         {
             uint b = bgra[i * 4], g = bgra[i * 4 + 1], r = bgra[i * 4 + 2];
-            // soustraction du vert
+            // subtract green
             argb[i] = 0xFF000000u | (((r - g) & 0xFF) << 16) | (g << 8) | ((b - g) & 0xFF);
         }
-        // Prediction par blocs : mode 1 (gauche) ou 2 (haut), le moins couteux ; bords imposes par la specification.
+        // Prediction by blocks: mode 1 (left) or 2 (top), the cheaper; borders set by the specification.
         var block = 1 << BlockBits;
         int bw = (width + block - 1) >> BlockBits, bh = (height + block - 1) >> BlockBits;
         var modes = new int[bw * bh];
@@ -298,13 +297,13 @@ static class WebP
         w.Put((uint)(height - 1), 14);
         w.Put(0, 1); // alpha non utilise
         w.Put(0, 3); // version 0
-        // Transformations, dans l'ordre d'application : soustraction du vert, puis prediction.
+        // Transforms, in the order they are applied: subtract green, then prediction.
         w.Put(1, 1); w.Put(2, 2); // SUBTRACT_GREEN
         w.Put(1, 1); w.Put(0, 2); // PREDICTOR
         w.Put(BlockBits - 2, 3);
         var predictorImage = modes.Select(m => 0xFF000000u | ((uint)m << 8)).ToArray();
         WriteImage(w, predictorImage, bw, main: false);
-        w.Put(0, 1); // fin des transformations
+        w.Put(0, 1); // end of transforms
         WriteImage(w, residual, width, main: true);
         var data = w.Finish();
         using var file = new MemoryStream();

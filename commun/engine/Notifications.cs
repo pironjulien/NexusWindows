@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-// Port de claude/src/nexus_windows/notifications.py. SQLite Windows, strictement en lecture seule.
+// Port of claude/src/nexus_windows/notifications.py. Windows SQLite, strictly read only.
 static partial class Notifications
 {
     const string Sql = "SELECT h.PrimaryId,n.ArrivalTime,n.Payload FROM Notification n JOIN NotificationHandler h ON h.RecordId=n.HandlerId WHERE n.Type='toast' AND (n.ExpiryTime IS NULL OR n.ExpiryTime=0 OR n.ExpiryTime>=?) ORDER BY n.ArrivalTime DESC LIMIT 1000";

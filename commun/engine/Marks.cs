@@ -1,17 +1,17 @@
-// Numeros [N] sur l'image envoyee au modele (regle commune des produits Nexus, NexusShared/images.md point 5 ; avis de Codex
-// du 24/10) : chaque etiquette porte l'index EXACT de la ligne de l'arbre lu juste avant la capture (jamais renumerote),
-// dessinee APRES la reduction et avant l'encodage, a taille constante dans l'image finale (police 5x7 maison, x2), avec un
-// trait d'un pixel autour de l'element. Statistics (image vide) est calcule avant : une etiquette ne rend jamais
-// « valide » un PrintWindow vide. Placement deterministe (ordre des index), collisions evitees, au plus MaxDrawn.
+// [N] numbers on the image sent to the model (shared rule of the Nexus products, NexusShared/images.md point 5; Codex's
+// opinion of 24/10): each label carries the EXACT index of the tree line read just before the capture (never
+// renumbered), drawn AFTER the downscale and before the encoding, at a constant size in the final image (in-house 5x7
+// font, x2), with a one-pixel outline around the element. Statistics (blank image) is computed first: a label never makes
+// an empty PrintWindow "valid". Deterministic placement (index order), collisions avoided, at most MaxDrawn.
 sealed record Mark(int Index, int Left, int Top, int Width, int Height, long Scope);
 
 sealed class MarkReport
 {
     public List<int> Drawn { get; } = [];
-    public List<int> Omitted { get; } = []; // place prise par d'autres etiquettes, ou plafond atteint
-    public int Outside { get; set; } // hors de la zone capturee (zoom, defilement)
-    public List<int> Foreign { get; } = []; // element d'une autre fenetre (menu surgissant absent du PrintWindow)
-    public string? Reason { get; set; } // aucune marque, et pourquoi
+    public List<int> Omitted { get; } = []; // space taken by other labels, or cap reached
+    public int Outside { get; set; } // outside the captured area (zoom, scrolling)
+    public List<int> Foreign { get; } = []; // element of another window (popup menu missing from the PrintWindow)
+    public string? Reason { get; set; } // no marks, and why
     public object Json() => new MarkReportJsonJson(drawn: Drawn, omitted: Omitted, outside: Outside, foreign: Foreign, reason: Reason);
 }
 
@@ -30,7 +30,7 @@ static partial class Marks
         "01110100011000101111000010001001100",
     ];
 
-    // Elements gardes : ceux de cette fenetre (portee 0 = sans HWND propre, sous la racine lue) ou d'une fenetre enfant.
+    // Kept elements: those of this window (scope 0 = no own HWND, under the root read) or of a child window.
     public static List<Mark> Scoped(nint hwnd, IEnumerable<Mark> marks, MarkReport report)
     {
         var kept = new List<Mark>();
@@ -42,7 +42,7 @@ static partial class Marks
         return kept;
     }
 
-    // pixels : image finale BGRA w x h ; frame : zone ECRAN qu'elle represente (pixels physiques).
+    // pixels: final BGRA image w x h; frame: the SCREEN area it shows (physical pixels).
     public static byte[] Draw(byte[] pixels, int w, int h, Win32.Rect frame, IReadOnlyList<Mark> marks, MarkReport report)
     {
         report.Drawn.Clear(); report.Omitted.Clear(); report.Outside = 0;
@@ -59,7 +59,7 @@ static partial class Marks
             if (labels.Count >= MaxDrawn) { report.Omitted.Add(m.Index); continue; }
             var digits = m.Index.ToString(System.Globalization.CultureInfo.InvariantCulture);
             int lw = digits.Length * 5 * Dot + (digits.Length - 1) * Gap + 2 * Pad, lh = 7 * Dot + 2 * Pad;
-            // Cartouche entier ou rien : tronque, « 12 » se lirait « 1 » (relecture de Codex du 24/10).
+            // Whole badge or nothing: truncated, "12" would read "1" (Codex's review of 24/10).
             if (lw > w || lh > h) { report.Omitted.Add(m.Index); continue; }
             (int X, int Y)? spot = null;
             foreach (var (cx, cy) in new[] { (x0, y0), (x0, y0 - lh), (x1 - lw + 1, y0), (x0, y1 - lh + 1) })

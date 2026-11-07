@@ -2,13 +2,13 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 
-// Gestion des fenetres nommees. L'appelant tient le jeton et controle la pause de l'utilisateur ; Program a deja
-// revalide l'application et le HWND. Une seule commande, puis des lectures : jamais de nouvelle commande sur timeout.
+// Management of named windows. The caller holds the token and checks the user's pause; Program has already revalidated
+// the application and the HWND. A single command, then reads: never a new command on timeout.
 static partial class WindowManagement
 {
     const uint NoSize = 0x0001, NoMove = 0x0002, NoZOrder = 0x0004, NoActivate = 0x0010;
     const int ShowNoActivate = 4, MinimizeNoActivate = 7, Maximize = 3;
-    const int ReadbackTimeoutMs = 3000; // Meme budget que WM_CLOSE dans Program : commande asynchrone, lectures seules.
+    const int ReadbackTimeoutMs = 3000; // Same budget as WM_CLOSE in Program: asynchronous command, reads only.
     [StructLayout(LayoutKind.Sequential)] struct Placement
     {
         public uint Length, Flags, Show;
@@ -33,8 +33,8 @@ static partial class WindowManagement
     [LibraryImport("user32.dll")] private static partial nint GetShellWindow();
     [LibraryImport("user32.dll")] private static partial nint GetDesktopWindow();
 
-    // Le bureau du shell reste parfois SOUS HWND_BOTTOM (banc WinForms). Seules ses identites Win32 publiques
-    // sont permises : on parcourt jusqu'au bout, y compris apres le shell, sans filtrer les applications masquees.
+    // The shell desktop sometimes stays BELOW HWND_BOTTOM (WinForms bench). Only its public Win32 identities are
+    // allowed: the walk goes to the end, past the shell too, without filtering hidden applications.
     internal static bool AtApplicationBottom(nint hwnd, Func<nint, nint> next, nint shell, nint desktop)
     {
         var seen = new HashSet<nint> { hwnd };
@@ -102,7 +102,7 @@ static partial class WindowManagement
         if ((plan.Action is "move" or "resize") && (before.Minimized || before.Maximized))
             throw new ActionRefusedException("Restore the window before moving or resizing it; nothing was sent");
         if (Reached(plan, before, before)) return Result(plan, before, before, true, true);
-        // Toute preparation qui peut echouer precede le point d'envoi, y compris la lecture du placement.
+        // Every preparation that can fail comes before the send point, reading the placement included.
         var placement = new Placement { Length = (uint)Marshal.SizeOf<Placement>() };
         if (plan.Action == "restore" && !GetWindowPlacement(hwnd, ref placement))
             throw new ActionRefusedException("Window placement is unavailable; nothing was sent");

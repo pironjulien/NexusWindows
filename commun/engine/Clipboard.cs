@@ -1,13 +1,13 @@
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
-// Presse-papiers Windows (31/10, idee reprise d'agent-desktop), memes droits pour les trois profils : lecture du texte et
-// des fichiers copies, ecriture de texte relue. L'ecriture est un EMPRUNT (axe « invisible ») : le contenu de Julien est
-// mis de cote, format par format, et rendu seul apres 61,8 s ou sur restore, jamais s'il a recopie entre-temps ; refusee
-// tant que son presse-papiers tient un contenu prive. Un contenu marque sensible par son auteur (gestionnaires de mots de passe : formats
-// ExcludeClipboardContentFromMonitorProcessing / CanIncludeInClipboardHistory = 0) n'est jamais lu ; les codes de
-// securite sont masques comme dans les notifications. Ce que l'agent ecrit est une copie ordinaire : la marquer hors
-// historique la ferait passer pour un secret, illisible a la relecture suivante (essai reel du 31/10).
+// Windows clipboard (31/10, idea taken from agent-desktop), same rights for the three profiles: reads the text and the
+// copied files, writes text that is read back. Writing is a LOAN (the "invisible" axis): the user's content is set
+// aside, format by format, and given back alone after 61.8 s or on restore, never if they copied something meanwhile;
+// refused while their clipboard holds private content. Content its author marks as sensitive (password managers: formats
+// ExcludeClipboardContentFromMonitorProcessing / CanIncludeInClipboardHistory = 0) is never read; security codes are
+// masked as in notifications. What the agent writes is an ordinary copy: marking it out of the history would make it
+// pass for a secret, unreadable at the next read-back (real trial of 31/10).
 static partial class Clipboard
 {
     const uint CfUnicodeText = 13, CfHdrop = 15, CfDib = 8, GmemMoveable = 0x2;

@@ -1,11 +1,11 @@
 using System.Runtime.InteropServices;
 
-// Entrees PHYSIQUES de Julien (clavier, boutons, molette et deplacements de souris), distinguees des entrees
-// injectees : Raw Input donne le peripherique d'origine, une entree injectee (SendInput de Sky, UIA SetFocus...)
-// n'en a pas (hDevice nul). Fenetre de messages invisible en RIDEV_INPUTSINK : aucun crochet, aucune latence dans la
-// chaine d'entree, ni contenu de touche lu ou garde ; seulement l'instant. Evenements limites a un par 100 ms.
-// Repli : GetLastInputInfo (entrees injectees comprises), interroge toutes les 100 ms ; la session ecarte alors les
-// evenements qui tombent pendant ses propres injections.
+// The user's PHYSICAL input (keyboard, buttons, wheel and mouse moves), told apart from injected input: Raw Input gives
+// the source device, injected input (Sky's SendInput, UIA SetFocus...) has none (null hDevice). Invisible message
+// window in RIDEV_INPUTSINK: no hook, no latency in the input chain, no key content read or kept; only the moment.
+// Events limited to one per 100 ms.
+// Fallback: GetLastInputInfo (injected input included), polled every 100 ms; the session then sets aside the events
+// that fall during its own injections.
 static unsafe partial class Presence
 {
     // WNDCLASSW, blittable: a static UnmanagedCallersOnly window procedure and character pointers, so the registration
@@ -71,8 +71,8 @@ static unsafe partial class Presence
             var hwnd = CreateWindowExW(0, ClassName, null, 0, 0, 0, 0, 0, HWND_MESSAGE, 0, instance, 0);
             var devices = new[]
             {
-                new RawInputDevice { UsagePage = 0x01, Usage = 0x06, Flags = RIDEV_INPUTSINK, Target = hwnd }, // clavier
-                new RawInputDevice { UsagePage = 0x01, Usage = 0x02, Flags = RIDEV_INPUTSINK, Target = hwnd }, // souris
+                new RawInputDevice { UsagePage = 0x01, Usage = 0x06, Flags = RIDEV_INPUTSINK, Target = hwnd }, // keyboard
+                new RawInputDevice { UsagePage = 0x01, Usage = 0x02, Flags = RIDEV_INPUTSINK, Target = hwnd }, // mouse
             };
             registered = hwnd != 0 && RegisterRawInputDevices(devices, 2, (uint)Marshal.SizeOf<RawInputDevice>());
         }
@@ -94,7 +94,7 @@ static unsafe partial class Presence
             {
                 var type = BitConverter.ToUInt32(buffer, 0);
                 var device = IntPtr.Size == 8 ? (nint)BitConverter.ToInt64(buffer, 8) : BitConverter.ToInt32(buffer, 8);
-                if (device != 0) // entree injectee : aucun peripherique d'origine
+                if (device != 0) // injected input: no source device
                 {
                     if (type == RIM_TYPEKEYBOARD) Signal("keyboard");
                     else if (type == RIM_TYPEMOUSE)

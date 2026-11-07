@@ -1,15 +1,15 @@
 using System.Runtime.InteropServices;
 
-// Clic, double clic, clic droit et molette en arriere-plan a un point d'une capture NATIVE (banc commun des trois
-// NexusWindows, 21/10/2026, plan de Codex etape 5) : messages postes a l'enfant le plus profond sous le point, premier
-// plan et curseur intacts. Le cadre DWM releve a la capture est relu juste avant l'entree : fenetre deplacee ou
-// redimensionnee = refus (observer de nouveau). Win32 et WinForms ; Chromium : clic poste, molette par DevTools si la
-// cible a un port de debogage (Cdp.cs ; molette postee ignoree, mesure) ; WPF : molette par defilement semantique UI
-// Automation (ComWorker scrollAt) ; Tk : clic envoye avec le bouton simule pour son fil, liste defilee par sa barre
-// native (TkInput.cs). UWP et le reste de WPF : non applicable (souris postee ignoree). Survol (hover, 26/10, parite
-// avec Windows-MCP) : un seul WM_MOUSEMOVE poste au controle sous le point (Win32, WinForms ; envoye a Tk), curseur
-// intact ; ailleurs non applicable (vraie souris du helper en repli). Point d'un selecteur : sans cadre de capture, le
-// point (centre lu dans un arbre frais) doit seulement etre dans la fenetre.
+// Click, double click, right click and wheel in the background at a point of a NATIVE capture (shared bench of the three
+// NexusWindows profiles, 21/10/2026, Codex's plan step 5): messages posted to the deepest child under the point,
+// foreground and cursor untouched. The DWM frame noted at the capture is read again just before the input: a moved or
+// resized window = refused (observe again). Win32 and WinForms; Chromium: posted click, wheel through DevTools if the
+// target has a debugging port (Cdp.cs; a posted wheel is ignored, measured); WPF: wheel through UI Automation semantic
+// scrolling (ComWorker scrollAt); Tk: click sent with the button simulated for its thread, list scrolled through its
+// native bar (TkInput.cs). UWP and the rest of WPF: not applicable (posted mouse ignored). Hover (26/10, parity with
+// Windows-MCP): a single WM_MOUSEMOVE posted to the control under the point (Win32, WinForms; sent to Tk), cursor
+// untouched; elsewhere not applicable (the helper's real mouse as a fallback). Point of a selector: without a capture
+// frame, the point (center read in a fresh tree) only has to be inside the window.
 static partial class Pointer
 {
     [LibraryImport("user32.dll")] private static partial nint ChildWindowFromPointEx(nint parent, Win32.Point point, uint flags);
@@ -29,11 +29,11 @@ static partial class Pointer
         public Win32.Rect CaretRect;
     }
 
-    // Trace du dernier clic poste (banc commun : double clic WinForms sans effet, plan de Codex du 22/10) : fenetre visee
-    // (HWND, classe, fil), point client, messages postes, fenetre reellement sous le point (WinForms ne declenche Click et
-    // DoubleClick que si WindowFromPoint du point du relachement est le controle lui-meme : Control.WmMouseUp) et etat du
-    // fil apres l'envoi (capture, focus). La reception des messages postes n'est pas observable sans crochet dans le
-    // processus cible : elle se deduit de cet etat, jamais affirmee.
+    // Trace of the last posted click (shared bench: WinForms double click without effect, Codex's plan of 22/10): targeted
+    // window (HWND, class, thread), client point, posted messages, the window really under the point (WinForms raises
+    // Click and DoubleClick only if WindowFromPoint of the release point is the control itself: Control.WmMouseUp) and the
+    // thread's state after sending (capture, focus). Receipt of posted messages cannot be observed without a hook in the
+    // target process: it is inferred from that state, never asserted.
     [ThreadStatic] public static object? LastTrace;
 
     internal static void InRecipientContext(Func<nint> enter, Action send, Action<nint> restore)
@@ -103,7 +103,7 @@ static partial class Pointer
 
     public static Outcome Act(nint window, string action, int x, int y, int[] frame, string button, int count, int deltaY, int deltaX, Action started, int toX = 0, int toY = 0)
     {
-        // Pixels reels de chaque ecran, comme la capture (Capture.cs) : point, cadre et repere client dans le meme espace.
+        // Real pixels of each screen, like the capture (Capture.cs): point, frame and client origin in the same space.
         var previous = Win32.SetThreadDpiAwarenessContext(-4); // PER_MONITOR_AWARE_V2
         try { return ActPhysicalPixels(window, action, x, y, frame, button, count, deltaY, deltaX, started, toX, toY); }
         finally { if (previous != 0) Win32.SetThreadDpiAwarenessContext(previous); }
@@ -118,16 +118,16 @@ static partial class Pointer
         var classic = !chromium && !wpf && cls != "ApplicationFrameWindow" && !cls.StartsWith("Windows.UI.", StringComparison.Ordinal) &&
             cls != "TkTopLevel" && !cls.StartsWith("Mozilla", StringComparison.Ordinal);
         if (action is not ("click" or "wheel" or "hover" or "drag")) throw new InvalidOperationException("Unknown pointer action");
-        // Glisser-deposer (01/11) : seule une page Chromium ou CEF au port DevTools prouve le recoit en arriere-plan. Ailleurs
-        // la boucle de glisser de Windows (OLE DoDragDrop) lit la vraie souris : des messages postes lui feraient lacher
-        // ce qu'elle porte sous le curseur reel de Julien. Jamais poste : vraie souris seulement, avec foreground:true.
+        // Drag and drop (01/11): only a Chromium or CEF page with a proven DevTools port receives it in the background.
+        // Elsewhere Windows' drag loop (OLE DoDragDrop) reads the real mouse: posted messages would make it drop what it
+        // carries under the user's real cursor. Never posted: real mouse only, with foreground:true.
         if (action == "drag" && !((chromium || ChromiumInput.IsCefHost(window)) && Cdp.HasPort(window)))
             throw new BackgroundNotApplicableException("drag and drop follows the real mouse in this interface (Windows drag loop)");
         if (!classic && !(chromium && action is "click" or "wheel" or "drag") && !(wpf && action == "wheel") && !(tk && action is "click" or "wheel" or "hover"))
             throw new BackgroundNotApplicableException("This interface ignores posted mouse input (measured): no background technique");
         if (!Win32.IsWindowEnabled(window)) throw new ActionRefusedException("Window is disabled (a modal dialog may be open)");
         if (Win32.IsIconic(window)) throw new ActionRefusedException("Window is minimized: observe again");
-        // Geometrie relue : le point de l'image ne vise le meme pixel que si le cadre n'a pas bouge depuis la capture.
+        // Geometry read again: the image's point targets the same pixel only if the frame has not moved since the capture.
         if (DwmGetWindowAttribute(window, 9 /* DWMWA_EXTENDED_FRAME_BOUNDS */, out var now, 16) != 0 ||
             (frame.Length != 4 && !(action == "hover" && frame.Length == 0)) ||
             (frame.Length == 4 && (now.Left != frame[0] || now.Top != frame[1] || now.Width != frame[2] || now.Height != frame[3])))
@@ -138,31 +138,32 @@ static partial class Pointer
             if (toX < now.Left || toY < now.Top || toX >= now.Right || toY >= now.Bottom) throw new ActionRefusedException("Drop point is outside the window");
             return Cdp.Drag(window, x, y, toX, toY, started);
         }
-        // Une seule technique par geste : celle de l'interface, jamais une seconde apres un envoi (banc commun du 21/10).
+        // A single technique per gesture: the interface's, never a second one after a send (shared bench of 21/10).
         // Chromium without a DevTools port (the user's own browser, a long web page): the posted wheel is ignored, so the
         // page's UI Automation ScrollPattern under the point scrolls it, read back like WPF (Chrome Web Store, 31/10).
         if (action == "wheel" && (wpf || chromium && !Cdp.HasPort(window)))
         {
             EmergencyStop.ThrowIfStopped();
-            // Entree potentielle des cet appel : un echec ensuite est une issue inconnue (jamais « rien n'a ete envoye »), et
-            // la surveillance du premier plan sous jeton s'applique (relecture de Codex, 21/10). Le processus COM ne leve
-            // « non applicable » qu'avant le premier pas.
+            // Potential input from this call on: a failure afterwards is an unknown outcome (never "nothing was sent"),
+            // and the foreground watch under the token applies (Codex's review, 21/10). The COM process raises "not
+            // applicable" only before the first step.
             started();
             return ComBridge.Call(new PointerActPhysicalPixelsJson(op: "scrollAt", windowId: (long)window, runtimeId: Array.Empty<int>(), x: x, y: y, deltaY: deltaY, deltaX: deltaX));
         }
-        // CEF heberge (Steam SDL) : meme preuve CDP stricte que Chromium. Sans port/PID/page/surface attribuables,
-        // Cdp refuse AVANT envoi ; jamais de molette postee silencieusement a la place. Clic/hover gardent leur voie.
+        // Hosted CEF (Steam SDL): the same strict CDP proof as Chromium. Without an attributable port/PID/page/surface,
+        // Cdp refuses BEFORE sending; never a posted wheel silently in its place. Click/hover keep their path.
         if (action == "wheel" && (chromium || ChromiumInput.IsCefHost(window))) return Cdp.Wheel(window, x, y, deltaY, deltaX, started);
         var target = DeepestChild(window, x, y);
-        // Tk : barre native collee au widget d'abord ; sans elle, fenetre ENTIEREMENT recouverte deplacee hors ecran le
-        // temps de la molette (TkWheel.cs, recette de NexusWindows Claude 3.7.0 du 27/10).
+        // Tk: native bar attached to the widget first; without it, a FULLY covered window moved off screen for the time
+        // of the wheel (TkWheel.cs, recipe of NexusWindows Claude 3.7.0 of 27/10).
         if (tk && action == "wheel")
             return TkInput.HasBar(target, deltaY != 0) ? TkInput.Scroll(target, deltaY, deltaX, started) : TkWheel.Wheel(window, x, y, deltaY, deltaX, DeepestChild, started);
-        // Bouton Tk (Button, Checkbutton, Radiobutton) : fenetre de classe BUTTON mais menee par ButtonProc de Tk
-        // (tkWinButton.c, DefWindowProc) ; la souris simulee n'y prend pas (verification reelle du 27/10 : clic au point
-        // OCR de « Valider » sans effet) et un WM_COMMAND poste au parent revient au bouton sans l'invoquer (tkWinX.c,
-        // reflexion inchangee ; relecture de Codex du 27/10). Tk n'invoque que sur BN_CLICKED (= 0) recu PAR le bouton
-        // avec un parametre non nul : c'est son propre invoke (commande, variable de la case), poste, en fond.
+        // Tk button (Button, Checkbutton, Radiobutton): a window of class BUTTON but driven by Tk's ButtonProc
+        // (tkWinButton.c, DefWindowProc); the simulated mouse does not take there (real check of 27/10: a click at the OCR
+        // point of "Valider" without effect) and a WM_COMMAND posted to the parent comes back to the button without
+        // invoking it (tkWinX.c, unchanged reflection; Codex's review of 27/10). Tk invokes only on BN_CLICKED (= 0)
+        // received BY the button with a non-zero parameter: that is its own invoke (command, the checkbox's variable),
+        // posted, in the background.
         if (tk && action == "click" && button == "left" && count == 1 && Win32.BaseClass(target) == "button")
             return TkInput.Invoke(target, started);
         if (tk)
@@ -173,9 +174,9 @@ static partial class Pointer
             if (ratio != 1.0) at = new Win32.Point { X = (int)Math.Round(at.X / ratio), Y = (int)Math.Round(at.Y / ratio) };
             return action == "hover" ? TkInput.Hover(target, Lparam(at.X, at.Y), started) : TkInput.Click(target, Lparam(at.X, at.Y), button, count, started);
         }
-        // WinForms ne leve DoubleClick que si la fenetre au point (hit-test) est le controle lui-meme : point recouvert,
-        // double clic poste sans effet (banc commun du 22/10, les trois outils) ; rien n'est envoye, l'entree physique
-        // (premier plan bref) s'en charge si elle est permise.
+        // WinForms raises DoubleClick only if the window at the point (hit-test) is the control itself: a covered point,
+        // a posted double click without effect (shared bench of 22/10, the three tools); nothing is sent, physical input
+        // (a brief foreground) handles it if it is allowed.
         if (count >= 2 && action == "click" && ClassOf(target).StartsWith("WindowsForms10.", StringComparison.Ordinal) &&
             WindowFromPoint(new Win32.Point { X = x, Y = y }) != target)
             throw new BackgroundNotApplicableException("WinForms double click at a covered point has no effect by messages: nothing was sent");
@@ -183,7 +184,7 @@ static partial class Pointer
         var sent = 0;
         void Post(uint msg, nint wparam, nint lparam)
         {
-            if (sent == 0) started(); // au-dela, toute erreur suit une entree : resultat inconnu, jamais rejoue
+            if (sent == 0) started(); // past this, any error follows an input: unknown result, never replayed
             try { Win32.Post(target, msg, wparam, lparam); }
             catch (Exception error) when (sent > 0) { throw new InvalidOperationException($"Partial pointer input ({sent} messages posted); outcome unknown", error); }
             sent++;
@@ -198,9 +199,9 @@ static partial class Pointer
         var client = new Win32.Point { X = x, Y = y };
         var moveOnly = action == "hover";
         ScreenToClient(target, ref client);
-        // Repere ou la cible LIT le message : pixels logiques pour une fenetre non adaptee au DPI (ou DPI systeme) ;
-        // Le point est deja converti : poster dans le contexte exact du destinataire evite une seconde
-        // conversion a la reception (preuve canvas OCR : 544,200 devenait 435,160 a 125 %).
+        // Frame in which the target READS the message: logical pixels for a window that is not DPI aware (or system DPI);
+        // the point is already converted: posting in the recipient's exact context avoids a second conversion on
+        // receipt (OCR canvas proof: 544,200 became 435,160 at 125 %).
         var scale = Capture.Scale(target);
         if (scale != 1.0) client = new Win32.Point { X = (int)Math.Round(client.X / scale), Y = (int)Math.Round(client.Y / scale) };
         var lp = Lparam(client.X, client.Y);

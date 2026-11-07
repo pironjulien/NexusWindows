@@ -1,13 +1,13 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-// Client COM UI Automation (CUIAutomation8 / IUIAutomation2) : lecture de l'arbre ET motifs d'arriere-plan.
-// Le client gere de System.Windows.Automation n'est plus charge nulle part : il n'expose pas AutoSetFocus (par defaut,
-// UIA donne le focus a l'element avant un motif, ce qui active la fenetre cible) et il lit l'arbre propriete par
-// propriete (un aller-retour inter-processus par propriete et par element). Ici AutoSetFocus = FALSE, relu apres
-// reglage, et l'arbre est lu en UN aller-retour (CacheRequest, portee Subtree, vue Controle).
-// Appels par emplacements de table virtuelle (ordre de UIAutomationClient.h, Windows SDK 10.0.26100) : aucune
-// bibliotheque d'interop ni typelib a generer.
+// UI Automation COM client (CUIAutomation8 / IUIAutomation2): reading the tree AND background patterns.
+// The managed client of System.Windows.Automation is no longer loaded anywhere: it does not expose AutoSetFocus (by
+// default, UIA gives the focus to the element before a pattern, which activates the target window) and it reads the tree
+// property by property (one cross-process round trip per property and per element). Here AutoSetFocus = FALSE, read back
+// after it is set, and the tree is read in ONE round trip (CacheRequest, Subtree scope, Control view).
+// Calls through virtual table slots (order of UIAutomationClient.h, Windows SDK 10.0.26100): no interop library or
+// typelib to generate.
 unsafe sealed partial class ComUia
 {
     static readonly Guid ClsidCUIAutomation8 = new("e22ad333-b25f-460c-83d0-0581107395c9");
@@ -39,7 +39,7 @@ unsafe sealed partial class ComUia
         IsEnabledProperty, AutomationIdProperty, HelpTextProperty, IsPasswordProperty, NativeWindowHandleProperty, IsOffscreenProperty, FrameworkIdProperty,
         IsExpandCollapseAvailable, IsInvokeAvailable, IsSelectionItemAvailable, IsSelectionAvailable, IsTextAvailable, IsToggleAvailable,
         IsValueAvailable, ValueValueProperty, ExpandCollapseStateProperty, SelectionItemIsSelectedProperty, ToggleStateProperty,
-        AccessKeyProperty, LegacyIAccessibleStateProperty, // garde-fous : raccourci Alt et bouton par defaut (STATE_SYSTEM_DEFAULT)
+        AccessKeyProperty, LegacyIAccessibleStateProperty, // guard rails: Alt shortcut and default button (STATE_SYSTEM_DEFAULT)
     ];
     const int TreeScopeElement = 1, TreeScopeChildren = 2, TreeScopeSubtree = 7;
     const ushort VT_I4 = 3, VT_R8 = 5, VT_BSTR = 8, VT_BOOL = 11, VT_ARRAY = 0x2000;
@@ -68,7 +68,7 @@ unsafe sealed partial class ComUia
 
     ComUia()
     {
-        // Une VARIANT de 24 octets suppose un processus 64 bits (x64, ARM64).
+        // A 24-byte VARIANT assumes a 64-bit process (x64, ARM64).
         if (!Environment.Is64BitProcess) throw new BackgroundNotApplicableException("COM UI Automation requires a 64-bit helper");
         Check(CoCreateInstance(ClsidCUIAutomation8, 0, 1 /* CLSCTX_INPROC_SERVER */, IidIUIAutomation2, out automation));
         var vtable = *(nint**)automation;
@@ -88,8 +88,8 @@ unsafe sealed partial class ComUia
         Check(((delegate* unmanaged[Stdcall]<nint, nint*, int>)vtable[14])(automation, &w));          // get_ControlViewWalker
         walker = w;
     }
-    // Demande de cache : toutes les proprietes lues par l'inspection, vue Controle, elements complets (motifs courants
-    // encore appelables ensuite).
+    // Cache request: every property the inspection reads, Control view, full elements (current patterns still callable
+    // afterwards).
     nint Request(int scope, bool legacyState = true)
     {
         nint request, condition;
@@ -142,9 +142,9 @@ unsafe sealed partial class ComUia
         return same != 0;
     }
 
-    // Element courant d'identite d'execution donnee, sous la fenetre. Le resultat est a liberer (Release). Indice de
-    // fenetre propre (controles Win32/WinForms) : l'element est pris directement sur sa fenetre si son identite
-    // concorde, sans parcourir l'arbre (un parcours traverserait une liste deroulante ouverte, voir ReadTree).
+    // Current element with the given runtime id, under the window. The result must be released (Release). Hint of an own
+    // window (Win32/WinForms controls): the element is taken directly on its window if its identity matches, without
+    // walking the tree (a walk would cross an open combo box, see ReadTree).
     public nint FindByRuntimeId(nint window, int[] runtimeId, nint hint = 0)
     {
         if (FromHint(hint, runtimeId, 0) is var direct and not 0) return direct;
@@ -183,13 +183,13 @@ unsafe sealed partial class ComUia
     }
     [LibraryImport("oleaut32.dll")] private static partial int SafeArrayDestroy(nint array);
 
-    // ---- Lecture de l'arbre ------------------------------------------------------------------------------------------
-    // Un seul aller-retour (portee Subtree). Exception mesuree : une liste deroulante Win32/WinForms OUVERTE rend son
-    // sous-arbre UIA pathologique (proxy WinForms .NET Framework : « Malformed Cacheresponse » apres ~7 s, puis la
-    // navigation vers ses enfants ne repond plus). Les listes deroulantes classiques ne sont donc jamais parcourues par
-    // UIA : leurs options sont lues par messages (CB_GETCOUNT, CB_GETLBTEXT, CB_GETCURSEL), ouvertes ou non, en noeuds
-    // synthetiques (identite d'execution [-1, fenetre, genre, rang]). Si l'une d'elles est ouverte, la lecture se fait
-    // niveau par niveau (un aller-retour par element qui a des enfants) pour ne pas entrer dans son sous-arbre.
+    // ---- Reading the tree --------------------------------------------------------------------------------------------
+    // A single round trip (Subtree scope). Measured exception: an OPEN Win32/WinForms combo box makes its UIA subtree
+    // pathological (.NET Framework WinForms proxy: "Malformed Cacheresponse" after ~7 s, then navigation to its children
+    // stops answering). Classic combo boxes are therefore never walked through UIA: their options are read through
+    // messages (CB_GETCOUNT, CB_GETLBTEXT, CB_GETCURSEL), open or not, as synthetic nodes (runtime id [-1, window, kind,
+    // rank]). If one of them is open, the read goes level by level (one round trip per element that has children) so as
+    // not to enter its subtree.
     public UiTree ReadTree(nint hwnd, bool withPopups = true)
     {
         var chromium = ChromiumInput.HasChromiumContent(hwnd);
@@ -217,8 +217,8 @@ unsafe sealed partial class ComUia
 
     UiTree ReadTreeOnce(nint hwnd, bool withPopups, bool publish = true, bool byLevels = false)
     {
-        // Une lecture seule de Chromium recouvert peut rester en retard d'une action : publier AVANT de
-        // construire le cache, sinon toutes les attentes relisent le meme ancien arbre. Aucun nouveau clic.
+        // A read-only pass on a covered Chromium may lag one action behind: publish BEFORE building the cache, otherwise
+        // every wait reads the same old tree again. No new click.
         if (publish) LastPublication = Flush(hwnd);
         var levels = byLevels;
         if (!levels) Win32.EnumChildWindows(hwnd, (child, _) =>
@@ -231,16 +231,16 @@ unsafe sealed partial class ComUia
         Check(((delegate* unmanaged[Stdcall]<nint, nint, nint, nint*, int>)Vt(automation)[10])(automation, hwnd, levels ? elementRequest : wpf ? wpfTreeRequest : treeRequest, &root)); // ElementFromHandleBuildCache
         if (root == 0) throw new InvalidOperationException("No UI Automation root");
         var tree = new UiTree();
-        // Chaque element appartient soit a la pile (pas encore decrit), soit a l'arbre : libere une seule fois.
+        // Each element belongs either to the stack (not described yet) or to the tree: released only once.
         var pending = new Stack<(nint Element, int Depth, int[] Ancestors)>();
         pending.Push((root, 0, []));
-        // Menu contextuel ou deroulant WinForms ouvert (ContextMenuStrip : fenetre de premier niveau, hors de l'arbre UIA de
-        // la fenetre ; banc commun du 21/10 : « found 0 » pour « Copier ») : son sous-arbre est lu sous la racine, sa racine
-        // portant le HWND de la surgissante (nativeWindow), qui devient la portee des commandes de ce menu.
+        // Open WinForms context or drop-down menu (ContextMenuStrip: a top-level window, outside the window's UIA tree;
+        // shared bench of 21/10: "found 0" for « Copier »): its subtree is read under the root, its root carrying the
+        // popup's HWND (nativeWindow), which becomes the scope of this menu's commands.
         var popups = new Queue<nint>(withPopups ? Win32.LinkedMenuPopups(hwnd) : []);
-        // Element deja lu ailleurs dans l'arbre (meme identite d'execution) : un fournisseur peut exposer le meme element
-        // sous deux parents (menu contextuel de l'Explorateur, banc du 28/10 : « Propriétés » deux fois, cible ambigue puis
-        // « Control ancestry changed »). Seule sa premiere place, dans l'ordre du document, est gardee, avec son sous-arbre.
+        // Element already read elsewhere in the tree (same runtime id): a provider may expose the same element under two
+        // parents (Explorer context menu, bench of 28/10: « Propriétés » twice, an ambiguous target then "Control
+        // ancestry changed"). Only its first place, in document order, is kept, with its subtree.
         var seen = new HashSet<string>(StringComparer.Ordinal);
         try
         {
@@ -249,9 +249,9 @@ unsafe sealed partial class ComUia
                 if (pending.Count == 0)
                 {
                     var popup = popups.Dequeue();
-                    // Deja lue sous la fenetre : une fois possedee par le formulaire (apres sa premiere ouverture), UIA la
-                    // range parmi ses enfants ; relue ici, chaque commande apparaissait deux fois (banc du 22/10 :
-                    // « found 2 » pour « Copier » au second tour).
+                    // Already read under the window: once owned by the form (after its first opening), UIA files it among
+                    // its children; read again here, each command appeared twice (bench of 22/10: "found 2" for
+                    // « Copier » on the second round).
                     if (tree.Nodes.Any(n => n.NativeWindow == popup)) continue;
                     nint popupRoot;
                     Check(((delegate* unmanaged[Stdcall]<nint, nint, nint, nint*, int>)Vt(automation)[10])(automation, popup, levels ? elementRequest : treeRequest, &popupRoot));
@@ -266,7 +266,7 @@ unsafe sealed partial class ComUia
                 pending.Pop();
                 if (node.RuntimeId.Length > 0 && !seen.Add(string.Join(",", node.RuntimeId)))
                 {
-                    Release(element); // doublon : ni noeud ni enfants (ses enfants ne sont pas pris dans le cache)
+                    Release(element); // duplicate: neither node nor children (its children are not taken into the cache)
                     continue;
                 }
                 tree.Add(node);
@@ -285,7 +285,7 @@ unsafe sealed partial class ComUia
                 // Level by level, an element whose children the provider cannot describe keeps its place without them
                 // (flag « unreadable »): the rest of the window stays readable, its image and points still usable.
                 var children = levels ? TreeReadFallback.ChildrenOrNone(() => Children(element), out node.Unreadable) : CachedChildren(element);
-                // Ordre du document : premier enfant traite en premier.
+                // Document order: first child handled first.
                 for (var i = children.Count - 1; i >= 0; i--) pending.Push((children[i], depth + 1, [.. ancestors, node.Index]));
             }
             return tree;
@@ -297,7 +297,7 @@ unsafe sealed partial class ComUia
             throw;
         }
     }
-    // Enfants (vue Controle) avec leurs proprietes en cache, en un aller-retour.
+    // Children (Control view) with their cached properties, in one round trip.
     List<nint> Children(nint element)
     {
         nint updated;
@@ -325,14 +325,14 @@ unsafe sealed partial class ComUia
         return children;
     }
 
-    // Liste deroulante Win32/WinForms (classe COMBOBOX, hors CBS_SIMPLE).
+    // Win32/WinForms combo box (COMBOBOX class, except CBS_SIMPLE).
     public static bool IsClassicCombo(Node node) => node.Role == "combobox" && node.NativeWindow != 0 && node.FrameworkId is "Win32" or "WinForm" &&
         Win32.BaseClass(node.NativeWindow) == "combobox" && (Win32.Style(node.NativeWindow) & 0x3) != 0x1;
     public const int Synthetic = -1, SyntheticList = 1, SyntheticItem = 2, SyntheticEdit = 3;
-    // Liste WinForms a selection simple (classe LISTBOX) : ses elements UIA n'ont pas d'identite stable (banc commun du
-    // 21/10 : « Target is no longer present » au clic) ; ils sont lus par messages, comme les options d'une liste deroulante.
-    // Seulement une liste simple : ni selection multiple, ni dessinee par l'application (CheckedListBox, listes owner-draw :
-    // LB_GETTEXT y rend les donnees de l'element, pas le libelle ; cases a cocher perdues) - relecture de Codex.
+    // Single-selection WinForms list (LISTBOX class): its UIA elements have no stable identity (shared bench of 21/10:
+    // "Target is no longer present" on click); they are read through messages, like the options of a combo box. Only a
+    // simple list: neither multiple selection nor drawn by the application (CheckedListBox, owner-draw lists: LB_GETTEXT
+    // returns the item's data there, not the label; checkboxes lost) - Codex's review.
     public static bool IsClassicListBox(Node node) => node.Role == "list" && node.NativeWindow != 0 && node.FrameworkId == "WinForm" &&
         Win32.BaseClass(node.NativeWindow) == "listbox" &&
         (Win32.Style(node.NativeWindow) & (Win32.LBS_MULTIPLESEL | Win32.LBS_EXTENDEDSEL | 0x10 | 0x20)) == 0; // + LBS_OWNERDRAWFIXED/VARIABLE
@@ -348,18 +348,18 @@ unsafe sealed partial class ComUia
         for (var i = 0; i < Math.Min((int)total, 1000); i++)
         {
             var text = Win32.SendGetText(hwnd, Win32.LB_GETTEXTLEN, Win32.LB_GETTEXT, i, true) ?? "";
-            // Rectangle reel de la ligne (LB_GETITEMRECT, ecran) et visibilite : une ligne hors de la partie visible (ou une
-            // liste masquee) reste « offscreen », comme pour UIA (relecture de Codex).
+            // Real rectangle of the line (LB_GETITEMRECT, screen) and visibility: a line outside the visible part (or a
+            // hidden list) stays "offscreen", as for UIA (Codex's review).
             double[] bounds = [];
             var visible = false;
             if (Win32.ItemRect(hwnd, i, out var logical))
             {
-                // LB_GETITEMRECT rend des pixels du repere de la LISTE (logiques si elle n'est pas adaptee au DPI : aucun
-                // message n'est converti) ; le helper travaille en pixels reels (app.manifest), comme GetClientRect.
+                // LB_GETITEMRECT returns pixels in the LIST's frame (logical if it is not DPI aware: no message is
+                // converted); the helper works in real pixels (app.manifest), like GetClientRect.
                 var r = Scaled(logical, scale);
                 visible = !r.Intersect(client).Empty;
-                // Ligne hors de la partie visible de la LISTE : aucun rectangle, donc refusee comme hors champ (McpSession,
-                // Program.cs), meme si elle tombe encore dans la fenetre (relecture de Codex, 21/10 : ligne sous la liste).
+                // A line outside the visible part of the LIST: no rectangle, so refused as out of view (McpSession,
+                // Program.cs), even if it still falls inside the window (Codex's review, 21/10: a line below the list).
                 var origin = new Win32.Point { X = r.Left, Y = r.Top };
                 Win32.ClientToScreen(hwnd, ref origin);
                 if (visible) bounds = [origin.X, origin.Y, r.Width, r.Height];
@@ -378,8 +378,8 @@ unsafe sealed partial class ComUia
         Right = (int)Math.Round(r.Right * scale), Bottom = (int)Math.Round(r.Bottom * scale),
     };
     public static bool IsSynthetic(int[] runtimeId) => runtimeId is [Synthetic, _, _, _];
-    // Noeuds lus par messages sous une liste deroulante classique : son champ (CBS_DROPDOWN), sa liste et ses options.
-    // L'etat ouvert (CB_GETDROPPEDSTATE) et la valeur (option choisie) sont portes par la liste deroulante elle-meme.
+    // Nodes read through messages under a classic combo box: its field (CBS_DROPDOWN), its list and its options.
+    // The open state (CB_GETDROPPEDSTATE) and the value (the chosen option) are carried by the combo box itself.
     public static void SynthesizeCombo(UiTree tree, Node combo)
     {
         var hwnd = combo.NativeWindow;
@@ -423,9 +423,9 @@ unsafe sealed partial class ComUia
         }
     }
 
-    // Relecture d'identite limitee a la cible et a ses ancetres (vue Controle) : la cible est retrouvee par son identite
-    // d'execution (directement sur sa fenetre propre si elle en a une, sinon sous la fenetre), puis sa chaine de parents
-    // jusqu'a la racine de la fenetre. Noeuds : racine en 0, cible en dernier. Une cible hors de la fenetre est refusee.
+    // Identity read-back limited to the target and its ancestors (Control view): the target is found again by its
+    // runtime id (directly on its own window if it has one, otherwise under the window), then its chain of parents up
+    // to the window's root. Nodes: root at 0, target last. A target outside the window is refused.
     public UiTree ReadIdentity(nint hwnd, int[] runtimeId, nint hint = 0, bool readAncestorText = true)
     {
         nint root;
@@ -441,7 +441,7 @@ unsafe sealed partial class ComUia
                 try { Check(((delegate* unmanaged[Stdcall]<nint, int, nint, nint, nint*, int>)Vt(root)[7])(root, TreeScopeSubtree, condition, elementRequest, &found)); } // FindFirstBuildCache
                 finally { Release(condition); }
             }
-            // Identite d'execution fournie et introuvable : la cible a ete remplacee ou retiree. Refus, jamais de repli.
+            // Runtime id given and not found: the target was replaced or removed. Refused, never a fallback.
             if (found == 0) throw new ActionRefusedException("Target is no longer present (control identity changed); inspect again");
             chain.Add(found);
             var current = found;
@@ -461,7 +461,7 @@ unsafe sealed partial class ComUia
                 for (var i = 0; i < chain.Count; i++)
                 {
                     tree.Add(Describe(chain[i], i, [.. Enumerable.Range(0, i)], readDocumentText: readAncestorText || i == chain.Count - 1));
-                    chain[i] = 0; // desormais possede par l'arbre
+                    chain[i] = 0; // now owned by the tree
                 }
                 return tree;
             }
@@ -474,7 +474,7 @@ unsafe sealed partial class ComUia
         }
     }
 
-    // Rang de la cible parmi les enfants de son parent ayant le meme role (onglets sans fenetre propre).
+    // Rank of the target among its parent's children with the same role (tabs without an own window).
     public int ChildRank(Node parent, Node target)
     {
         nint updated;
@@ -506,15 +506,15 @@ unsafe sealed partial class ComUia
         var hasText = CachedBool(element, IsTextAvailable) == true;
         var hasSelection = CachedBool(element, IsSelectionAvailable) == true;
         var framework = CachedString(element, FrameworkIdProperty) ?? "";
-        // Les mots de passe n'exposent que leur identite, jamais leur valeur.
+        // Passwords expose only their identity, never their value.
         string? value = null;
         if (!password && CachedBool(element, IsValueAvailable) == true) value = CachedString(element, ValueValueProperty);
         if (readDocumentText && !password && value == null && hasText && (role == "document" || role == "edit" && framework == "Chrome")) value = DocumentText(element);
         var nativeWindow = (nint)(CachedInt(element, NativeWindowHandleProperty) ?? 0);
         var classicCombo = role == "combobox" && nativeWindow != 0 && framework is "Win32" or "WinForm" && Win32.BaseClass(nativeWindow) == "combobox";
-        // Liste deroulante sans valeur (WPF non editable, liste sans motif Value) : la valeur est l'option choisie, relue
-        // sur le conteneur et non sur la presence d'un element de liste dans l'arbre. Liste classique : par messages
-        // (SynthesizeCombo), jamais par UIA (un fournisseur peut ne plus repondre liste ouverte).
+        // A combo box without a value (non-editable WPF, a list without the Value pattern): the value is the chosen option,
+        // read on the container and not from the presence of a list item in the tree. Classic list: through messages
+        // (SynthesizeCombo), never through UIA (a provider may stop answering while the list is open).
         if (!password && role == "combobox" && !classicCombo && string.IsNullOrEmpty(value) && hasSelection)
         {
             var chosen = SelectionNames(element);
@@ -609,7 +609,7 @@ unsafe sealed partial class ComUia
         if (((delegate* unmanaged[Stdcall]<nint, nint*, int>)Vt(element)[23])(element, &bstr) < 0 || bstr == 0) return ""; // get_CurrentName
         try { return Marshal.PtrToStringBSTR(bstr); } finally { Marshal.FreeBSTR(bstr); }
     }
-    // Noms des elements choisis d'un conteneur de selection (motif Selection courant).
+    // Names of the chosen items of a selection container (current Selection pattern).
     static List<string> SelectionNames(nint element)
     {
         var names = new List<string>();
@@ -635,7 +635,7 @@ unsafe sealed partial class ComUia
         finally { Release(pattern); }
         return names;
     }
-    // Texte d'un document (motif Text courant), borne a MaxText + 1 caracteres pour signaler la troncature.
+    // Text of a document (current Text pattern), bounded to MaxText + 1 characters to report truncation.
     public static string? DocumentText(nint element)
     {
         var pattern = Pattern(element, TextPatternId);
@@ -668,10 +668,11 @@ unsafe sealed partial class ComUia
         _ => "unknown",
     };
 
-    // ---- Tableaux (lecture seule) --------------------------------------------------------------------------------------
-    // Grille de l'element ou, sinon, la premiere de son sous-arbre (Explorateur vue Details, DataGridView, DataGrid WPF) :
-    // en-tetes par TablePattern, cellules par GridPattern.GetItem (realise aussi les lignes virtualisees). Texte d'une
-    // cellule : sa valeur (DataGridView, Explorateur), sinon son nom. Borne en lignes, colonnes et temps ; null sans grille.
+    // ---- Tables (read only) --------------------------------------------------------------------------------------------
+    // Grid of the element or, failing that, the first one in its subtree (Explorer Details view, DataGridView, WPF
+    // DataGrid): headers through TablePattern, cells through GridPattern.GetItem (which also realizes virtualized rows).
+    // Text of a cell: its value (DataGridView, Explorer), otherwise its name. Bounded in rows, columns and time; null
+    // without a grid.
     public TableRead? ReadTable(nint window, int[] runtimeId, nint hint, int maxRows, int maxColumns = 24, int budgetMs = 3000)
     {
         var element = FindByRuntimeId(window, runtimeId, hint);
@@ -727,7 +728,7 @@ unsafe sealed partial class ComUia
         if (((delegate* unmanaged[Stdcall]<nint, int, Variant*, int>)Vt(element)[10])(element, property, &value) < 0) return null; // GetCurrentPropertyValue
         try { return value.Vt == VT_BOOL ? value.Bool != 0 : null; } finally { VariantClear(ref value); }
     }
-    // Noms d'un IUIAutomationElementArray rendu par la methode `slot` d'un motif (en-tetes de colonnes).
+    // Names of an IUIAutomationElementArray returned by the method `slot` of a pattern (column headers).
     static List<string> ElementNames(nint pattern, int slot)
     {
         var names = new List<string>();
@@ -748,8 +749,8 @@ unsafe sealed partial class ComUia
         return names;
     }
 
-    // ---- Motifs ------------------------------------------------------------------------------------------------------
-    // Motif courant (GetCurrentPatternAs) ou 0 s'il n'est pas pris en charge. A liberer.
+    // ---- Patterns ----------------------------------------------------------------------------------------------------
+    // Current pattern (GetCurrentPatternAs) or 0 if it is not supported. To be released.
     public static nint Pattern(nint element, int patternId)
     {
         var iid = patternId switch
@@ -764,7 +765,7 @@ unsafe sealed partial class ComUia
         var hr = ((delegate* unmanaged[Stdcall]<nint, int, Guid*, nint*, int>)Vt(element)[14])(element, patternId, &iid, &pattern);
         return hr < 0 ? 0 : pattern;
     }
-    // Premiere methode propre a chaque interface de motif : Invoke, Toggle, SetValue, Select, Expand (emplacement 3).
+    // First method of each pattern interface: Invoke, Toggle, SetValue, Select, Expand (slot 3).
     public static void CallSlot(nint pattern, int slot) => Check(((delegate* unmanaged[Stdcall]<nint, int>)Vt(pattern)[slot])(pattern));
     public static double ReadDouble(nint pattern, int slot)
     {
@@ -772,8 +773,8 @@ unsafe sealed partial class ComUia
         Check(((delegate* unmanaged[Stdcall]<nint, double*, int>)Vt(pattern)[slot])(pattern, &value));
         return value;
     }
-    // IUIAutomationScrollPattern::Scroll(horizontalAmount, verticalAmount) : ScrollAmount 1 = petit retrait, 2 = rien,
-    // 4 = petite avance.
+    // IUIAutomationScrollPattern::Scroll(horizontalAmount, verticalAmount): ScrollAmount 1 = small step back, 2 = nothing,
+    // 4 = small step forward.
     public static void Scroll(nint pattern, int horizontal, int vertical) =>
         Check(((delegate* unmanaged[Stdcall]<nint, int, int, int>)Vt(pattern)[3])(pattern, horizontal, vertical));
     public static int ProcessIdOf(nint element)
@@ -800,7 +801,7 @@ unsafe sealed partial class ComUia
         if (bstr == 0) return "";
         try { return Marshal.PtrToStringBSTR(bstr); } finally { Marshal.FreeBSTR(bstr); }
     }
-    // Focus explicite (SetFocus) et relecture du focus clavier courant.
+    // Explicit focus (SetFocus) and read-back of the current keyboard focus.
     public static void SetFocus(nint element) => Check(((delegate* unmanaged[Stdcall]<nint, int>)Vt(element)[3])(element));
     public static bool HasKeyboardFocus(nint element)
     {
@@ -818,11 +819,11 @@ unsafe sealed partial class ComUia
         return ((delegate* unmanaged[Stdcall]<nint, int*, int>)Vt(element)[21])(element, &type) >= 0 ? type : 0; // get_CurrentControlType
     }
 
-    // Conteneur defilable sur l'axe sous un point, cherche dans le SOUS-ARBRE UI Automation de la fenetre `hwnd` (jamais
-    // un test global au point : une autre fenetre, meme du meme processus, peut recouvrir la cible ; relecture de Codex,
-    // 21/10) : candidats visibles, du processus de la fenetre, dont le rectangle contient le point ; choix par
-    // ScrollChoice (plus petite aire, le plus profond a aire egale, ambigu = refus). (element, motif) a liberer, ou
-    // (0, 0) sans candidat. Aucune fuite COM sur exception. Rectangles en pixels du contexte DPI du fil appelant.
+    // Container scrollable on the axis under a point, searched in the UI Automation SUBTREE of the window `hwnd` (never a
+    // global hit test at the point: another window, even of the same process, may cover the target; Codex's review,
+    // 21/10): visible candidates, of the window's process, whose rectangle contains the point; chosen by ScrollChoice
+    // (smallest area, the deepest at equal area, ambiguous = refused). (element, pattern) to be released, or (0, 0)
+    // without a candidate. No COM leak on exception. Rectangles in pixels of the calling thread's DPI context.
     public (nint Element, nint Pattern) ScrollContainerAt(nint hwnd, int x, int y, bool vertical)
     {
         nint array;
@@ -874,7 +875,7 @@ unsafe sealed partial class ComUia
         }
     }
 
-    // `child` est-il un descendant strict de `ancestor` (vue Controle, 64 niveaux au plus) ?
+    // Is `child` a strict descendant of `ancestor` (Control view, 64 levels at most)?
     bool IsDescendant(nint child, nint ancestor)
     {
         var current = child;
@@ -895,8 +896,8 @@ unsafe sealed partial class ComUia
         finally { if (owned) Release(current); }
     }
 
-    // Element de menu DIRECTEMENT sous `scope` (MenuSearch : sans franchir un autre element de menu, nom et identifiant
-    // d'automatisation, lecture complete ou refus), par la vue Controle. 0 si absent ; a liberer.
+    // Menu item DIRECTLY under `scope` (MenuSearch: without going past another menu item, name and automation id, a
+    // complete read or refused), through the Control view. 0 if absent; to be released.
     public nint MenuChild(nint scope, string name, string? automationId)
     {
         var held = new List<nint>();
@@ -935,8 +936,8 @@ unsafe sealed partial class ComUia
     }
     public nint WindowElement(nint hwnd) => ElementFromHandle(hwnd);
 
-    // ---- Chromium sans activation (recette commune : NexusClaude act_chromium, NexusAGY _chromium_simulated_typing) ----
-    // Focus DOM par l'action MSAA accSelect(SELFLAG_TAKEFOCUS) : contrairement a UIA SetFocus, n'active pas la fenetre.
+    // ---- Chromium without activation (shared recipe: NexusClaude act_chromium, NexusAGY _chromium_simulated_typing) ----
+    // DOM focus through the MSAA action accSelect(SELFLAG_TAKEFOCUS): unlike UIA SetFocus, it does not activate the window.
     public static void TakeFocus(nint element)
     {
         var pattern = Pattern(element, LegacyIAccessiblePatternId);
@@ -945,7 +946,7 @@ unsafe sealed partial class ComUia
         finally { Release(pattern); }
     }
 
-    // Caret en fin de texte (plage vide a la fin du document de l'element, selectionnee) : la frappe s'ajoute.
+    // Caret at the end of the text (an empty range at the end of the element's document, selected): typing is appended.
     public static void CaretToEnd(nint element)
     {
         var pattern = Pattern(element, TextPatternId);
@@ -962,11 +963,11 @@ unsafe sealed partial class ComUia
 
     public string LastPublication { get; private set; } = "not-requested";
 
-    // Chromium recouvert retarde la publication UIA de ses changements. ScrollIntoView de sa zone d'affichage
-    // RootWebArea fait publier ce qui attend, sans viser un controle ni un document d'iframe qui ferait defiler la
-    // page. Parcours des seuls parents des documents ; plusieurs vues web de premier niveau sont traitees.
-    // L'arret d'urgence garde les lectures possibles, mais interdit ce motif. Les echecs de publication ne sont
-    // pas des echecs de lecture : le diagnostic dit seulement si la demande a abouti, jamais que l'effet est prouve.
+    // A covered Chromium delays the UIA publication of its changes. ScrollIntoView of its RootWebArea viewport makes it
+    // publish what is pending, without targeting a control or an iframe document that would scroll the page. Only the
+    // parents of documents are walked; several top-level web views are handled.
+    // The emergency stop keeps the possible reads, but forbids this pattern. Publication failures are not read
+    // failures: the diagnostic only says whether the request went through, never that the effect is proven.
     public string Flush(nint hwnd)
     {
         if (!ChromiumInput.HasChromiumContent(hwnd)) return "not-chromium";
@@ -991,17 +992,17 @@ unsafe sealed partial class ComUia
                     if (++visited > MaxNodes || depth > MaxDepth) { failed = true; break; }
                     if (CachedInt(element, ControlTypeProperty) == 50030 /* Document */)
                     {
-                        // Tout document borne le parcours, y compris un document non web : jamais d'iframe.
+                        // Any document bounds the walk, a non-web document included: never an iframe.
                         if (CachedString(element, FrameworkIdProperty) != "Chrome" ||
                             !string.Equals(CachedString(element, AutomationIdProperty), "RootWebArea", StringComparison.OrdinalIgnoreCase)) continue;
                         documents++;
-                        // Une vue cachee ou sans zone visible n'est jamais amenee en vue pour une simple lecture.
+                        // A hidden view, or one without a visible area, is never brought into view for a mere read.
                         if (CachedBool(element, IsOffscreenProperty) == true || Bounds(element).Length != 4) { failed = true; continue; }
                         if (EmergencyStop.RemainingSeconds() > 0) return "stopped";
                         if (ChromiumInput.InForeground(hwnd)) return "foreground";
                         var pattern = Pattern(element, ScrollItemPatternId);
                         if (pattern == 0) { failed = true; continue; }
-                        try { CallSlot(pattern, 3); requested++; } // ScrollIntoView sur la zone d'affichage seulement
+                        try { CallSlot(pattern, 3); requested++; } // ScrollIntoView on the viewport only
                         finally { Release(pattern); }
                         continue;
                     }
@@ -1016,7 +1017,7 @@ unsafe sealed partial class ComUia
         finally { while (pending.Count > 0) Release(pending.Pop().Element); }
     }
 
-    // Elements selectionnables (motif SelectionItem) sous un conteneur, avec leur nom, en un aller-retour. A liberer.
+    // Selectable elements (SelectionItem pattern) under a container, with their name, in one round trip. To be released.
     public List<(nint Element, string Name)> SelectableItems(nint container)
     {
         var condition = Condition(IsSelectionItemAvailable, new Variant { Vt = VT_BOOL, Bool = -1 });
@@ -1043,7 +1044,7 @@ unsafe sealed partial class ComUia
 
 sealed record TableRead(List<string> Headers, List<string[]> Rows, int RowCount, int ColumnCount);
 
-// Noeud de l'arbre lu : proprietes en cache, plus l'element COM (a liberer avec l'arbre) pour les lectures courantes.
+// Node of the tree read: cached properties, plus the COM element (released with the tree) for current reads.
 sealed class Node
 {
     public nint Element;
@@ -1051,7 +1052,7 @@ sealed class Node
     public required string Role, Name, AutomationId, Description;
     public string FrameworkId = "";
     public string? Value;
-    // Offscreen : UIA IsOffscreen (defile hors de la partie visible, fenetre reduite...), signale a la session.
+    // Offscreen: UIA IsOffscreen (scrolled out of the visible part, minimized window...), reported to the session.
     public bool Disabled, Focused, Password, ValueTruncated, HasInvoke, HasToggle, HasText, Offscreen, IsDefault;
     // Unreadable: the provider failed to describe this element's children (TreeReadFallback); the subtree is missing.
     public bool Unreadable;
@@ -1066,9 +1067,9 @@ sealed class Node
 sealed class UiTree : IDisposable
 {
     public readonly List<Node> Nodes = new();
-    // Parents ajoutes avant leurs enfants. Un element sans FrameworkId (enfant MSAA d'une liste Win32 servi par le proxy
-    // natif) herite de celui de son parent : la famille d'interface decide de la technique (jamais SelectionItem.Select
-    // sur une liste Win32/WinForms, la selection y changerait sans prevenir l'application).
+    // Parents added before their children. An element without a FrameworkId (MSAA child of a Win32 list served by the
+    // native proxy) inherits its parent's: the interface family decides the technique (never SelectionItem.Select on a
+    // Win32/WinForms list, the selection would change there without notifying the application).
     public Node Add(Node node)
     {
         node.Index = Nodes.Count;

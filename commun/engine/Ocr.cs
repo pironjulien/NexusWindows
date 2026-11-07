@@ -1,14 +1,14 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-// OCR Windows natif (Windows.Media.Ocr) en secours d'une fenetre sans arbre UI Automation utile (Tk, canevas, jeu) :
-// lignes de texte de l'image avec leur rectangle, que la session MCP rend ciblables au point de cette image (McpSession).
-// Reference de comportement : NexusWindows Claude (ocr.py, 10 a 21 ms par fenetre au labo du 20/10). Lecture seule et
-// locale : rien ne sort du poste. Aucune langue OCR installee ou WinRT indisponible : l'OCR est indisponible, jamais
-// une erreur d'outil.
+// Native Windows OCR (Windows.Media.Ocr) as a fallback for a window without a useful UI Automation tree (Tk, canvas,
+// game): text lines of the image with their rectangle, which the MCP session makes targetable at that image's points
+// (McpSession). Behaviour reference: NexusWindows Claude (ocr.py, 10 to 21 ms per window in the lab of 20/10). Read only
+// and local: nothing leaves the PC. No OCR language installed or WinRT unavailable: OCR is unavailable, never a tool
+// error.
 static unsafe partial class Ocr
 {
-    public const int MaxLines = 120; // une page de texte entiere n'a rien a faire dans une liste d'elements
+    public const int MaxLines = 120; // a whole page of text has no place in a list of elements
     const int TimeoutMs = 5000;
     const int Bgra8 = 87, WriteAccess = 2;
 
@@ -24,10 +24,10 @@ static unsafe partial class Ocr
     static nint engine, bitmaps;
     static uint maxSide;
     static string? unavailable;
-    // Vrai SEULEMENT quand l'absence de l'OCR est prouvee : aucune langue OCR (TryCreateFromUserProfileLanguages rend
-    // null), classe WinRT non enregistree, combase sans WinRT. Toute autre panne (allocation, activation de
-    // SoftwareBitmap, moteur bloque) reste une panne : missing faux, la session MCP refuse le geste qui a besoin de la
-    // lecture (relecture de Codex du 27/10), et la creation est retentee a l'image suivante.
+    // True ONLY when the absence of OCR is proven: no OCR language (TryCreateFromUserProfileLanguages returns null), WinRT
+    // class not registered, combase without WinRT. Any other failure (allocation, SoftwareBitmap activation, stuck
+    // engine) stays a failure: missing is false, the MCP session refuses the gesture that needs the read (Codex's review
+    // of 27/10), and creation is tried again at the next image.
     public static bool Missing { get; private set; }
     const int ClassNotRegistered = unchecked((int)0x80040154); // REGDB_E_CLASSNOTREG
 
@@ -36,8 +36,8 @@ static unsafe partial class Ocr
     [StructLayout(LayoutKind.Sequential)] struct PlaneDescription { public int StartIndex, Width, Height, Stride; }
     [StructLayout(LayoutKind.Sequential)] struct RectF { public float X, Y, Width, Height; }
 
-    // Moteur cree une fois (langues du profil de l'utilisateur). Absence prouvee ou moteur bloque : retenus pour la vie
-    // du processus (unavailable) ; autre echec : rendu pour cette image seulement (failure), retente a la suivante.
+    // Engine created once (languages of the user's profile). Proven absence or stuck engine: kept for the life of the
+    // process (unavailable); any other failure: returned for this image only (failure), tried again at the next one.
     static string? failure;
     static bool ProvesAbsence(Exception error) => error is DllNotFoundException or EntryPointNotFoundException
         || (error is WinRtException w && w.HResult32 == ClassNotRegistered && w.Message.StartsWith("RoGetActivationFactory Windows.Media.Ocr.OcrEngine ", StringComparison.Ordinal));
@@ -73,14 +73,14 @@ static unsafe partial class Ocr
         catch (Exception error) { failure = Short($"{error.GetType().Name}: {error.Message}"); return false; }
     }
 
-    // Lignes lues dans l'image BGRA (positions en pixels de cette image) ; Unavailable : raison de l'absence d'OCR.
+    // Lines read in the BGRA image (positions in pixels of that image); Unavailable: why OCR is absent.
     public static (List<Line> Lines, string? Unavailable, long Ms) Read(byte[] bgra, int width, int height)
     {
         var timer = Stopwatch.StartNew();
         lock (Gate)
         {
             if (!Ready()) return ([], unavailable ?? failure, timer.ElapsedMilliseconds);
-            // Limite du moteur : image reduite, positions remises a l'echelle.
+            // Engine limit: image reduced, positions scaled back.
             var factor = Math.Max(width, height) > maxSide ? maxSide / (double)Math.Max(width, height) : 1.0;
             int w = width, h = height;
             var pixels = bgra;
@@ -102,8 +102,8 @@ static unsafe partial class Ocr
             }
             catch (WinRtStuckException error)
             {
-                // Moteur bloque : l'operation vit encore et lit peut-etre le bitmap, garde vivant ; OCR coupe pour ce
-                // processus (le helper se termine apres 30 s sans requete et repart neuf).
+                // Stuck engine: the operation still lives and may be reading the bitmap, kept alive; OCR is off for this
+                // process (the helper exits after 30 s without a request and starts fresh).
                 keep = true;
                 unavailable = Short("OCR engine stuck: " + error.Message);
                 return ([], unavailable, timer.ElapsedMilliseconds);
@@ -113,7 +113,7 @@ static unsafe partial class Ocr
         }
     }
 
-    // SoftwareBitmap BGRA8 rempli par son tampon (LockBuffer en ecriture, pas de ligne : Stride du plan).
+    // BGRA8 SoftwareBitmap filled through its buffer (LockBuffer for writing, no row padding: the plane's Stride).
     static nint Bitmap(byte[] pixels, int width, int height)
     {
         nint bitmap, buffer = 0, memory = 0, reference = 0, access = 0;
@@ -175,7 +175,7 @@ static unsafe partial class Ocr
         return lines;
     }
 
-    // Rectangle d'une ligne : union des rectangles de ses mots (le moteur n'en donne pas pour la ligne).
+    // Rectangle of a line: union of its words' rectangles (the engine gives none for the line).
     static (float Left, float Top, float Right, float Bottom)? Bounds(nint line)
     {
         nint words;
@@ -204,7 +204,7 @@ static unsafe partial class Ocr
         finally { WinRt.Release(words); }
     }
 
-    // Autotest hors ligne : texte dessine par GDI dans une image en memoire, relu par le vrai moteur ; rien a l'ecran.
+    // Offline self-test: text drawn by GDI into an in-memory image, read back by the real engine; nothing on screen.
     [LibraryImport("gdi32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial nint CreateFontW(int height, int width, int escapement, int orientation, int weight, uint italic, uint underline, uint strike, uint charset, uint precision, uint clip, uint quality, uint pitch, string face);
     [LibraryImport("gdi32.dll", StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -241,7 +241,7 @@ static unsafe partial class Ocr
         else if (found.Left is < 40 or > 80 || found.Top is < 60 or > 100 || found.Width < 300 || found.Height is < 20 or > 70)
         { Console.WriteLine($"fail rect {found.Left},{found.Top},{found.Width},{found.Height}"); failures++; }
         else Console.WriteLine($"ok text \"{found.Text}\" at {found.Left},{found.Top},{found.Width}x{found.Height} in {ms} ms");
-        // Classement des pannes d'initialisation : seule une absence prouvee vaut « missing » (relecture de Codex du 27/10).
+        // Sorting of initialization failures: only a proven absence counts as "missing" (Codex's review of 27/10).
         var classes = new (Exception Error, bool Missing)[]
         {
             (new WinRtException("RoGetActivationFactory Windows.Media.Ocr.OcrEngine", ClassNotRegistered), true),
@@ -253,7 +253,7 @@ static unsafe partial class Ocr
         var misclassified = classes.Where(c => ProvesAbsence(c.Error) != c.Missing).Select(c => c.Error.Message).ToList();
         if (misclassified.Count > 0) { Console.WriteLine("fail classification: " + string.Join(" | ", misclassified)); failures++; }
         else Console.WriteLine("ok only a proven absence counts as missing");
-        // Image plus grande que la limite du moteur : positions remises a l'echelle de l'image donnee.
+        // Image larger than the engine's limit: positions scaled back to the given image.
         var wide = new byte[(int)(maxSide + 600) * 40 * 4];
         Array.Fill(wide, (byte)255);
         var (_, wideReason, _) = Read(wide, (int)maxSide + 600, 40);

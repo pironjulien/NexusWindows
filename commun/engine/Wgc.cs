@@ -1,14 +1,14 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-// Windows.Graphics.Capture d'UNE fenetre, en secours seulement : PrintWindow a echoue ou rendu une image uniforme
-// (surface DirectX, jeu, certaines fenetres composees). La capture lit la surface DWM de la fenetre elle-meme, sans
-// curseur ni bordure jaune, meme recouverte : jamais une copie de l'ecran, qui montrerait la fenetre du dessus.
-// WinRT et Direct3D 11 en COM brut (WinRt.cs) : ni projection de 25 Mo, ni paquet. Appareil D3D garde pour le processus
-// (cree une fois). GraphicsCaptureItem.CreateForWindow garde ~1 handle noyau par appel, meme l'element libere (mesure du
-// 27/10 : +1 par capture sur 300 ; la meme perte que NexusWindows Claude avec windows-capture) : un element par fenetre,
-// garde et reutilise (16 fenetres au plus, la plus ancienne rendue). Pool, session et image : fermes a chaque capture.
-// L'autotest mesure les handles.
+// Windows.Graphics.Capture of ONE window, as a fallback only: PrintWindow failed or returned a uniform image (DirectX
+// surface, game, some composed windows). The capture reads the window's own DWM surface, with no cursor or yellow border,
+// even when covered: never a copy of the screen, which would show the window on top.
+// WinRT and Direct3D 11 as raw COM (WinRt.cs): neither a 25 MB projection nor a package. D3D device kept for the process
+// (created once). GraphicsCaptureItem.CreateForWindow keeps ~1 kernel handle per call, even once the item is released
+// (measured on 27/10: +1 per capture over 300; the same leak as NexusWindows Claude with windows-capture): one item per
+// window, kept and reused (16 windows at most, the oldest given back). Pool, session and frame: closed at each capture.
+// The self-test measures the handles.
 static unsafe partial class Wgc
 {
     const int TimeoutMs = 1500;
@@ -64,7 +64,7 @@ static unsafe partial class Wgc
         if (graphics != 0) return;
         nint d = 0, c = 0, dxgi = 0, inspectable = 0, g = 0, i = 0, p = 0;
         int level;
-        // Materiel d'abord (prise en charge BGRA pour la surface DWM), WARP sinon (session distante, pilote absent).
+        // Hardware first (BGRA support for the DWM surface), WARP otherwise (remote session, missing driver).
         var hr = D3D11CreateDevice(0, 1 /* HARDWARE */, 0, 0x20 /* BGRA_SUPPORT */, 0, 0, 7, &d, &level, &c);
         if (hr < 0) WinRt.Check(D3D11CreateDevice(0, 5 /* WARP */, 0, 0x20, 0, 0, 7, &d, &level, &c), "D3D11CreateDevice");
         try
@@ -74,7 +74,7 @@ static unsafe partial class Wgc
             g = WinRt.QueryRequired(inspectable, IDirect3DDevice, "IDirect3DDevice");
             i = WinRt.Factory("Windows.Graphics.Capture.GraphicsCaptureItem", IGraphicsCaptureItemInterop);
             p = WinRt.Factory("Windows.Graphics.Capture.Direct3D11CaptureFramePool", IFramePoolStatics2);
-            // Propriete transferee seulement apres un succes complet ; sinon tout est rendu (relecture de Codex du 27/10).
+            // Ownership transferred only after full success; otherwise everything is given back (Codex's review of 27/10).
             (device, context, graphics, interop, pools) = (d, c, g, i, p);
             d = c = g = i = p = 0;
         }
@@ -85,7 +85,7 @@ static unsafe partial class Wgc
         }
     }
 
-    // Appareil perdu (pilote mis a jour, GPU reinitialise) : tout est recree a la capture suivante.
+    // Device lost (driver updated, GPU reset): everything is created again at the next capture.
     static void Reset()
     {
         foreach (var (_, item) in Items) WinRt.Release(item);
@@ -94,8 +94,8 @@ static unsafe partial class Wgc
         (device, context, graphics, interop, pools) = (0, 0, 0, 0, 0);
     }
 
-    // Pixels BGRA de la fenetre, recadres en haut a gauche sur width x height (cadre DWM de Capture.Window) ; une
-    // zone que l'image ne couvre pas reste noire (et compte dans la mesure d'image vide).
+    // BGRA pixels of the window, cropped at the top left to width x height (DWM frame of Capture.Window); an area the
+    // image does not cover stays black (and counts in the blank image measure).
     public static byte[] Window(nint hwnd, int width, int height)
     {
         lock (Gate)
@@ -106,7 +106,7 @@ static unsafe partial class Wgc
             catch (WinRtException error) when (error.HResult32 is unchecked((int)0x887A0005) or unchecked((int)0x887A0007)) { Reset(); throw; }
             catch (Exception error) when (reused && error is WinRtException or CaptureUnavailableException)
             {
-                // Element garde devenu caduc (fenetre recreee sous le meme handle, element ferme) : un seul essai neuf.
+                // Kept item gone stale (window recreated under the same handle, item closed): a single fresh attempt.
                 Forget(hwnd);
                 return Grab(Item(hwnd), width, height);
             }
@@ -123,8 +123,8 @@ static unsafe partial class Wgc
             if (size.Width <= 0 || size.Height <= 0) throw new CaptureUnavailableException("Windows.Graphics.Capture: window has no size");
             WinRt.Check(((delegate* unmanaged<nint, nint, int, int, SizeInt32, nint*, int>)WinRt.Slot(pools, 6))(pools, graphics, Bgra8, 1, size, &pool), "Direct3D11CaptureFramePool.CreateFreeThreaded");
             WinRt.Check(((delegate* unmanaged<nint, nint, nint*, int>)WinRt.Slot(pool, 10))(pool, item, &session), "CreateCaptureSession");
-            // Sans curseur (Windows 10 2004+) ni bordure jaune (Windows 11) ; plus ancien : reglage absent, ignore. Windows
-            // peut ignorer IsBorderRequired=false (acces Borderless refuse) : bordure possible sur la fenetre, jamais promise.
+            // No cursor (Windows 10 2004+) nor yellow border (Windows 11); older: setting absent, ignored. Windows may
+            // ignore IsBorderRequired=false (Borderless access refused): a border is possible on the window, never promised.
             var s2 = WinRt.Query(session, IGraphicsCaptureSession2);
             if (s2 != 0) { ((delegate* unmanaged<nint, byte, int>)WinRt.Slot(s2, 7))(s2, 0); WinRt.Release(s2); }
             var s3 = WinRt.Query(session, IGraphicsCaptureSession3);
@@ -172,8 +172,8 @@ static unsafe partial class Wgc
         }
     }
 
-    // Autotest : fenetre STATIC de l'autotest lui-meme, hors de tous les ecrans (jamais visible ni active), capturee par
-    // WGC puis relue par OCR ; 40 captures ensuite, handles du processus compares (fuite : echec).
+    // Self-test: the self-test's own STATIC window, off every screen (never visible or active), captured by WGC then read
+    // back by OCR; 40 captures after that, the process's handles compared (a leak: failure).
     [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial nint CreateWindowExW(uint ex, string cls, string title, uint style, int x, int y, int w, int h, nint parent, nint menu, nint instance, nint param);
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -199,7 +199,7 @@ static unsafe partial class Wgc
     [LibraryImport("gdi32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial nint CreateFontW(int height, int width, int escapement, int orientation, int weight, uint italic, uint underline, uint strike, uint charset, uint precision, uint clip, uint quality, uint pitch, string face);
     [StructLayout(LayoutKind.Sequential)] struct Msg { public nint Hwnd; public uint Message; public nint W, L; public uint Time; public int X, Y; }
 
-    // Banc : capture WGC d'une fenetre existante (lecture seule), deviation et duree rendues.
+    // Bench: WGC capture of an existing window (read only), deviation and duration returned.
     public static int Probe(nint hwnd)
     {
         if (Capture.Area(hwnd) is not { } area) { Console.WriteLine("fail no area"); return 1; }
@@ -219,10 +219,10 @@ static unsafe partial class Wgc
         var pump = new Thread(() =>
         {
             thread = GetCurrentThreadId();
-            // Fenetre outil sans activation, montree TOUT AU FOND de l'ordre Z (sous les fenetres de Julien : le cas reel
-            // d'une fenetre recouverte) ; hors des ecrans, DWM ne la composerait pas (image vide mesuree le 27/10).
+            // Tool window without activation, shown at the VERY BOTTOM of the Z order (under the user's windows: the real
+            // case of a covered window); off screen, DWM would not compose it (blank image measured on 27/10).
             var left = 160;
-            window = CreateWindowExW(0x08000080 /* NOACTIVATE | TOOLWINDOW */, "STATIC", "Nexus WGC 2026", // texte du controle STATIC
+            window = CreateWindowExW(0x08000080 /* NOACTIVATE | TOOLWINDOW */, "STATIC", "Nexus WGC 2026", // text of the STATIC control
                 0x80000000 | 0x1 /* POPUP | SS_CENTER */,
                 left, 160, width, height, 0, 0, 0, 0);
             SendMessageW(window, 0x0030 /* WM_SETFONT */, CreateFontW(-56, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI"), 1);
@@ -256,7 +256,7 @@ static unsafe partial class Wgc
             if (reason != null) Console.WriteLine("skip ocr " + reason);
             else if (!lines.Any(l => l.Text.Contains("WGC", StringComparison.OrdinalIgnoreCase))) { Console.WriteLine("fail content: " + string.Join(" | ", lines.Select(l => l.Text))); failures++; }
             else Console.WriteLine("ok content read back by OCR: " + string.Join(" | ", lines.Select(l => l.Text)));
-            for (var i = 0; i < 5; i++) Window(window, width, height); // regime etabli avant la mesure
+            for (var i = 0; i < 5; i++) Window(window, width, height); // steady state before measuring
             GC.Collect(); GC.WaitForPendingFinalizers();
             var before = Process.GetCurrentProcess().HandleCount;
             timer.Restart();

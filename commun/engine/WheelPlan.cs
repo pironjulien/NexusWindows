@@ -1,11 +1,11 @@
 using System.Text.Json;
 
-// Sens et quantite d'une molette au point (deltaY = -120 x crans de scrollY, deltaX = +120 x crans de
-// scrollX). Convention Windows : seul l'axe VERTICAL est inverse (cran vers le bas = delta negatif) ; a l'horizontale,
-// delta positif = vers la droite (WM_MOUSEHWHEEL). Relecture de Codex du 21/10 : le sens horizontal etait inverse.
+// Direction and amount of a wheel at a point (deltaY = -120 x scrollY notches, deltaX = +120 x scrollX notches).
+// Windows convention: only the VERTICAL axis is inverted (a notch down = negative delta); horizontally, a positive
+// delta = to the right (WM_MOUSEHWHEEL). Codex's review of 21/10: the horizontal direction was inverted.
 readonly record struct ScrollPlan(bool Vertical, bool Forward, int Notches)
 {
-    // ScrollAmount d'UI Automation : 4 = petite avance (vers la fin), 1 = petit retrait.
+    // UI Automation ScrollAmount: 4 = small step forward (towards the end), 1 = small step back.
     public int Amount => Forward ? 4 : 1;
 
     public static ScrollPlan Of(int deltaY, int deltaX)
@@ -16,13 +16,13 @@ readonly record struct ScrollPlan(bool Vertical, bool Forward, int Notches)
         return new(vertical, vertical ? delta < 0 : delta > 0, Math.Clamp(Math.Abs(delta) / 120, 1, 50));
     }
 
-    // Extremite REELLE seulement (relecture de Codex : 99,9 % d'un contenu de 100 000 px laisse encore 100 px).
+    // REAL end only (Codex's review: 99.9 % of a 100,000 px content still leaves 100 px).
     public bool AtEnd(double percent) => Forward ? percent >= 100 : percent <= 0;
 
-    // DevTools : deltaY positif = vers le bas (l'inverse de Windows), deltaX positif = vers la droite (comme Windows).
+    // DevTools: positive deltaY = down (the opposite of Windows), positive deltaX = to the right (as in Windows).
     public static (int X, int Y) DevTools(int deltaY, int deltaX) => (deltaX, -deltaY);
 
-    // Controle hors ligne (tests) : stdin = [{"deltaY", "deltaX", "percent"}] ; sortie un plan par cas, ou l'erreur.
+    // Offline check (tests): stdin = [{"deltaY", "deltaX", "percent"}]; output one plan per case, or the error.
     public static int SelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
@@ -44,9 +44,9 @@ readonly record struct ScrollPlan(bool Vertical, bool Forward, int Notches)
     }
 }
 
-// Choix du conteneur defilable parmi les candidats sous le point (relecture de Codex du 21/10) : la plus petite aire ;
-// a aire egale, celui qui descend de tous les autres (le plus profond) ; sinon ambigu, refus. Recherche au-dela de Max
-// elements : non exhaustive, refus.
+// Choice of the scrollable container among the candidates under the point (Codex's review of 21/10): the smallest area;
+// at equal area, the one that descends from all the others (the deepest); otherwise ambiguous, refused. A search beyond
+// Max elements is not exhaustive: refused.
 static class ScrollChoice
 {
     public const int Max = 5000;
@@ -56,7 +56,7 @@ static class ScrollChoice
         if (count > Max) throw new BackgroundNotApplicableException($"More than {Max} scrollable elements: search not exhaustive, nothing was sent");
     }
 
-    // Index choisi, ou -1 sans candidat. isDescendant(a, b) : a descend strictement de b.
+    // Chosen index, or -1 without a candidate. isDescendant(a, b): a strictly descends from b.
     public static int Pick(IReadOnlyList<long> areas, Func<int, int, bool> isDescendant)
     {
         if (areas.Count == 0) return -1;
@@ -67,7 +67,7 @@ static class ScrollChoice
         throw new BackgroundNotApplicableException("Several scrollable containers of the same size under the point, not nested: ambiguous, nothing was sent");
     }
 
-    // Controle hors ligne (tests) : stdin = {"count", "areas", "parents": {"i": parent}} ; sortie {"index"} ou {"error"}.
+    // Offline check (tests): stdin = {"count", "areas", "parents": {"i": parent}}; output {"index"} or {"error"}.
     public static int SelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());

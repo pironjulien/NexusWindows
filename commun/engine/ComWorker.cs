@@ -4,9 +4,9 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 
-// Processus enfant « COM pur » (--com-worker) : motifs UI Automation avec AutoSetFocus = FALSE, sans jamais charger
-// System.Windows.Automation (voir Background.cs). Une requete JSON par ligne, une reponse par ligne. Il vit tant que
-// le helper parent garde son entree standard ouverte (mort du parent = fin de l'enfant).
+// "Pure COM" child process (--com-worker): UI Automation patterns with AutoSetFocus = FALSE, without ever loading
+// System.Windows.Automation (see Background.cs). One JSON request per line, one answer per line. It lives as long as the
+// parent helper keeps its standard input open (the parent's death = the child's end).
 static partial class ComWorker
 {
     const string Uia = "background:uia";
@@ -17,15 +17,15 @@ static partial class ComWorker
         string? line;
         while ((line = Console.ReadLine()) != null)
         {
-            Acted = false; // y compris si cette ligne echoue avant Execute (JSON malforme apres une entree precedente)
+            Acted = false; // even if this line fails before Execute (malformed JSON after an earlier input)
             object result;
             try
             {
                 using var json = JsonDocument.Parse(line);
                 result = Execute(json.RootElement);
             }
-            // Le point d'envoi fait foi, quelle que soit la nature de l'exception : une lecture prealable peut echouer
-            // sans entree ; inversement une ancienne marque Data ne doit jamais effacer un appel deja transmis.
+            // The send point is what counts, whatever the kind of exception: a prior read can fail without input;
+            // conversely an old Data mark must never erase a call already transmitted.
             catch (Exception error) { result = Failure(error); }
             Console.WriteLine(EngineJson.Serialize(result));
             Console.Out.Flush();
@@ -33,8 +33,8 @@ static partial class ComWorker
         return 0;
     }
 
-    // Frontiere de la requete : faux tant qu'aucun appel pouvant agir (motif, focus) n'a ete tente. Un arret d'urgence
-    // avant elle est marque « avant tout motif » (relecture de Codex du 24/10) ; apres, l'issue reste inconnue.
+    // Boundary of the request: false as long as no call that can act (pattern, focus) has been tried. An emergency stop
+    // before it is marked "before any pattern" (Codex's review of 24/10); after it, the outcome stays unknown.
     [ThreadStatic] static bool Acted;
     internal sealed record WorkerFailure(bool ok, string error, string message, bool beforeInput);
     internal static WorkerFailure Failure(Exception error) => new(false, error.GetType().Name, error.Message, !Acted);
@@ -49,7 +49,7 @@ static partial class ComWorker
     {
         Acted = false;
         try { EmergencyStop.ThrowIfStopped(); }
-        catch (EmergencyStopException error) { error.Data["beforeInput"] = true; throw; } // rien appele encore
+        catch (EmergencyStopException error) { error.Data["beforeInput"] = true; throw; } // nothing called yet
         var op = request.GetProperty("op").GetString();
         var window = (nint)request.GetProperty("windowId").GetInt64();
         if (op == "realizeNamed") return RealizeNamed(window, request);
@@ -60,7 +60,7 @@ static partial class ComWorker
         if (op is "takeFocus" or "hasFocus" && request.TryGetProperty("expectedWindowBirth", out _)) RequireBoundChromiumWindow(window, request);
         var runtimeId = request.GetProperty("runtimeId").EnumerateArray().Select(e => e.GetInt32()).ToArray();
         string Text(string key) => request.TryGetProperty(key, out var v) ? v.GetString() ?? "" : "";
-        // Avant le motif, tout echec (fenetre ou element disparus, fournisseur absent) precede l'entree.
+        // Before the pattern, any failure (window or element gone, provider absent) comes before the input.
         nint element;
         var hint = request.TryGetProperty("nativeWindow", out var h) && h.ValueKind == JsonValueKind.Number ? (nint)h.GetInt64() : 0;
         try
@@ -70,7 +70,7 @@ static partial class ComWorker
         }
         catch (Exception error) when (error is BackgroundNotApplicableException or EmergencyStopException)
         {
-            // Cible disparue ou arret d'urgence avant tout motif : meme marque (relecture de Codex du 24/10).
+            // Target gone or emergency stop before any pattern: the same mark (Codex's review of 24/10).
             error.Data["beforeInput"] = true;
             throw;
         }
@@ -101,8 +101,8 @@ static partial class ComWorker
         }
         finally { ComUia.Release(element); }
     }
-    // Focus sans activation (MSAA accSelect), relu jusqu'a 500 ms : « applied » si l'element a le focus clavier, sinon
-    // « sent » (focus demande mais non relu ; rien n'est tape ensuite).
+    // Focus without activation (MSAA accSelect), read back for up to 500 ms: "applied" if the element has the keyboard
+    // focus, otherwise "sent" (focus requested but not read back; nothing is typed afterwards).
     static Outcome TakeFocus(nint element, nint window = 0)
     {
         BeforeAct();
@@ -133,13 +133,13 @@ static partial class ComWorker
         return new("foreground:uia", "SetFocus", ComUia.HasKeyboardFocus(element) ? "applied" : "sent");
     }
 
-    // Menu WinForms (MenuStrip/ToolStrip, ContextMenuStrip ; sans barre de menus Win32) par son chemin dans la fenetre liee
-    // (banc commun du 21/10 : les identites UIA des elements ToolStrip changent a chaque lecture, « Target is no longer
-    // present ») : chaque segment {nom, identifiant d'automatisation facultatif} est cherche DIRECTEMENT sous le precedent
-    // (ComUia.MenuChild : jamais au travers d'un autre element de menu) ; un sous-menu dont les elements ne sont pas encore
-    // exposes est deplie (ExpandCollapse) ; la commande finale par UIA Invoke. Element absent, homonyme, lecture
-    // incomplete ou sans Invoke : non applicable, rien n'est invoque, et les sous-menus deplies par nous sont replies et
-    // leur fermeture RELUE ; une fermeture non prouvee est une issue inconnue (relecture de Codex du 22/10).
+    // WinForms menu (MenuStrip/ToolStrip, ContextMenuStrip; no Win32 menu bar) by its path in the bound window (shared
+    // bench of 21/10: the UIA identities of ToolStrip items change at each read, "Target is no longer present"): each
+    // segment {name, optional automation id} is searched DIRECTLY under the previous one (ComUia.MenuChild: never through
+    // another menu item); a submenu whose items are not exposed yet is expanded (ExpandCollapse); the final command
+    // through UIA Invoke. An absent item, a namesake, an incomplete read or no Invoke: not applicable, nothing is invoked,
+    // and the submenus we expanded are collapsed and their closing READ BACK; an unproven closing is an unknown outcome
+    // (Codex's review of 22/10).
     static ProgramKeyActionJson MenuPath(nint window, JsonElement request)
     {
         var segments = request.GetProperty("path").EnumerateArray()
@@ -191,7 +191,7 @@ static partial class ComWorker
         }
     }
 
-    // Repli d'un sous-menu deplie par nous, fermeture relue ; non prouvee : issue inconnue (terminal, jamais avalee).
+    // Collapse of a submenu we expanded, closing read back; unproven: unknown outcome (terminal, never swallowed).
     static void Collapse(nint item)
     {
         var pattern = ComUia.Pattern(item, ComUia.ExpandCollapsePatternId);
@@ -207,7 +207,7 @@ static partial class ComWorker
         if (after != 0) throw new InvalidOperationException("A menu opened for the search is still open; outcome unknown");
     }
 
-    // Controle hors ligne (tests) : stdin = ["closed" | "open" | "throws"] ; sortie un resultat par cas.
+    // Offline check (tests): stdin = ["closed" | "open" | "throws"]; output one result per case.
     public static int CollapseSelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
@@ -226,17 +226,17 @@ static partial class ComWorker
         return 0;
     }
 
-    // Molette en arriere-plan d'une interface qui ignore la souris postee (WPF, banc commun du 21/10, recette A de
-    // Codex) : defilement SEMANTIQUE du plus petit conteneur UI Automation defilable sur cet axe sous le point, cherche
-    // dans le sous-arbre de la fenetre cible (ComUia.ScrollContainerAt). Un petit pas par cran ; position relue jusqu'a
-    // 1 s : changee = « applied », inchangee = « sent » (jamais une seconde technique). Deja a l'extremite REELLE (0 ou
-    // 100 %) : rien n'est envoye (« none »). Tout echec a partir du premier pas : issue inconnue. Ce n'est pas un
-    // evenement de molette : un canevas sans ScrollPattern reste non applicable.
+    // Background wheel of an interface that ignores the posted mouse (WPF, shared bench of 21/10, Codex's recipe A):
+    // SEMANTIC scrolling of the smallest UI Automation container scrollable on that axis under the point, searched in the
+    // subtree of the target window (ComUia.ScrollContainerAt). One small step per notch; position read back for up to
+    // 1 s: changed = "applied", unchanged = "sent" (never a second technique). Already at the REAL end (0 or 100 %):
+    // nothing is sent ("none"). Any failure from the first step on: unknown outcome. This is not a wheel event: a canvas
+    // without ScrollPattern stays not applicable.
     static ProgramKeyActionJson ScrollAt(nint window, JsonElement request)
     {
         int Int(string key) => request.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
         var (x, y, deltaY, deltaX) = (Int("x"), Int("y"), Int("deltaY"), Int("deltaX"));
-        var previous = Win32.SetThreadDpiAwarenessContext(-4); // PER_MONITOR_AWARE_V2 : pixels reels, comme la capture
+        var previous = Win32.SetThreadDpiAwarenessContext(-4); // PER_MONITOR_AWARE_V2: real pixels, like the capture
         nint element = 0, pattern = 0;
         try
         {
@@ -267,7 +267,7 @@ static partial class ComWorker
             }
             catch (Exception error)
             {
-                // Au moins un pas a pu partir : jamais « rien n'a ete envoye », jamais un repli.
+                // At least one step may have left: never "nothing was sent", never a fallback.
                 throw new InvalidOperationException("Semantic scroll interrupted after input; outcome unknown, do not replay: " + error.Message, error);
             }
         }
@@ -279,8 +279,8 @@ static partial class ComWorker
         }
     }
 
-    // Refus leve avant tout appel de motif de cette requete : marque, transmis au helper (beforeInput), qui le rend
-    // « rien envoye » (relecture de Codex du 24/10).
+    // Refusal raised before any pattern call of this request: marked, passed to the helper (beforeInput), which reports it
+    // as "nothing sent" (Codex's review of 24/10).
     internal static BackgroundNotApplicableException Before(string message)
     {
         var error = new BackgroundNotApplicableException(message);
@@ -314,8 +314,8 @@ static partial class ComWorker
         "select" => WithPattern<Outcome?>(element, ComUia.SelectionItemPatternId, p => Select(p), () => null),
         _ => null,
     });
-    // Le motif suivant n'est consulte que si le precedent n'existe pas (null). Une entree sans effet relu, un ACK
-    // perdu ou une erreur apres BeforeAct restent terminaux : ni autre motif ni autre clic.
+    // The next pattern is consulted only if the previous one does not exist (null). An input without a read-back effect,
+    // a lost ACK or an error after BeforeAct stay terminal: neither another pattern nor another click.
     static Outcome ChooseClick(string[] order, Func<string, Outcome?> attempt)
     {
         foreach (var name in order)
@@ -323,7 +323,7 @@ static partial class ComWorker
             var outcome = attempt(name);
             if (outcome is { } done) return done;
         }
-        throw Before("No background click pattern for this control"); // aucun motif appele
+        throw Before("No background click pattern for this control"); // no pattern called
     }
     internal static object ClickSelfTest(JsonElement test)
     {
@@ -353,17 +353,17 @@ static partial class ComWorker
         var after = ComUia.Value(pattern);
         return new Outcome(Uia, "Value.SetValue", EffectAfterCall(after == value));
     }, () => throw Before("No writable ValuePattern"));
-    // Etat relu par le motif ExpandCollapse (0 replie, 1 deplie, 2 partiel, 3 feuille), attendu au plus 0,5 s : certains
-    // fournisseurs (WPF) ouvrent leur surgissante de facon asynchrone.
+    // State read through the ExpandCollapse pattern (0 collapsed, 1 expanded, 2 partial, 3 leaf), waited for 0.5 s at most:
+    // some providers (WPF) open their popup asynchronously.
     static int WaitState(nint pattern, Func<int, bool> reached)
     {
         var state = ComUia.ReadInt(pattern, 5);
         for (var i = 0; i < 10 && !reached(state); i++) { Thread.Sleep(50); state = ComUia.ReadInt(pattern, 5); }
         return state;
     }
-    // Un appel deja transmis ne devient jamais « none » parce que son effet n'est pas encore publie. Meme un refus
-    // COM apres l'appel ne prouve pas que le fournisseur n'a rien programme. Invoke n'est un repli que si le motif
-    // ExpandCollapse est ABSENT avant tout appel, jamais apres Expand/Collapse ou apres une lecture en echec.
+    // A call already transmitted never becomes "none" because its effect is not published yet. Even a COM refusal after
+    // the call does not prove the provider scheduled nothing. Invoke is a fallback only if the ExpandCollapse pattern is
+    // ABSENT before any call, never after Expand/Collapse or after a failed read.
     static Outcome ExpandCollapse(nint element, string action, bool invokeFallback) => ChooseExpandCollapse(action, invokeFallback,
         () => WithPattern<Outcome?>(element, ComUia.ExpandCollapsePatternId, pattern =>
         {
@@ -396,7 +396,7 @@ static partial class ComWorker
         }
         return new(Uia, mechanism, EffectAfterCall(reached()));
     }
-    // Refus COM connus dont on peut relire l'etat. Ils restent transmis : aucun autre motif apres l'appel.
+    // Known COM refusals whose state can be read back. They still count as transmitted: no other pattern after the call.
     internal static bool IsRefusal(int hresult) => hresult is unchecked((int)0x80131509) or unchecked((int)0x80040200);
     public static int ExpandSelfTest()
     {
@@ -414,7 +414,7 @@ static partial class ComWorker
                     "missing" => new BackgroundNotApplicableException("missing"),
                     _ => new COMException("provider read failed"),
                 };
-                // Une marque erronnee ou conservee d'une sous-etape ne peut contredire la phase reelle du worker.
+                // A wrong mark, or one kept from a sub-step, cannot contradict the worker's real phase.
                 error.Data["beforeInput"] = c.TryGetProperty("hint", out var hint) && hint.GetBoolean();
                 var reply = Failure(error);
                 Exception mapped;
@@ -479,8 +479,8 @@ static partial class ComWorker
         return 0;
     }
 
-    // Option d'une liste deroulante (conteneur) choisie par SelectionItem, puis la liste refermee : une liste laissee
-    // ouverte est une surgissante au-dessus des fenetres de Julien (un clic de sa part y choisirait une option).
+    // Option of a combo box (container) picked through SelectionItem, then the list closed again: a list left open is a
+    // popup above the user's windows (a click from them would pick an option there).
     static Outcome SelectItem(nint window, nint item, int[] containerRuntimeId)
     {
         var container = ComUia.Shared.FindByRuntimeId(window, containerRuntimeId);
@@ -491,9 +491,9 @@ static partial class ComWorker
         }
         finally { ComUia.Release(container); }
     }
-    // Liste ou liste deroulante UIA (WPF, XAML, Chromium) : option deja publiee sous le conteneur, sinon depliage sans
-    // focus, choix par SelectionItem, puis repliage (toujours pour une liste deroulante, sinon si elle etait repliee).
-    // Correspondance des options : egalite exacte unique, puis sans casse unique ; jamais partielle.
+    // UIA list or combo box (WPF, XAML, Chromium): an option already published under the container, otherwise expanding
+    // without focus, choice through SelectionItem, then collapsing (always for a combo box, otherwise if it was collapsed).
+    // Option matching: a unique exact match, then a unique case-insensitive one; never partial.
     static Outcome SelectOption(nint container, string option, bool combo)
     {
         var expand = ComUia.Pattern(container, ComUia.ExpandCollapsePatternId);
@@ -501,11 +501,11 @@ static partial class ComWorker
         {
             nint item;
             try { item = FindOption(container, option, allowAbsent: expand != 0); }
-            catch (BackgroundNotApplicableException error) { error.Data["beforeInput"] = true; throw; } // rien deplie encore
+            catch (BackgroundNotApplicableException error) { error.Data["beforeInput"] = true; throw; } // nothing expanded yet
             var opened = false;
             if (item == 0)
             {
-                if (ComUia.ReadInt(expand, 5) != 0) throw Before("Option is absent from the list"); // rien deplie encore
+                if (ComUia.ReadInt(expand, 5) != 0) throw Before("Option is absent from the list"); // nothing expanded yet
                 BeforeAct();
                 ComUia.CallSlot(expand, 3);
                 opened = true;
@@ -546,14 +546,14 @@ static partial class ComWorker
         }
         finally { foreach (var (element, _) in items) ComUia.Release(element); }
     }
-    // Repliage relu apres le choix ; le choix deja fait n'est jamais rejoue. Liste restee ouverte : effet « sent ».
+    // Collapsing read back after the choice; the choice already made is never replayed. A list left open: effect "sent".
     static Outcome Close(nint container, Outcome selected)
     {
         var expand = ComUia.Pattern(container, ComUia.ExpandCollapsePatternId);
         if (expand == 0) return selected;
         try
         {
-            // Certaines listes se referment d'elles-memes apres le choix : un Collapse tardif peut alors echouer.
+            // Some lists close by themselves after the choice: a late Collapse may then fail.
             if (ComUia.ReadInt(expand, 5) is 1 or 2)
             {
                 try { BeforeAct(); ComUia.CallSlot(expand, 4); } catch (System.Runtime.InteropServices.COMException) { }
@@ -565,13 +565,13 @@ static partial class ComWorker
     }
 }
 
-// Cote helper gere : un enfant --com-worker reutilise, une requete a la fois, delai borne. L'enfant est rattache a un
-// Job Object (KILL_ON_JOB_CLOSE) : si le helper meurt (delai depasse cote Node, qui le tue), Windows tue aussi l'enfant,
-// qui ne peut donc plus agir apres coup sur une action deja rapportee « inconnue ».
+// Managed helper side: a reused --com-worker child, one request at a time, bounded delay. The child is attached to a
+// Job Object (KILL_ON_JOB_CLOSE): if the helper dies (delay exceeded on the Node side, which kills it), Windows kills the
+// child too, which therefore can no longer act afterwards on an action already reported "unknown".
 static partial class ComBridge
 {
     static Process? child;
-    public const int TimeoutMs = 10000; // borne d'un appel au processus des motifs UI Automation
+    public const int TimeoutMs = 10000; // bound of a call to the UI Automation patterns process
     static nint job;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -593,8 +593,8 @@ static partial class ComBridge
     const int JobObjectExtendedLimitInformation = 9;
     const uint KillOnJobClose = 0x2000;
 
-    // Job du processus helper, cree une fois ; son handle n'est jamais ferme avant la fin du helper (fermeture = mort des
-    // enfants).
+    // Job of the helper process, created once; its handle is never closed before the helper ends (closing = the
+    // children's death).
     static nint Job()
     {
         if (job != 0) return job;
@@ -615,8 +615,8 @@ static partial class ComBridge
     }
     public static JsonElement CallData(object request, int timeoutMs = TimeoutMs)
     {
-        // Demarrage, Job Object et serialisation precedent toute ecriture de requete : leurs echecs ne consomment
-        // aucune entree. Une erreur de WriteLine/Flush, en revanche, peut suivre un envoi partiel : jamais reclassee.
+        // Start, Job Object and serialization come before any request is written: their failures consume no input. A
+        // WriteLine/Flush error, on the other hand, may follow a partial send: never reclassified.
         var process = BeforeRequest(() => child is { HasExited: false } ? child : Start());
         var requestLine = BeforeRequest(() => EngineJson.Serialize(request));
         string? line;
@@ -643,9 +643,9 @@ static partial class ComBridge
         try { return prepare(); }
         catch (Exception error) { throw ReplyError(error.GetType().Name, error.Message, true); }
     }
-    // Phase attestee par le worker : un echec d'obtention/lecture du motif avant l'appel permet un autre parcours.
-    // Un refus ferme et STOP gardent leur nature. Apres l'appel, tout echec est terminal, meme s'il portait un ancien
-    // marqueur de refus ou une marque preparatoire provenant d'une sous-etape.
+    // Phase attested by the worker: a failure to get/read the pattern before the call allows another path.
+    // A firm refusal and STOP keep their nature. After the call, any failure is terminal, even if it carried an old
+    // refusal marker or a preparatory mark from a sub-step.
     internal static Exception ReplyError(string error, string message, bool beforeInput)
     {
         if (error == nameof(EmergencyStopException)) return Stop(message, beforeInput);
@@ -655,7 +655,7 @@ static partial class ComBridge
         refusal.Data["beforeInput"] = true;
         return refusal;
     }
-    // Arret d'urgence du processus COM, avec sa marque « avant tout motif » s'il l'avait (FirstCall la lit).
+    // Emergency stop of the COM process, with its "before any pattern" mark if it had one (FirstCall reads it).
     static EmergencyStopException Stop(string message, bool beforeInput)
     {
         var error = new EmergencyStopException(message);
@@ -673,14 +673,14 @@ static partial class ComBridge
         };
         var jobHandle = Job();
         child = Process.Start(start) ?? throw new BackgroundNotApplicableException("COM UI Automation worker did not start");
-        // Avant toute requete : un enfant qui ne serait pas lie au helper pourrait lui survivre. Rien n'a ete envoye.
+        // Before any request: a child not bound to the helper could outlive it. Nothing has been sent.
         if (!AssignProcessToJobObject(jobHandle, child.Handle))
         {
             var error = Marshal.GetLastWin32Error();
             Stop();
             throw new BackgroundNotApplicableException($"COM worker could not be bound to the helper (Job Object, error {error}); nothing was sent");
         }
-        child.ErrorDataReceived += (_, _) => { }; // vide stderr sans le garder
+        child.ErrorDataReceived += (_, _) => { }; // drains stderr without keeping it
         child.BeginErrorReadLine();
         return child;
     }

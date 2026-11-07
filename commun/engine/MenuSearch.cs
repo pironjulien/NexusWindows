@@ -1,9 +1,9 @@
 using System.Text.Json;
 
-// Recherche d'un element de menu DIRECTEMENT sous un autre (relecture de Codex du 22/10), independante de la source de
-// l'arbre (UI Automation dans ComUia.MenuChild, arbre simule dans tests/CdpTests.cs) : parcours en largeur qui traverse les
-// conteneurs (menu, barre, volet) sans jamais franchir un autre element de menu ; nom exact, identifiant
-// d'automatisation s'il est donne ; homonyme, plus de Max noeuds ou enfants illisibles (children leve) : refus.
+// Search for a menu item DIRECTLY under another (Codex's review of 22/10), independent of the tree's source (UI
+// Automation in ComUia.MenuChild, simulated tree in tests/CdpTests.cs): breadth-first walk that crosses containers
+// (menu, bar, pane) without ever going past another menu item; exact name, automation id when given; a namesake, more
+// than Max nodes or unreadable children (children throws): refused.
 static class MenuSearch
 {
     public const int Max = 2000;
@@ -22,7 +22,7 @@ static class MenuSearch
                 if (name(node) != wantedName || wantedId is { Length: > 0 } && automationId(node) != wantedId) continue;
                 if (found.Item1) throw new BackgroundNotApplicableException($"Menu item « {wantedName} » is ambiguous at this level: nothing was sent");
                 found = (true, node);
-                continue; // jamais franchi
+                continue; // never crossed
             }
             foreach (var child in children(node))
             {
@@ -34,9 +34,9 @@ static class MenuSearch
         return found;
     }
 
-    // Chemin d'un element de menu WinForms vise par un clic : elements de menu de son ascendance observee (dans l'ordre),
-    // puis lui-meme (nom, identifiant d'automatisation du selecteur) ; un ancetre exige par le selecteur doit figurer dans
-    // l'ascendance observee.
+    // Path of a WinForms menu item targeted by a click: menu items of its observed ancestry (in order), then the item
+    // itself (name, automation id of the selector); an ancestor the selector requires must appear in the observed
+    // ancestry.
     public static (string Name, string? AutomationId)[] Segments(IReadOnlyList<JsonElement> ancestry, JsonElement selector)
     {
         static string Field(JsonElement e, string key) => e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";
@@ -50,16 +50,16 @@ static class MenuSearch
             .Append((Field(selector, "name"), selector.TryGetProperty("automationId", out var aid) ? aid.GetString() : null)).ToArray();
     }
 
-    // Portee d'une commande de menu : la surgissante (menu contextuel ou deroulant ouvert) de son ascendance observee,
-    // derniere fenetre propre differente de la fenetre suivie ; sinon la fenetre suivie. La surgissante doit encore etre
-    // ouverte et liee (verifie par l'appelant, Win32.IsTransientPopup) : jamais une autre fenetre devinee.
+    // Scope of a menu command: the popup (open context or drop-down menu) of its observed ancestry, last own window
+    // different from the followed window; otherwise the followed window. The popup must still be open and bound
+    // (checked by the caller, Win32.IsTransientPopup): never another window guessed.
     public static long Scope(long window, IReadOnlyList<JsonElement> ancestry) =>
         ancestry.Select(e => e.TryGetProperty("nativeWindow", out var w) && w.ValueKind == JsonValueKind.Number ? w.GetInt64() : 0)
             .LastOrDefault(w => w != 0 && w != window) is var popup && popup != 0 ? popup : window;
 
-    // Controle hors ligne (tests) : stdin = {"nodes": [{"id", "role", "name", "automationId", "children": [ids],
-    // "unreadable"}], "root", "path": [{"name", "automationId"}]} ou {"ancestry", "selector"} ; sortie {"id"} / {"segments"}
-    // ou {"error"}.
+    // Offline check (tests): stdin = {"nodes": [{"id", "role", "name", "automationId", "children": [ids],
+    // "unreadable"}], "root", "path": [{"name", "automationId"}]} or {"ancestry", "selector"}; output {"id"} / {"segments"}
+    // or {"error"}.
     public static int SelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());

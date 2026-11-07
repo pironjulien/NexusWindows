@@ -12,7 +12,7 @@ static partial class Program
     private static partial bool IsWindow(nint hwnd);
     [LibraryImport("user32.dll")] private static partial uint GetWindowThreadProcessId(nint hwnd, out uint pid);
     [LibraryImport("kernel32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial int GetApplicationUserModelId(nint process, ref uint length, [Out] char[]? appId);
-    // Lectures : permises pendant l'arret d'urgence, n'envoient aucune entree.
+    // Reads: allowed during the emergency stop, they send no input.
     static readonly HashSet<string> ReadOnlyOperations = new(StringComparer.Ordinal) { "inspect", "capture", "ocr", "related", "windows", "probe", "alive", "table" };
     static readonly HashSet<string> ActionOperations = new(StringComparer.Ordinal) { "click", "setValue", "secondary", "select", "typeText", "physical", "focus", "realizeNamed", "key" };
     static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -20,12 +20,12 @@ static partial class Program
     // --stop-guard). The in-process xUnit tests point it at the built engine instead of the test host.
     internal static string HelperExecutable { get; set; } = Environment.ProcessPath ?? "";
     static string Text(JsonElement e, string key, string fallback = "") => e.TryGetProperty(key, out var v) ? v.GetString() ?? fallback : fallback;
-    // Blocage dur : politique commune garde-fous.json (GardeFous.cs). Consoles, terminaux et outils d'administration sont
-    // libres depuis l'accord du 18/10 ; seuls restent bloques le bureau securise, les identifiants Windows, les
-    // gestionnaires de mots de passe et l'application de Codex lui-meme (ses demandes d'autorisation).
+    // Hard block: shared garde-fous.json policy (GardeFous.cs). Consoles, terminals and administration tools are free
+    // since the agreement of 18/10; only the secure desktop, Windows credentials, password managers and Codex's own
+    // application (its permission requests) stay blocked.
     static string? Exclusion(string processName, nint hwnd) => GardeFous.BlockReason(processName, Win32.ClassName(hwnd));
-    // Fenetres console : jamais suivies comme un dialogue apparu pendant une action (elles restent pilotables si on les
-    // lie explicitement).
+    // Console windows: never followed as a dialog that appeared during an action (they stay drivable if they are bound
+    // explicitly).
     static readonly HashSet<string> ConsoleClasses = new(StringComparer.OrdinalIgnoreCase)
     { "ConsoleWindowClass", "PseudoConsoleWindow", "CASCADIA_HOSTING_WINDOW_CLASS" };
 
@@ -38,8 +38,8 @@ static partial class Program
         Console.OutputEncoding = new UTF8Encoding(false);
         if (args.Length is 2 or 3 && args[0] == "--foreground-token")
         {
-            // Troisieme argument facultatif : fenetre cible (hwnd). La fenetre active de Julien est notee des le jeton pris
-            // et lui est rendue a la fin, sous le jeton, si la cible tient encore le premier plan (ForegroundReturn).
+            // Optional third argument: target window (hwnd). The user's active window is noted as soon as the token is
+            // taken and given back to them at the end, under the token, if the target still holds the foreground (ForegroundReturn).
             var target = args.Length == 3 && long.TryParse(args[2], out var hwnd) ? (nint)hwnd : 0;
             bool acquired = false;
             try
@@ -54,31 +54,31 @@ static partial class Program
                 Write(new ProgramMainJson(ok: true, foreground: (long)noted));
                 Console.Out.Flush();
                 var said = abandoned.GetAwaiter().GetResult();
-                // Accuse terminal de liberation normale, toujours ecrit (cible ou non) : sans lui, l'appelant tient la
-                // fermeture pour une perte du jeton (relecture de Codex, 21/10).
+                // Terminal acknowledgement of a normal release, always written (target or not): without it, the caller
+                // takes the closing for a loss of the token (Codex's review, 21/10).
                 string? state = null;
                 if (target != 0)
                 {
-                    // « keep » : l'appelant a vu Julien reprendre clavier ou souris pendant le bail (sa presence distingue
-                    // les injections de l'agent, que LastInput ne distingue pas) ; son choix est garde.
+                    // "keep": the caller saw the user take the keyboard or mouse back during the lease (its presence tells
+                    // the agent's injections apart, which LastInput does not); their choice is kept.
                     state = said.Contains("keep") ? "kept-by-julien" : ForegroundReturn.GiveBack(noted, target);
                 }
-                try { Write(new ProgramMainJson2(released: true, giveBack: state)); Console.Out.Flush(); } catch (IOException) { } // appelant deja parti
+                try { Write(new ProgramMainJson2(released: true, giveBack: state)); Console.Out.Flush(); } catch (IOException) { } // caller already gone
                 return 0;
             }
             catch (Exception error) when (!acquired) { Write(new ProgramMainJson3(ok: false, error: error.GetType().Name, message: error.Message)); return 1; }
         }
         if (args.Length is 3 or 4 && args[0] == "--window-lock") return WindowLock.Hold(args);
         if (args.Length == 2 && args[0] == "--stop-guard") return EmergencyStop.Guard(args[1]);
-        // Images de l'indicateur (BGRA premultiplie, bout a bout) pour les tests, sans rien afficher.
+        // Indicator frames (premultiplied BGRA, end to end) for the tests, without showing anything.
         if (args.Length == 3 && args[0] == "--indicator-frames" && int.TryParse(args[1], out var diameter) && diameter is >= 24 and <= 512)
         {
             File.WriteAllBytes(args[2], BusyIndicator.RenderFrames(diameter).SelectMany(f => f).ToArray());
             return 0;
         }
-        // Processus des motifs UI Automation (voir Background.cs).
+        // Process of the UI Automation patterns (see Background.cs).
         if (args.SequenceEqual(new[] { "--com-worker" })) return ComWorker.Run();
-        if (args.Length == 2 && args[0] == "--steam-startup-info") return Steam.WriteStartupInfo(args[1]); // enfant du banc sans GUI
+        if (args.Length == 2 && args[0] == "--steam-startup-info") return Steam.WriteStartupInfo(args[1]); // bench child without a GUI
         if (args.Length == 1 && args[0] == "--migrate-routines") return McpServer.MigrateRoutines();
         // Declaration to the MCP clients (Registration.cs): installers and get.ps1, never a session.
         if (args.Length >= 2 && args[0] == "--register") return Registration.Command(args);
@@ -117,7 +117,7 @@ static partial class Program
         string? requestId = null;
         object result;
         int code = 0;
-        InputStarted = false; // une requete rejetee avant Execute n'herite jamais de l'etat de la precedente
+        InputStarted = false; // a request rejected before Execute never inherits the previous one's state
         try
         {
             if (input.Length > 262144) throw new InvalidOperationException("Request is too large");
@@ -132,15 +132,15 @@ static partial class Program
                 var file = policy.GetString();
                 if (string.IsNullOrWhiteSpace(file) || !Path.IsPathFullyQualified(file))
                     throw new InvalidDataException("Policy path must be absolute");
-                // Les enfants COM heritent aussi de ce chemin, avec l'environnement Windows complet.
+                // COM children inherit this path too, with the full Windows environment.
                 Environment.SetEnvironmentVariable("NEXUS_GARDE_FOUS", file);
             }
             result = Execute(request);
         }
         catch (Exception error)
         {
-            // inputStarted : une entree a pu partir avant l'erreur (relecture de Codex du 24/10) ; le client la rend
-            // terminale (issue inconnue, accord consomme, aucun repli), quel que soit le type de l'exception.
+            // inputStarted: an input may have left before the error (Codex's review of 24/10); the client makes it
+            // terminal (unknown outcome, accord consumed, no fallback), whatever the type of the exception.
             result = new ProgramProcessRequestJson(ok: false, error: error.GetType().Name, message: error.Message, inputStarted: InputStarted);
             code = 1;
         }
@@ -148,8 +148,8 @@ static partial class Program
         Console.Out.Flush();
         return code;
     }
-    // Vrai des qu'une entree a pu partir (RunAction, WM_COMMAND de menu) : avant, toute erreur d'une action precede
-    // l'entree.
+    // True as soon as an input may have left (RunAction, menu WM_COMMAND): before that, any error of an action comes
+    // before the input.
     [ThreadStatic] internal static bool InputStarted;
     internal static object Execute(JsonElement request)
     {
@@ -159,8 +159,8 @@ static partial class Program
         catch (Exception error) when (!ReadOnlyOperations.Contains(op) && !InputStarted && error is not (EmergencyStopException or ActionRefusedException or JulienActiveException)
             && request.TryGetProperty("windowId", out var w) && w.ValueKind == JsonValueKind.Number && !IsWindow((nint)w.GetInt64()))
         {
-            // Fenetre fermee pendant la requete, avant toute entree : refus (rien n'a ete envoye), jamais un resultat
-            // inconnu, et jamais un repli physique vers une fenetre disparue.
+            // Window closed during the request, before any input: refused (nothing was sent), never an unknown result, and
+            // never a physical fallback towards a vanished window.
             throw new ActionRefusedException("Window closed during the request; nothing was sent: " + error.Message);
         }
     }
@@ -181,11 +181,11 @@ static partial class Program
             request.TryGetProperty("devtools", out var ld) && ld.GetBoolean(), request.TryGetProperty("restart", out var lr) && lr.GetBoolean());
         if (op == "openSettings") return OpenSettings(request.GetProperty("uri").GetString() ?? "",
             request.TryGetProperty("quietMs", out var oq) && oq.ValueKind == JsonValueKind.Number ? oq.GetInt32() : null);
-        // Un refus avant toute entree n'est jamais un resultat inconnu : aucune entree n'a ete envoyee.
+        // A refusal before any input is never an unknown result: no input was sent.
         Exception Refuse(string message) => action ? new ActionRefusedException(message) : new InvalidOperationException(message);
         var hwnd = (nint)request.GetProperty("windowId").GetInt64();
         var app = request.GetProperty("app").GetString() ?? "";
-        // Identite imposee par la session (fenetre absente de Sky) : meme processus, meme proprietaire, a chaque requete.
+        // Identity imposed by the session (a window Sky does not know): same process, same owner, at each request.
         long? expectedPid = request.TryGetProperty("expectedPid", out var ep) && ep.ValueKind == JsonValueKind.Number ? ep.GetInt64() : null;
         long? expectedOwner = request.TryGetProperty("expectedOwner", out var eo) && eo.ValueKind == JsonValueKind.Number ? eo.GetInt64() : null;
         long? expectedAnchor = request.TryGetProperty("expectedAnchor", out var ea) && ea.ValueKind == JsonValueKind.Number ? ea.GetInt64() : null;
@@ -250,7 +250,7 @@ static partial class Program
             {
                 int[]? zoom = request.TryGetProperty("zoom", out var z) && z.ValueKind == JsonValueKind.Array
                     ? z.EnumerateArray().Select(v => v.GetInt32()).ToArray() : null;
-                // Numeros (Marks.cs) : [{index, bounds:[x,y,w,h] ecran, scope: HWND porteur ou 0}] et cadre lu avec l'arbre.
+                // Numbers (Marks.cs): [{index, bounds:[x,y,w,h] screen, scope: carrying HWND or 0}] and frame read with the tree.
                 List<Mark>? marks = null;
                 Win32.Rect? treeFrame = null;
                 if (request.TryGetProperty("marks", out var m) && m.ValueKind == JsonValueKind.Array)
@@ -269,7 +269,7 @@ static partial class Program
                 }
                 return Capture.Window(hwnd, Text(request, "directory"), zoom, marks, treeFrame);
             }
-            // OCR de la derniere capture de CETTE fenetre (chemin rendu par capture), lecture seule.
+            // OCR of THIS window's last capture (path returned by capture), read only.
             if (op == "ocr") return Capture.Recognize(Text(request, "path"));
             if (op == "related") return Related(hwnd, pid);
             if (op == "table")
@@ -284,9 +284,9 @@ static partial class Program
             if (op == "menu") return MenuCommand(hwnd, Text(request, "path"));
             if (op == "key" && !request.TryGetProperty("selector", out _)) return KeyAction(hwnd, Text(request, "key"), request);
             if (op == "point") return PointAction(hwnd, request);
-            // Vraie souris et vrai clavier du helper, sous le jeton tenu par l'appelant (Physical.cs).
-            // Sans cible native : point d'une capture, touche ou texte. Avec cible : resolue ci-dessous, puis relue sous le
-            // jeton apres la mise au premier plan.
+            // The helper's real mouse and keyboard, under the token held by the caller (Physical.cs).
+            // Without a native target: a capture point, a key or text. With a target: resolved below, then read again under
+            // the token after coming to the foreground.
             if (op == "physical" && !request.TryGetProperty("selector", out _))
             {
                 if (Text(request, "action") == "drag" && McpServer.ClaudeDevtoolsInScope(hwnd)) return PointAction(hwnd, request);
@@ -337,27 +337,27 @@ static partial class Program
                 return Inspect(observation.Nodes, contentPid, actualApp, pid, clock.ElapsedMilliseconds, observation.Frame, storeResume, storeContentReady);
             }
 
-            // Actions. Observation native (identite d'execution et chaine des ancetres fournies) : relecture limitee a la
-            // cible et a ses ancetres, comparee a ce que la session a vu. Observation Sky : arbre complet, selecteur.
-            // Toute impossibilite a ce stade precede l'entree : technique suivante permise ou refus.
+            // Actions. Native observation (runtime id and ancestor chain given): read-back limited to the target and its
+            // ancestors, compared with what the session saw. Sky observation: full tree, selector.
+            // Anything impossible at this stage comes before the input: next technique allowed, or refused.
             var mode = Text(request, "mode", "background");
             if (mode is not ("background" or "foreground")) throw new InvalidOperationException("Unknown action mode");
             var selector = request.GetProperty("selector");
-            // Element de menu WinForms (MenuStrip, menu contextuel ContextMenuStrip) : ses identites UIA changent a chaque
-            // lecture (banc commun du 21/10 : « Target is no longer present »). Designe par son NOM, unique dans la fenetre
-            // liee, et invoque par UIA (ComWorker.MenuPath), comme le chemin de menu.
-            // Contraintes stables gardees (relecture de Codex du 22/10) : nom, identifiant d'automatisation, et le contexte du
-            // menu (elements de menu ancetres observes, dans l'ordre) ; un ancetre exige par le selecteur doit y figurer.
+            // WinForms menu item (MenuStrip, ContextMenuStrip context menu): its UIA identities change at each read
+            // (shared bench of 21/10: "Target is no longer present"). Named by its NAME, unique in the bound window, and
+            // invoked through UIA (ComWorker.MenuPath), like the menu path.
+            // Stable constraints kept (Codex's review of 22/10): name, automation id, and the menu's context (observed
+            // ancestor menu items, in order); an ancestor the selector requires must appear there.
             if (op == "click" && mode == "background" && Win32.ClassName(hwnd).StartsWith("WindowsForms10.", StringComparison.Ordinal) &&
                 selector.TryGetProperty("role", out var menuRole) && menuRole.GetString() == "menuitem" &&
                 selector.TryGetProperty("name", out var menuName) && menuName.GetString() is { Length: > 0 })
             {
                 if (!Win32.IsWindowEnabled(hwnd)) throw new ActionRefusedException("Window is disabled (a modal dialog may be open)");
                 var observed = request.TryGetProperty("ancestry", out var anc0) && anc0.ValueKind == JsonValueKind.Array ? anc0.EnumerateArray().ToList() : [];
-                // Commande d'un menu contextuel ou deroulant ouvert : resolue dans CETTE surgissante (HWND lu a l'observation),
-                // encore ouverte, du meme processus et liee a la fenetre suivie ; sinon refus (observer de nouveau).
+                // Command of an open context or drop-down menu: resolved in THIS popup (HWND read at the observation), still
+                // open, of the same process and bound to the followed window; otherwise refused (observe again).
                 var scope = (nint)MenuSearch.Scope(hwnd, observed);
-                // Menu exige par le selecteur (ancestor.window : celui que le clic droit a ouvert) : la portee DOIT etre lui.
+                // Menu required by the selector (ancestor.window: the one the right click opened): the scope MUST be it.
                 if (selector.TryGetProperty("ancestor", out var within) && within.TryGetProperty("window", out var menu) &&
                     menu.ValueKind == JsonValueKind.Number && menu.GetInt64() != (long)scope)
                     throw new ActionRefusedException("The command is not in the required open menu; inspect again");
@@ -365,7 +365,7 @@ static partial class Program
                     throw new ActionRefusedException("The open menu of this command is closed or no longer linked to the window; inspect again");
                 return MenuItemByPath(scope, MenuSearch.Segments(observed, selector));
             }
-            // Root : noeud racine geometrique de la fenetre d'action (la boite modale choisie, sinon la racine de l'arbre).
+            // Root: geometric root node of the action window (the chosen modal dialog, otherwise the tree's root).
             (Node Target, List<Node> Nodes, nint Window, Node Root) Resolve()
             {
             Node target;
@@ -379,8 +379,8 @@ static partial class Program
                 var hint = request.TryGetProperty("nativeWindow", out var h) && h.ValueKind == JsonValueKind.Number ? (nint)h.GetInt64() : 0;
                 if (rid != null && ancestry != null)
                 {
-                    // Noeud synthetique (option d'une liste deroulante classique) : identite relue sur la liste deroulante qui
-                    // le porte (dernier ancetre reel), puis ses options relues par messages.
+                    // Synthetic node (option of a classic combo box): identity read again on the combo box that carries it
+                    // (last real ancestor), then its options read again through messages.
                     var synthetic = ComUia.IsSynthetic(rid);
                     var anchor = synthetic ? ancestry.FindLastIndex(e => !ComUia.IsSynthetic(RuntimeIdOf(e))) : -1;
                     if (synthetic && anchor < 0) throw new ActionRefusedException("Control identity changed; inspect again");
@@ -401,10 +401,10 @@ static partial class Program
                         throw new ActionRefusedException("Control identity changed; inspect again");
                     if (!SameAncestry(nodes, target, ancestry))
                     {
-                        // Element expose a deux places de l'arbre (menu contextuel de l'Explorateur, banc du 28/10) : la
-                        // relecture limitee suit le parent UIA de l'element, la lecture complete (meme parcours que
-                        // l'observation, doublons ecartes par ComUia.ReadTree) garde sa premiere place. La chaine observee est
-                        // donc comparee a la lecture complete ; differente la aussi : refus, comme avant.
+                        // Element exposed at two places of the tree (Explorer context menu, bench of 28/10): the limited
+                        // read-back follows the element's UIA parent, the full read (same walk as the observation,
+                        // duplicates set aside by ComUia.ReadTree) keeps its first place. The observed chain is therefore
+                        // compared with the full read; different there too: refused, as before.
                         if (synthetic) throw new ActionRefusedException("Control ancestry changed; inspect again");
                         var all = Full().Nodes;
                         var again = all.FirstOrDefault(n => n.RuntimeId.SequenceEqual(rid));
@@ -423,7 +423,7 @@ static partial class Program
                         throw new BackgroundNotApplicableException("Accessibility tree unavailable for a background action: " + error.Message);
                     }
                     var targets = nodes.Where(n => Matches(n, selector) && (!selector.TryGetProperty("ancestor", out var anc) || n.Ancestors.Any(i => Matches(nodes[i], anc)))).ToArray();
-                    // Libelle homonyme d'un seul controle ecarte (sans role).
+                    // Namesake label of a single control set aside (no role).
                     if (targets.Length > 1 && !selector.TryGetProperty("role", out _) && targets.Count(n => n.Role != "text") == 1)
                         targets = targets.Where(n => n.Role != "text").ToArray();
                     if (targets.Length != 1) throw new BackgroundNotApplicableException($"Semantic target count is {targets.Length}; expected one");
@@ -435,23 +435,23 @@ static partial class Program
                 if (target.Disabled) throw new ActionRefusedException("Target or its window is disabled (a modal dialog may be open)");
                 if (nodes[0].Disabled)
                 {
-                    // Fenetre desactivee par sa boite modale (banc du 28/10, Paint : « Enregistrer sous ») : UIA range la boite
-                    // sous sa proprietaire. Une cible DANS cette boite (boite modale active de Windows, possedee, meme
-                    // application, visible) agit sur la boite, comme si elle avait ete visee ; toute autre cible est refusee.
+                    // Window disabled by its modal dialog (bench of 28/10, Paint: « Enregistrer sous »): UIA files the dialog
+                    // under its owner. A target INSIDE that dialog (Windows' active modal dialog, owned, same application,
+                    // visible) acts on the dialog, as if it had been targeted; any other target is refused.
                     var chain = target.Ancestors.Select(i => nodes[i]).Append(target).Select(n => ((long)n.NativeWindow, n.Disabled)).ToList();
                     var box = ModalBox(hwnd, process.ProcessName, chain.Select(n => n.Item1).ToList());
                     var boxIndex = ModalBoxIndex(chain, (long)box);
                     if (boxIndex < 0) throw new ActionRefusedException("Target or its window is disabled (a modal dialog may be open)");
                     window = box;
-                    // Rectangle de reference : celui de la boite, jamais celui de sa proprietaire (relecture de Codex : une
-                    // boite hors du cadre de la proprietaire rendait sa cible « off-screen »).
+                    // Reference rectangle: the dialog's, never its owner's (Codex's review: a dialog outside the owner's
+                    // frame made its target "off-screen").
                     root = boxIndex < target.Ancestors.Length ? nodes[target.Ancestors[boxIndex]] : target;
                 }
                 else root = nodes[0];
                 if (target.Password) throw new ActionRefusedException("Password controls require the dedicated supported workflow");
                 if (op == "secondary" && Text(request, "action") != "ScrollIntoView" && !target.Actions.Contains(Text(request, "action"))) throw new ActionRefusedException("Secondary action is not exposed");
-                // Visible d'abord (meme regle que les autres agents) : un element hors champ dont rien ne recoupe sa fenetre
-                // n'est jamais clique par cible ; le faire defiler, puis reobserver.
+                // Visible first (same rule as the other agents): an element out of view with nothing overlapping its window
+                // is never clicked by target; scroll it, then observe again.
                 if (op is "click" or "physical" && HiddenOffscreen(target, root)) throw new ActionRefusedException("Target is off-screen with no visible part in its window; scroll it into view and inspect again");
             }
             catch (Exception error) when (error is not (EmergencyStopException or ActionRefusedException or BackgroundNotApplicableException))
@@ -475,8 +475,8 @@ static partial class Program
             }
             if (op == "physical")
             {
-                // Clic physique sur une cible native : relue sous le jeton APRES la mise au premier plan (identite,
-                // ascendance, rectangle frais), au centre de sa partie visible ; changee ou cachee : refus avant entree.
+                // Physical click on a native target: read again under the token AFTER coming to the foreground (identity,
+                // ancestry, fresh rectangle), at the center of its visible part; changed or hidden: refused before input.
                 return Physical.Act(actWindow, request, () => InputStarted = true, () =>
                 {
                     identity?.Dispose(); identity = null; full?.Dispose(); full = null;
@@ -490,7 +490,7 @@ static partial class Program
         finally { identity?.Dispose(); full?.Dispose(); }
     }
 
-    // Centre de la partie visible de la cible dans sa fenetre (rectangles UIA [x, y, largeur, hauteur], pixels reels).
+    // Center of the target's visible part in its window (UIA rectangles [x, y, width, height], real pixels).
     static (int X, int Y) VisibleCenter(Node target, Node root)
     {
         if (target.Bounds is not [var x, var y, var w, var h] || w <= 0 || h <= 0) throw new ActionRefusedException("The native target has no on-screen rectangle: observe a native screenshot");
@@ -587,7 +587,7 @@ static partial class Program
                 value: n.Value, valueTruncated: n.ValueTruncated, description: n.Description, disabled: n.Disabled, selected: n.Selected, @checked: n.Checked,
                 expanded: n.Expanded, focused: n.Focused, visible: !n.Offscreen && n.Bounds.Length == 4 && n.Bounds[2] > 0 && n.Bounds[3] > 0, password: n.Password, actions: n.Actions, ancestors: n.Ancestors, runtimeId: n.RuntimeId,
                 nativeWindow: (long)n.NativeWindow, bounds: n.Bounds,
-                accessKey: n.AccessKey, isDefault: n.IsDefault, invoke: n.HasInvoke, flags: Flags(n))).ToList()); // avant la liberation de l'arbre
+                accessKey: n.AccessKey, isDefault: n.IsDefault, invoke: n.HasInvoke, flags: Flags(n))).ToList()); // before the tree is released
     }
 
     internal static string[] Flags(Node n) => (n.Offscreen, n.Unreadable) switch
@@ -595,8 +595,8 @@ static partial class Program
         (true, true) => ["offscreen", "unreadable"], (true, false) => ["offscreen"], (false, true) => ["unreadable"], _ => [],
     };
 
-    // Une continuation doit refuser une identite manquante ; ni le PID ni un runtime UIA ne distinguent seuls un
-    // processus remplace apres une longue pause. Une observation ordinaire reste lisible si Windows refuse cette heure.
+    // A continuation must refuse a missing identity; neither the PID nor a UIA runtime id alone tell apart a process
+    // replaced after a long pause. An ordinary observation stays readable if Windows refuses that time.
     internal static string? ProcessStartedUtc(uint pid)
     {
         if (pid == 0 || pid > int.MaxValue) return null;
@@ -604,9 +604,9 @@ static partial class Program
         catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException) { return null; }
     }
 
-    // Liste deroulante Win32/WinForms (classe COMBOBOX, hors CBS_SIMPLE) : l'etat ouvert est relu par CB_GETDROPPEDSTATE,
-    // et l'ouverture ou la fermeture se fait par CB_SHOWDROPDOWN (Background.cs), que le fournisseur UIA expose ou non
-    // le motif ExpandCollapse.
+    // Win32/WinForms combo box (COMBOBOX class, except CBS_SIMPLE): the open state is read through CB_GETDROPPEDSTATE,
+    // and opening or closing goes through CB_SHOWDROPDOWN (Background.cs), whether or not the UIA provider exposes the
+    // ExpandCollapse pattern.
     static void ClassicCombos(List<Node> nodes)
     {
         foreach (var n in nodes)
@@ -618,7 +618,7 @@ static partial class Program
         }
     }
 
-    // Hors champ (IsOffscreen) et sans aucune partie dans le rectangle de sa fenetre (racine) ; rectangles [x, y, l, h].
+    // Out of view (IsOffscreen) and with no part in its window's rectangle (root); rectangles [x, y, w, h].
     static bool HiddenOffscreen(Node target, Node root)
     {
         if (!target.Offscreen) return false;
@@ -628,7 +628,7 @@ static partial class Program
         return x >= rx + rw || y >= ry + rh || x + w <= rx || y + h <= ry;
     }
 
-    // La chaine relue (racine .. parent de la cible) doit etre exactement celle que la session a observee.
+    // The chain read again (root .. parent of the target) must be exactly the one the session observed.
     static bool SameAncestry(List<Node> nodes, Node target, List<JsonElement> expected)
     {
         if (expected.Count != target.Ancestors.Length) return false;
@@ -641,9 +641,9 @@ static partial class Program
         }
         return true;
     }
-    // Boite modale active d'une fenetre desactivee, selon Windows (GW_ENABLEDPOPUP : la fenetre que Windows active a la place
-    // de sa proprietaire) : possedee par elle, de la meme application, visible, active et permise par la politique commune ;
-    // 0 sinon.
+    // Active modal dialog of a disabled window, according to Windows (GW_ENABLEDPOPUP: the window Windows activates in
+    // place of its owner): owned by it, of the same application, visible, active and allowed by the shared policy; 0
+    // otherwise.
     static nint ModalBox(nint hwnd, string processName, IReadOnlyList<long> chain)
     {
         if (Win32.IsWindowEnabled(hwnd)) return 0;
@@ -682,9 +682,9 @@ static partial class Program
         }
         return 0;
     }
-    // Chaine racine..cible (fenetre native, desactive) : indice du noeud de la boite modale `box` sur cette chaine, la racine
-    // (proprietaire) etant desactivee et la boite non ; -1 sinon (cible hors de la boite, ou pas de boite). Fonction pure,
-    // testee hors ligne (tests/ProgramTests.cs).
+    // Chain root..target (native window, disabled): index of the node of the modal dialog `box` on that chain, the root
+    // (owner) being disabled and the dialog not; -1 otherwise (target outside the dialog, or no dialog). Pure function,
+    // tested offline (tests/ProgramTests.cs).
     internal static int ModalBoxIndex(IReadOnlyList<(long NativeWindow, bool Disabled)> chain, long box)
     {
         if (box == 0 || chain.Count < 2 || !chain[0].Disabled) return -1;
@@ -701,7 +701,7 @@ static partial class Program
         Console.WriteLine(EngineJson.Serialize(results));
         return 0;
     }
-    // Centre visible d'une cible dans le rectangle de la fenetre d'action (racine de l'arbre, ou boite modale), hors ligne.
+    // Visible center of a target in the action window's rectangle (tree root, or modal dialog), offline.
     internal static int CenterSelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
@@ -719,11 +719,11 @@ static partial class Program
     static int[] RuntimeIdOf(JsonElement e) =>
         e.TryGetProperty("runtimeId", out var r) && r.ValueKind == JsonValueKind.Array ? r.EnumerateArray().Select(x => x.GetInt32()).ToArray() : [];
 
-    // Fenetres de premier niveau liees a la fenetre de reference : possedees (chaine des proprietaires) ou du meme
-    // processus. Le choix de suivre l'une d'elles revient a la session (apparue pendant l'action, ou possedee).
-    // « popup » : surgissante sans barre de titre qui ne s'active pas (liste deroulante, infobulle, surgissante WPF) ou
-    // liste d'une liste deroulante Win32 (ComboLBox) : partie transitoire de la fenetre, lue par l'arbre de son
-    // proprietaire et jamais suivie comme une nouvelle fenetre.
+    // Top-level windows bound to the reference window: owned (chain of owners) or of the same process. Choosing to
+    // follow one of them is up to the session (appeared during the action, or owned).
+    // "popup": a popup without a title bar that does not activate (drop-down list, tooltip, WPF popup) or the list of a
+    // Win32 combo box (ComboLBox): a transient part of the window, read through its owner's tree and never followed as
+    // a new window.
     static readonly HashSet<string> IgnoredClasses = new(StringComparer.OrdinalIgnoreCase) { "tooltips_class32", "IME", "MSCTFIME UI", "SysShadow", "ForegroundStaging" };
     static ProgramRelatedJson2 Related(nint bound, uint boundPid)
     {
@@ -744,25 +744,25 @@ static partial class Program
         }, 0);
         return new ProgramRelatedJson2(ok: true, boundEnabled: Win32.IsWindowEnabled(bound), boundPid: boundPid, windows: windows);
     }
-    // Page des Parametres (ms-settings:...) ouverte comme le ferait Demarrer > Executer, sous le jeton commun de premier
-    // plan. Lancee par un processus d'arriere-plan, Windows l'ouvre souvent MASQUEE (CoreWindow jamais montree, mesure
-    // du 23/10) ; si elle vient devant, le premier plan est rendu a Julien (ForegroundReturn, qui ne reprend rien s'il a
-    // touche clavier ou souris). Rend la fenetre des Parametres (cadre montre, sinon la masquee), son application et son
-    // processus. Seul le schema ms-settings: est permis : aucun autre protocole (appel, envoi, paiement) ni programme
-    // (passe 2 du 22/10 : Sky refusait ms-settings:display).
+    // Settings page (ms-settings:...) opened as Start > Run would, under the shared foreground token. Started by a
+    // background process, Windows often opens it HIDDEN (a CoreWindow never shown, measured on 23/10); if it comes in
+    // front, the foreground is given back to the user (ForegroundReturn, which takes nothing back if they touched the
+    // keyboard or mouse). Returns the Settings window (the shown frame, otherwise the hidden one), its application and
+    // its process. Only the ms-settings: scheme is allowed: no other protocol (call, send, payment) or program (pass 2
+    // of 22/10: Sky refused ms-settings:display).
     static object OpenSettings(string uri, int? quietMs)
     {
         if (!System.Text.RegularExpressions.Regex.IsMatch(uri, "^ms-settings:[A-Za-z0-9-]*$"))
             throw new ActionRefusedException("Only ms-settings: pages can be opened here; nothing was launched");
-        // Politique commune lue AVANT le lancement (illisible : refus, fail closed) et appliquee a la cible Parametres.
+        // Shared policy read BEFORE the launch (unreadable: refused, fail closed) and applied to the Settings target.
         if (GardeFous.BlockReason("SystemSettings", "Windows.UI.Core.CoreWindow") is { } blocked) throw new ActionRefusedException(blocked + "; nothing was launched");
         using var token = ForegroundToken.Acquire("open a Settings page");
-        JulienPause.ThrowIfActive(quietMs); // l'attente du jeton peut durer : la pause de Julien est relue sous le jeton
+        JulienPause.ThrowIfActive(quietMs); // waiting for the token may take a while: the user's pause is read again under the token
         EmergencyStop.ThrowIfStopped();
         var before = Win32.Probe();
         string giveBack = "none";
-        // Le premier plan est rendu CHAQUE fois que les Parametres le prennent, jusqu'a la fin, erreur comprise (relecture
-        // de Codex : une seule restitution laissait les Parametres devant s'ils le reprenaient).
+        // The foreground is given back EACH time Settings takes it, until the end, error included (Codex's review: a
+        // single restore left Settings in front if it took the foreground again).
         void ReturnIfTaken()
         {
             var fg = Win32.GetForegroundWindow();
@@ -780,16 +780,16 @@ static partial class Program
             {
                 ReturnIfTaken();
                 var current = SettingsWindow();
-                if (current == 0) { found = 0; foundAt = 0; } // candidat disparu : rien n'est retenu
+                if (current == 0) { found = 0; foundAt = 0; } // candidate gone: nothing is kept
                 else if (current != found) { found = current; foundAt = clock.ElapsedMilliseconds; }
-                if (found != 0 && clock.ElapsedMilliseconds - foundAt >= 600) { stable = true; break; } // le cadre montre remplace la masquee
+                if (found != 0 && clock.ElapsedMilliseconds - foundAt >= 600) { stable = true; break; } // the shown frame replaces the hidden one
                 Thread.Sleep(30);
             }
         }
         finally { ReturnIfTaken(); }
-        // Identite reattestee juste avant de rendre, et rendue telle qu'attestee : processus lu AVANT l'attestation, relu
-        // APRES ; s'il a change (HWND recycle), issue inconnue, jamais le nouveau proprietaire (relecture de Codex). Fenetre
-        // non stabilisee 600 ms avant le delai : inconnue aussi.
+        // Identity attested again just before returning, and returned as attested: process read BEFORE the attestation,
+        // read again AFTER; if it changed (recycled HWND), unknown outcome, never the new owner (Codex's review). A window
+        // not stable for 600 ms before the deadline: unknown too.
         if (!stable || found == 0) return new ProgramOpenSettingsJson(ok: true, opened: (bool?)null, window: 0L, foregroundReturned: giveBack);
         var pid = Win32.ProcessOf(found);
         if (pid == 0 || !IsWindow(found) || !IsSettings(found) || Win32.ProcessOf(found) != pid)
@@ -804,7 +804,7 @@ static partial class Program
     static bool IsSettings(nint hwnd)
     {
         if (ProcessName(Win32.ProcessOf(hwnd)) == "SystemSettings") return true;
-        var hosted = false; // cadre ApplicationFrameHost : son contenu (CoreWindow) appartient a SystemSettings
+        var hosted = false; // ApplicationFrameHost frame: its content (CoreWindow) belongs to SystemSettings
         Win32.EnumChildWindows(hwnd, (child, _) => { if (ProcessName(Win32.ProcessOf(child)) == "SystemSettings") { hosted = true; return false; } return true; }, 0);
         return hosted;
     }
@@ -819,7 +819,7 @@ static partial class Program
         }, 0);
         return shown != 0 ? shown : hidden;
     }
-    // Processus du contenu d'une fenetre : la CoreWindow d'un cadre ApplicationFrameHost (application du Store), sinon le sien.
+    // Process of a window's content: the CoreWindow of an ApplicationFrameHost frame (Store application), otherwise its own.
     static long ContentPid(long id, long pid)
     {
         if (!ProcessName((uint)pid).Equals("ApplicationFrameHost", StringComparison.OrdinalIgnoreCase)) return pid;
@@ -832,10 +832,10 @@ static partial class Program
         try { using var p = Process.GetProcessById((int)pid); return p.ProcessName; } catch (ArgumentException) { return ""; }
     }
 
-    // Existence de la fenetre liee, sans la lire : « gone » seulement si Windows dit le HWND detruit (ou sans
-    // processus) ; HWND repris par une autre application : « other » (l'ancienne n'existe plus sous ce numero). Jamais
-    // deduit d'une erreur de transport, d'une absence chez Sky ni d'une fenetre masquee (relecture de Codex, 22/10).
-    // La fenetre suivie (ancre) est-elle encore dans la chaine des proprietaires ?
+    // Existence of the bound window, without reading it: "gone" only if Windows says the HWND is destroyed (or without a
+    // process); an HWND taken over by another application: "other" (the old one no longer exists under that number).
+    // Never inferred from a transport error, an absence in Sky or a hidden window (Codex's review, 22/10).
+    // Is the followed window (anchor) still in the chain of owners?
     static bool OwnedThrough(nint hwnd, long anchor)
     {
         var depth = 0;
@@ -848,7 +848,7 @@ static partial class Program
         if (!IsWindow(hwnd)) return new ProgramAliveJson(ok: true, state: "gone");
         GetWindowThreadProcessId(hwnd, out var pid);
         if (pid == 0) return new ProgramAliveJson(ok: true, state: "gone");
-        // HWND repris par une autre fenetre (autre processus ou autre proprietaire) : l'ancienne n'existe plus.
+        // HWND taken over by another window (another process or another owner): the old one no longer exists.
         if ((expectedPid is { } wantedPid && pid != wantedPid) || (expectedOwner is { } wantedOwner && (long)Win32.GetWindow(hwnd, Win32.GW_OWNER) != wantedOwner)
             || (expectedAnchor is { } wantedAnchor && !OwnedThrough(hwnd, wantedAnchor)))
             return new ProgramAliveJson(ok: true, state: "other");
@@ -861,12 +861,12 @@ static partial class Program
         }
         catch (ArgumentException) { return new ProgramAliveJson(ok: true, state: "gone"); }
     }
-    // Inventaire du bureau sans Sky (serveur MCP autonome) : fenetres d'application de premier niveau, visibles et non
-    // masquees par DWM, comme la barre des taches (pas de fenetre outil sans WS_EX_APPWINDOW, pas de fenetre possedee).
-    // Une fenetre UWP est hebergee par ApplicationFrameHost : son application est celle de la CoreWindow enfant.
-    // L'inventaire liste en plus les dialogues : fenetre possedee, visible, titree, non outil (boite « Ouvrir » #32770
-    // de Chrome, sans WS_EX_APPWINDOW, vue absente le 25/10 par NexusWindows for Claude), avec son proprietaire.
-    // Le lancement compare seulement les fenetres d'application (un dialogue n'est pas une application lancee).
+    // Desktop inventory without Sky (standalone MCP server): top-level application windows, visible and not cloaked by
+    // DWM, like the taskbar (no tool window without WS_EX_APPWINDOW, no owned window).
+    // A UWP window is hosted by ApplicationFrameHost: its application is that of the child CoreWindow.
+    // The inventory also lists dialogs: an owned, visible, titled, non-tool window (Chrome's « Ouvrir » #32770 dialog,
+    // without WS_EX_APPWINDOW, seen missing on 25/10 by NexusWindows for Claude), with its owner.
+    // The launch compares application windows only (a dialog is not a launched application).
     static ProgramListAllWindowsJson ListAllWindows(bool includeHidden = false) => new ProgramListAllWindowsJson(ok: true, windows: AppWindows(dialogs: true, includeHidden: includeHidden).Select(w => w.Owner == 0
         ? (object)new ProgramListAllWindowsJson2(id: w.Id, app: w.App, title: w.Title, pid: w.Pid)
         : new ProgramListAllWindowsJson3(id: w.Id, app: w.App, title: w.Title, pid: w.Pid, owner: w.Owner, ownerTitle: Win32.Title((nint)w.Owner))));
@@ -914,18 +914,17 @@ static partial class Program
         }, 0);
         return windows;
     }
-    // Lancement sans Sky : application (nom, chemin, AUMID), dossier ou document, par le shell, sous le jeton commun ; le
-    // premier plan est rendu chaque fois qu'une autre fenetre le prend (nouvelle, ou instance deja ouverte qui recoit le
-    // document), jusqu'a la fin. Adresses : ms-settings: seules (une autre adresse peut appeler, envoyer ou payer).
-    // Resultat : les nouvelles fenetres d'application, stables 600 ms et relues a la fin. Une fenetre n'est attribuee au
-    // lancement que sur preuve (processus demarre, ou processus ne apres le lancement qui est l'application visee) ;
-    // sinon elle est rendue comme candidate et l'issue reste inconnue (relectures de Codex du 23/10).
-    // Application Chromium/Electron (recette commune du banc, 24/10) : lancee telle quelle et recouverte des son
-    // demarrage, elle ne se dessine ni ne publie sa page a l'accessibilite (Logi Options+ violet derriere Claude
-    // agrandi ; banc « lancement recouvert » : selecteur introuvable, 0/3). Reconnue a ses ressources, jamais a son nom,
-    // elle recoit le suivi d'occlusion coupe et l'accessibilite forcee ; un seul --disable-features (Chromium ne retient
-    // que le dernier). Seulement pour un executable donne par son chemin ; les arguments du modele (fichiers) viennent
-    // apres, jamais un commutateur (LaunchArgsProblem).
+    // Launch without Sky: application (name, path, AUMID), folder or document, through the shell, under the shared token;
+    // the foreground is given back each time another window takes it (a new one, or an instance already open that
+    // receives the document), until the end. Addresses: ms-settings: only (another address may call, send or pay).
+    // Result: the new application windows, stable for 600 ms and read again at the end. A window is attributed to the
+    // launch only on proof (a started process, or a process born after the launch that is the targeted application);
+    // otherwise it is returned as a candidate and the outcome stays unknown (Codex's reviews of 23/10).
+    // Chromium/Electron application (shared recipe of the bench, 24/10): started as is and covered from its start, it
+    // neither draws nor publishes its page to accessibility (Logi Options+ purple behind a maximized Claude; "covered
+    // launch" bench: selector not found, 0/3). Recognized by its resources, never by its name, it gets occlusion
+    // tracking turned off and accessibility forced; a single --disable-features (Chromium keeps only the last one). Only
+    // for an executable given by its path; the model's arguments (files) come after, never a switch (LaunchArgsProblem).
     internal const string ChromiumSwitches = "--disable-features=CalculateNativeWinOcclusion --force-renderer-accessibility";
 
     internal static bool IsChromiumApp(string exePath)
@@ -950,12 +949,12 @@ static partial class Program
     }
 
     const string BareApp = @"^[A-Za-z0-9_-]+(\.exe)?$";
-    // Ligne de lancement (programme, arguments), comme le shell la lirait (passe 2 du 28/10 : « EditeurTest.exe note.txt »
-    // et « "C:\...\EditeurTest.exe" "C:\...\note.txt" » refuses sans lancement, la ligne entiere prise pour un chemin).
-    // Chaine entiere d'abord : un fichier ou un dossier existant avec espaces n'est jamais coupe. Sinon : programme entre
-    // guillemets suivi d'arguments, plus court prefixe (coupe a une espace) qui est un .exe existant par son chemin absolu,
-    // ou nom d'application nu suivi d'arguments. Les arguments du champ separe viennent apres ceux de la ligne ; ils sont
-    // passes tels quels au programme (ShellExecute), decoupes seulement pour les gardes (CommandLineToArgvW).
+    // Launch line (program, arguments), as the shell would read it (pass 2 of 28/10: « EditeurTest.exe note.txt » and
+    // « "C:\...\EditeurTest.exe" "C:\...\note.txt" » refused without a launch, the whole line taken for a path).
+    // The whole string first: an existing file or folder with spaces is never split. Otherwise: a quoted program
+    // followed by arguments, the shortest prefix (cut at a space) that is an existing .exe by its absolute path, or a
+    // bare application name followed by arguments. Arguments of the separate field come after those of the line; they
+    // are passed as is to the program (ShellExecute), split only for the guards (CommandLineToArgvW).
     internal static (string Target, string Args) SplitLaunch(string raw, string args)
     {
         raw = raw.Trim();
@@ -987,7 +986,7 @@ static partial class Program
 
     [LibraryImport("shell32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)] private static partial nint CommandLineToArgvW(string commandLine, out int count);
     [LibraryImport("kernel32.dll")] private static partial nint LocalFree(nint memory);
-    // Arguments decoupes comme Windows les decoupe pour le programme lance (« x » : nom de programme, regles a part).
+    // Arguments split as Windows splits them for the launched program ("x": program name, separate rules).
     internal static List<string> SplitArgs(string args)
     {
         if (args.Trim().Length == 0) return new();
@@ -997,7 +996,7 @@ static partial class Program
         finally { LocalFree(argv); }
     }
 
-    // Programme d'un nom nu comme le shell le trouve : App Paths (utilisateur puis machine), puis le PATH. Null : introuvable.
+    // Program of a bare name as the shell finds it: App Paths (user then machine), then the PATH. Null: not found.
     internal static string? ResolveApp(string name)
     {
         var file = name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? name : name + ".exe";
@@ -1019,8 +1018,8 @@ static partial class Program
         return null;
     }
 
-    // Navigateur ou application Chromium/Electron : ressources a cote de l'executable, ou dans le dossier de sa version
-    // (Chrome et Edge : Application\<version>\resources.pak).
+    // Chromium/Electron browser or application: resources next to the executable, or in its version folder (Chrome and
+    // Edge: Application\<version>\resources.pak).
     internal static bool IsChromiumFamily(string exePath)
     {
         if (IsChromiumApp(exePath)) return true;
@@ -1029,9 +1028,9 @@ static partial class Program
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return false; }
     }
 
-    // Raison de refuser les arguments d'un programme (null sinon) : pour Chromium/Electron, des fichiers ou des mots, jamais
-    // un commutateur (port DevTools, profil, extension ouvriraient les sessions de Julien a un canal de controle ; les
-    // commutateurs de l'outil restent les siens). Programme nu introuvable : ses commutateurs ne peuvent etre juges, refuses.
+    // Reason to refuse a program's arguments (null otherwise): for Chromium/Electron, files or words, never a switch (a
+    // DevTools port, profile or extension would open the user's sessions to a control channel; the tool's own switches
+    // stay its own). A bare program not found: its switches cannot be judged, refused.
     internal static string? LaunchArgsProblem(string? program, string args)
     {
         if (Steam.IsExecutable(program)) return Steam.ArgsProblem(args);
@@ -1041,27 +1040,27 @@ static partial class Program
         return IsChromiumFamily(program) ? $"Switch \"{switchArg}\" refused for a Chromium/Electron application (control channel or profile): only files as arguments" : null;
     }
 
-    // Lancement prepare, sans rien lancer : programme, arguments et refus (chemin, adresse, arguments), lu aussi par
+    // Launch prepared without launching anything: program, arguments and refusal (path, address, arguments), also read by
     // tests/LaunchTests.cs.
     internal sealed record LaunchPlan(string Target, string Args, string Start, bool IsPath, bool Aumid, bool IsExe, string Stem, string? ExePath);
     internal static LaunchPlan PlanLaunch(string raw, string rawArgs)
     {
         var (target, args) = SplitLaunch(raw, rawArgs);
         if (target.Length == 0) throw new ActionRefusedException("Nothing to launch; nothing was launched");
-        // Chemin absolu selon Windows (lecteur, UNC avec \ ou /) : classification de .NET, pas un sous-ensemble regex.
+        // Absolute path according to Windows (drive, UNC with \ or /): .NET's classification, not a regex subset.
         var isPath = System.IO.Path.IsPathFullyQualified(target);
         if (!isPath && System.Text.RegularExpressions.Regex.IsMatch(target, @"^[A-Za-z][A-Za-z0-9+.-]*:"))
             throw new ActionRefusedException("Only ms-settings: addresses are launched; nothing was launched");
-        // AUMID d'une application du Store (« Microsoft.Paint_8wekyb3d8bbwe!App ») : par le dossier Applications du shell.
+        // AUMID of a Store application ("Microsoft.Paint_8wekyb3d8bbwe!App"): through the shell's Applications folder.
         var aumid = !isPath && target.Contains('!') && !target.Contains('\\') && !target.Contains('/');
-        // Hors chemin absolu et AUMID, seul un nom d'application nu est accepte (« notepad », « winword.exe ») : un chemin
-        // relatif, un nom de fichier ou un nom que Windows normaliserait (point ou espace final) serait resolu depuis le
-        // dossier courant du helper, donc ambigu ; refuse, un chemin absolu est demande (relectures de Codex du 23/10).
+        // Apart from an absolute path and an AUMID, only a bare application name is accepted ("notepad", "winword.exe"): a
+        // relative path, a file name or a name Windows would normalize (trailing dot or space) would be resolved from the
+        // helper's current folder, hence ambiguous; refused, an absolute path is asked for (Codex's reviews of 23/10).
         if (!isPath && !aumid && !System.Text.RegularExpressions.Regex.IsMatch(target, BareApp, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
             throw new ActionRefusedException("Give an absolute path for a file or folder (or an application name); nothing was launched");
         var start = aumid ? @"shell:AppsFolder\" + target : target;
-        // Application visee : executable (nom ou chemin .exe) ou AUMID. Une application interdite (gestionnaire de mots de
-        // passe) est refusee avant tout lancement ; un document ou un dossier n'est jamais juge sur son nom de fichier.
+        // Targeted application: executable (name or .exe path) or AUMID. A forbidden application (password manager) is
+        // refused before any launch; a document or a folder is never judged by its file name.
         var isExe = !aumid && (!isPath || target.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
         var stem = isExe ? System.IO.Path.GetFileNameWithoutExtension(target) : "";
         var exePath = isExe && isPath ? System.IO.Path.GetFullPath(target) : null;
@@ -1103,14 +1102,14 @@ static partial class Program
         var plan = PlanLaunch(raw, rawArgs);
         var (target, isPath, aumid, isExe, stem, exePath, start) = (plan.Target, plan.IsPath, plan.Aumid, plan.IsExe, plan.Stem, plan.ExePath, plan.Start);
         if (!Steam.IsExecutable(exePath) && (devtools || restart)) throw new ActionRefusedException("devtools and restart are supported only for the genuine Steam client; nothing was launched");
-        // Dossier vise (chemin absolu existant) : son identite sur le disque, pour la preuve « folder » (passe 2 du 28/10 :
-        // la fenetre de l'Explorateur ouverte sur le dossier restait une simple candidate, issue inconnue).
+        // Targeted folder (an existing absolute path): its identity on disk, for the "folder" proof (pass 2 of 28/10: the
+        // Explorer window opened on the folder stayed a mere candidate, unknown outcome).
         var folder = isPath && Directory.Exists(target) ? Explorer.Identity(target) : null;
         var names = new List<string>();
         if (isExe) names.Add(stem);
         if (aumid)
         {
-            // « AgileBits.1Password_xxx!App » : nom du paquet entier et sans editeur, compares aux processus interdits.
+            // "AgileBits.1Password_xxx!App": whole package name without the publisher, compared with the forbidden processes.
             var package = target.Split('!')[0].Split('_')[0];
             names.Add(package);
             names.Add(package.Split('.').Last());
@@ -1121,31 +1120,31 @@ static partial class Program
         using var token = ForegroundToken.Acquire("launch an application");
         JulienPause.ThrowIfActive(quietMs);
         EmergencyStop.ThrowIfStopped();
-        // Inventaire pris sous le jeton, juste avant le lancement : une fenetre apparue pendant l'attente du jeton n'est
-        // jamais prise pour celle du lancement.
+        // Inventory taken under the token, just before the launch: a window that appeared while waiting for the token is
+        // never taken for the launched one.
         var before = new HashSet<long>(AppWindows().Select(w => w.Id));
         var probe = Win32.Probe();
         string giveBack = "none";
         void ReturnIfTaken()
         {
             var fg = Win32.GetForegroundWindow();
-            // Meme une autre fenetre du processus de Julien (document ouvert dans son instance) : sa fenetre lui est rendue.
+            // Even another window of the user's process (a document opened in their instance): their window is given back.
             if (fg != 0 && fg != probe.Foreground) giveBack = ForegroundReturn.GiveBack(probe.Foreground, fg, probe.LastInput, sameProcess: true);
         }
         var launchedAt = DateTime.Now;
-        // Le broker du bureau ne rend aucun PID : attribution par un processus NE APRES le lancement et qui est bien
-        // l'application visee (meme chemin d'executable, meme nom de processus pour un nom nu, meme AUMID), ou nouvelle
-        // fenetre de l'Explorateur qui affiche le dossier demande (relu par le shell, identite sur le disque). Un nom de
-        // fichier ou un titre ne prouve rien : document ou autre concordance restent des candidates.
+        // The desktop broker returns no PID: attribution by a process BORN AFTER the launch that really is the targeted
+        // application (same executable path, same process name for a bare name, same AUMID), or a new Explorer window that
+        // shows the requested folder (read back through the shell, identity on disk). A file name or a title proves
+        // nothing: a document or another match stays a candidate.
         string? Proof((long Id, string App, string Title, long Pid, long Owner) w)
         {
             if (folder is { } shown) return Explorer.Shows((nint)w.Id, shown) ? "folder" : null;
             if (!isExe && !aumid) return null;
             try
             {
-                // Application du Store hebergee par ApplicationFrameHost : le processus de son contenu (CoreWindow), jamais
-                // celui du cadre, ne bien avant le lancement (passe 2 du 28/10 : une application lancee par son AUMID
-                // n'etait jamais attribuee).
+                // Store application hosted by ApplicationFrameHost: the process of its content (CoreWindow), never that of
+                // the frame, born well before the launch (pass 2 of 28/10: an application launched by its AUMID was never
+                // attributed).
                 using var p = Process.GetProcessById((int)ContentPid(w.Id, w.Pid));
                 if (p.StartTime < launchedAt.AddMilliseconds(-50)) return null;
                 if (aumid) return w.App.Equals(target, StringComparison.OrdinalIgnoreCase) ? "application" : null;
@@ -1175,8 +1174,8 @@ static partial class Program
                 if (fresh.Count > 0 && clock.ElapsedMilliseconds - seenAt >= 600) { stable = true; break; }
                 Thread.Sleep(50);
             }
-            // L'Explorateur ouvre sa fenetre sur « Accueil » puis va au dossier (passe 2 du 28/10) : le dossier affiche est
-            // relu jusqu'a 3 s, lectures seules.
+            // Explorer opens its window on « Accueil » then goes to the folder (pass 2 of 28/10): the shown folder is read
+            // again for up to 3 s, reads only.
             if (stable && folder is { } wanted)
             {
                 var wait = Stopwatch.StartNew();
@@ -1184,7 +1183,7 @@ static partial class Program
             }
         }
         finally { ReturnIfTaken(); }
-        // Relecture finale : chaque fenetre encore la, du meme processus (un HWND recycle n'est jamais garde).
+        // Final read-back: each window still there, of the same process (a recycled HWND is never kept).
         if (stable)
         {
             var now = AppWindows().ToDictionary(w => w.Id);
@@ -1194,15 +1193,15 @@ static partial class Program
         var mine = found.Where(w => proofs.ContainsKey(w.Id)).ToList();
         var candidates = found.Where(w => !mine.Contains(w)).ToList();
         object Shape((long Id, string App, string Title, long Pid, long Owner) w) => new ProgramLaunchJson(id: w.Id, app: w.App, title: w.Title, pid: w.Pid,
-            // Preuve de l'attribution : « process » (processus rendu par le shell), « folder » (fenetre de l'Explorateur qui
-            // affiche le dossier demande) ou « application » (application visee, nee apres la demande : une autre instance
-            // lancee au meme moment pourrait etre prise pour elle).
+            // Proof of the attribution: "process" (process returned by the shell), "folder" (Explorer window that shows the
+            // requested folder) or "application" (the targeted application, born after the request: another instance
+            // started at the same moment could be taken for it).
             proof: proofs.TryGetValue(w.Id, out var proof) ? proof : null);
         return new ProgramLaunchJson2(ok: true, opened: mine.Count > 0 ? (bool?)true : null,
             windows: mine.Select(Shape), candidates: candidates.Select(Shape), foregroundReturned: giveBack);
     }
-    // Fermeture : WM_CLOSE poste une seule fois (jamais rejoue), puis relu 3 s : fermee, masquee, ou encore ouverte avec
-    // la fenetre qu'elle a ouverte (enregistrer ?) a regarder.
+    // Closing: WM_CLOSE posted once (never replayed), then read back for 3 s: closed, hidden, or still open with the
+    // window it opened (save?) to look at.
     static object CloseWindow(nint hwnd, Action started)
     {
         started();
@@ -1251,7 +1250,7 @@ static partial class Program
         }
         return "process:" + (ImagePath(process.Id) ?? throw new InvalidOperationException("Process path unavailable"));
     }
-    // Chemin de l'executable (QueryFullProcessImageName : sans enumerer les modules du processus).
+    // Path of the executable (QueryFullProcessImageName: without enumerating the process's modules).
     [LibraryImport("kernel32.dll", SetLastError = true)] private static partial nint OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, int pid);
     [LibraryImport("kernel32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

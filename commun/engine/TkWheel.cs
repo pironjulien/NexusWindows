@@ -1,13 +1,13 @@
 using System.Runtime.InteropServices;
 
-// La fenetre deplacee pour la molette Tk n'a pas pu revenir a sa place : echec de l'action, jamais une issue simplement
-// incertaine (le client la rend terminale, aucun repli).
+// The window moved for the Tk wheel could not come back to its place: the action failed, never a merely uncertain outcome
+// (the client makes it terminal, no fallback).
 sealed class WindowNotRestoredException(string message, Exception? inner = null) : InvalidOperationException(message, inner);
 
-// Molette Tk d'une fenetre ENTIEREMENT recouverte (recette de NexusWindows Claude 3.7.0, 27/10, relue cinq fois par
-// Codex) : Tk renvoie la molette a la fenetre visible AU POINT du message (tkWinX.c) ; recouverte, elle est perdue. La
-// fenetre, entierement cachee, est deplacee au-dela du bureau virtuel (sans activation ni changement d'ordre), la molette
-// y est postee au MEME controle (releve avant le deplacement), puis la fenetre revient, relue au rectangle entier.
+// Tk wheel of a FULLY covered window (recipe of NexusWindows Claude 3.7.0, 27/10, reviewed five times by Codex): Tk sends
+// the wheel to the window visible AT THE POINT of the message (tkWinX.c); covered, it is lost. The fully hidden window is
+// moved beyond the virtual desktop (without activation or a change of order), the wheel is posted there to the SAME
+// control (noted before the move), then the window comes back, read again over its whole rectangle.
 static partial class TkWheel
 {
     [LibraryImport("user32.dll")]
@@ -22,8 +22,8 @@ static partial class TkWheel
 
     const uint GW_HWNDPREV = 3, SWP_NOSIZE = 0x0001, SWP_NOZORDER = 0x0004, SWP_NOACTIVATE = 0x0010, WM_MOUSEWHEEL = 0x020A, WM_MOUSEHWHEEL = 0x020E;
     const int GWL_EXSTYLE = -20, SM_XVIRTUALSCREEN = 76, SM_CXVIRTUALSCREEN = 78, SettleMs = 150, HoldMs = 300;
-    // Styles qui ne prouvent pas l'opacite : translucide (LAYERED), traversee (TRANSPARENT), composition sans bitmap
-    // (NOREDIRECTIONBITMAP : client possiblement entierement transparent).
+    // Styles that do not prove opacity: translucent (LAYERED), click-through (TRANSPARENT), composition without a bitmap
+    // (NOREDIRECTIONBITMAP: the client may be fully transparent).
     const int NotOpaque = 0x00000020 | 0x00080000 | 0x00200000;
 
     internal static Win32.Rect Frame(nint hwnd)
@@ -33,8 +33,8 @@ static partial class TkWheel
         return r;
     }
 
-    // Rayon majore des coins arrondis DWM : 8 px a 100 %, lineaire avec l'echelle du MONITEUR (GetDpiForWindow rend 96
-    // pour une application non adaptee au DPI), + 2 px ; echelle illisible : 0 (la fenetre ne couvre rien).
+    // Upper bound of the DWM rounded corner radius: 8 px at 100 %, linear with the MONITOR's scale (GetDpiForWindow returns
+    // 96 for an application that is not DPI aware), + 2 px; unreadable scale: 0 (the window covers nothing).
     internal static int Corner(nint hwnd)
     {
         if (Win32.GetDpiForMonitor(Win32.MonitorFromWindow(hwnd, 2), 0, out var dpi, out _) != 0 || dpi == 0) return 0;
@@ -42,7 +42,7 @@ static partial class TkWheel
         return (int)((8 * scale + 95) / 96) + 2;
     }
 
-    // box prive de cut : jusqu'a quatre rectangles.
+    // box minus cut: up to four rectangles.
     internal static IEnumerable<Win32.Rect> Minus(Win32.Rect box, Win32.Rect cut)
     {
         if (cut.Left >= box.Right || cut.Right <= box.Left || cut.Top >= box.Bottom || cut.Bottom <= box.Top) { yield return box; yield break; }
@@ -54,7 +54,7 @@ static partial class TkWheel
         if (cut.Right < box.Right) yield return new() { Left = cut.Right, Top = top, Right = box.Right, Bottom = bottom };
     }
 
-    // Couverture pure : cadre de la cible prive de la croix de chaque couvrant (son cadre sans ses quatre coins).
+    // Pure coverage: the target's frame minus the cross of each covering window (its frame without its four corners).
     internal static bool Covered(Win32.Rect target, IEnumerable<(Win32.Rect Frame, int Corner)> covers)
     {
         List<Win32.Rect> left = [target];
@@ -71,8 +71,8 @@ static partial class TkWheel
         return left.Count == 0;
     }
 
-    // Aucun pixel de la fenetre n'est visible : seules comptent les fenetres au-dessus d'elle (ordre z reel) visibles, non
-    // reduites, non masquees par DWM, sans style NotOpaque ni region SetWindowRgn, d'echelle lisible.
+    // No pixel of the window is visible: only windows above it (real z order) count, visible, not minimized, not cloaked by
+    // DWM, without the NotOpaque style or a SetWindowRgn region, with a readable scale.
     internal static bool FullyCovered(nint top)
     {
         var covers = new List<(Win32.Rect, int)>();
@@ -95,9 +95,9 @@ static partial class TkWheel
         return fg != 0 && Win32.GetWindowThreadProcessId(fg, out _) == Win32.GetWindowThreadProcessId(top, out _);
     }
 
-    // Refus, rien envoye (BackgroundNotApplicableException) : fenetre agrandie ou en partie visible, autre controle au point
-    // une fois dehors, fenetre ramenee devant par l'utilisateur. Fenetre non remise : WindowNotRestoredException. Le delai
-    // tenu dehors n'est pas un accuse de traitement ; event.x/y de Tk viennent du curseur (GetMessagePos).
+    // Refused, nothing sent (BackgroundNotApplicableException): a maximized or partly visible window, another control at
+    // the point once outside, a window brought forward by the user. Window not put back: WindowNotRestoredException. The
+    // time held outside is not an acknowledgement of processing; Tk's event.x/y come from the cursor (GetMessagePos).
     public static Outcome Wheel(nint top, int x, int y, int deltaY, int deltaX, Func<nint, int, int, nint> deepest, Action started)
     {
         if ((deltaY == 0) == (deltaX == 0)) throw new BackgroundNotApplicableException("Tk wheel off screen: one axis at a time");
@@ -107,7 +107,7 @@ static partial class TkWheel
         var expected = deepest(top, x, y);
         var dx = GetSystemMetrics(SM_XVIRTUALSCREEN) + GetSystemMetrics(SM_CXVIRTUALSCREEN) + 50 - place.Left;
         const uint flags = SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE;
-        EmergencyStop.ThrowIfStopped(); // la fenetre n'a pas bouge
+        EmergencyStop.ThrowIfStopped(); // the window has not moved
         var posted = false;
         Exception? failure = null;
         try
@@ -117,7 +117,7 @@ static partial class TkWheel
             if (deepest(top, x + dx, y) != expected || WindowFromPoint(new Win32.Point { X = x + dx, Y = y }) != expected)
                 throw new BackgroundNotApplicableException("Off screen, the point does not fall on the same control");
             EmergencyStop.ThrowIfStopped();
-            if (InFront(top)) throw new BackgroundNotApplicableException("The Tk window was brought forward meanwhile"); // seul Alt+Tab l'atteint dehors
+            if (InFront(top)) throw new BackgroundNotApplicableException("The Tk window was brought forward meanwhile"); // only Alt+Tab reaches it outside
             started();
             var lp = (nint)((((long)y & 0xFFFF) << 16) | ((long)(x + dx) & 0xFFFF));
             Win32.Post(expected, deltaY != 0 ? WM_MOUSEWHEEL : WM_MOUSEHWHEEL, (nint)(((deltaY != 0 ? deltaY : deltaX) & 0xFFFF) << 16), lp);
@@ -125,8 +125,8 @@ static partial class TkWheel
             Thread.Sleep(HoldMs);
         }
         catch (Exception error) { failure = error; }
-        // Retour relu quelle que soit l'issue ; refuse ou corrige par l'application (WM_WINDOWPOSCHANGING) : un second essai
-        // de placement, jamais une seconde molette.
+        // Return read again whatever the outcome; refused or corrected by the application (WM_WINDOWPOSCHANGING): a second
+        // placement attempt, never a second wheel.
         var back = SetWindowPos(top, 0, place.Left, place.Top, 0, 0, flags) && SamePlace(top, place);
         if (!back)
         {
@@ -140,7 +140,7 @@ static partial class TkWheel
         return new("background:messages", "Tk wheel off screen (window entirely covered, moved and put back)", "sent");
     }
 
-    // Tests hors ligne de la geometrie de couverture (le meme jeu que NexusWindows Claude).
+    // Offline tests of the coverage geometry (the same set as NexusWindows Claude).
     public static int SelfTest()
     {
         static Win32.Rect R(int l, int t, int r, int b) => new() { Left = l, Top = t, Right = r, Bottom = b };

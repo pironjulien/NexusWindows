@@ -4,8 +4,8 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-// Journal commun des trois NexusWindows (NexusShared/journal/FORMAT.md) : une ligne JSONL par action sous
-// %USERPROFILE%\.nexus\journal\windows\<agent>\<YYYY-MM>.jsonl, sans texte d'ecran (ni texte saisi, ni libelle, ni titre).
+// Shared journal of the three NexusWindows profiles (NexusShared/journal/FORMAT.md): one JSONL line per action under
+// %USERPROFILE%\.nexus\journal\windows\<agent>\<YYYY-MM>.jsonl, with no screen text (no typed text, label or title).
 static class Journal
 {
     static readonly Dictionary<string, string> Issues = new(StringComparer.Ordinal)
@@ -143,7 +143,7 @@ static class Journal
         }
         catch
         {
-            // Le journal ne bloque jamais une action.
+            // The journal never blocks an action.
         }
     }
 

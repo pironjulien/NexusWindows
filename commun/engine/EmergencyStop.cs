@@ -94,13 +94,13 @@ static partial class EmergencyStop
     public static int Guard(string version)
     {
         Watch();
-        // Presence de Julien (Raw Input, lecture seule) : meme processus long, independant du raccourci.
+        // The user's presence (Raw Input, read only): the same long-lived process, independent of the hotkey.
         Presence.Start(Emit);
         var thread = new Thread(() => HotkeyLoop(version)) { IsBackground = true, Name = "nexus-stop-hotkey" };
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
         // EOF (client closed or died) ends the guard. "press" simulates the hotkey for tests in a test directory.
-        // "busy <hwnd>" / "idle" : logo « agent au travail » pendant les actions de la session (BusyIndicator.cs).
+        // "busy <hwnd>" / "idle": "agent at work" logo during the session's actions (BusyIndicator.cs).
         string? line;
         while ((line = Console.ReadLine()) != null)
         {
@@ -169,9 +169,9 @@ static partial class EmergencyStop
     static double Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
 }
 
-// Annulation MCP (notifications/cancelled) de la requete en cours : lue par le fil de lecture de stdin pendant que la
-// requete s'execute (McpServer.Run), puis vue a chaque garde STOP comme un arret, jamais un rejeu (issue inconnue si
-// une entree est deja partie). Contrat de l'ancien worker Python de NexusClaude.
+// MCP cancellation (notifications/cancelled) of the running request: read by the stdin reader thread while the request
+// runs (McpServer.Run), then seen at each STOP guard as a stop, never a replay (unknown outcome if an input already
+// left). Contract of NexusClaude's former Python worker.
 static class RequestCancellation
 {
     static readonly object Gate = new();
@@ -181,7 +181,7 @@ static class RequestCancellation
     public static void Begin(string? requestId) { lock (Gate) { running = requestId; cancelled = false; } }
     public static void End() { lock (Gate) { running = null; cancelled = false; } }
 
-    // Vrai si la notification visait la requete en cours (identifiant JSON-RPC compare sous sa forme JSON).
+    // True when the notification targeted the running request (JSON-RPC id compared in its JSON form).
     public static bool Cancel(string? requestId)
     {
         lock (Gate)

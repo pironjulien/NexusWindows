@@ -1,13 +1,13 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-// Indicateur « agent au travail » : le logo pi de Julien tourne sur lui-meme (axe vertical, 1,618 s par tour) en bas a
-// droite de l'ecran de la fenetre pilotee, comme un ecran de chargement de jeu, sans halo (le logo seul, avec son
-// ombre ; demande de Julien du 22/10). Affiche par le garde (--stop-guard, processus long de la session) sur la commande
-// « busy <hwnd> », retire 1,618 s apres « idle ». Fenetre en couches toujours devant, sans bordure, transparente aux
-// clics, jamais activee, absente de la barre des taches (fenetre d'outil) et des captures (WDA_EXCLUDEFROMCAPTURE).
-// Rendu analytique (ombre, piece) a partir de logo.png decode par GDI+ : aucune dependance ajoutee.
-// NEXUS_WINDOWS_INDICATOR=0 le coupe.
+// "Agent at work" indicator: the pi logo spins on itself (vertical axis, 1.618 s per turn) at the bottom right of the
+// driven window's screen, like a game loading screen, without a halo (the logo alone, with its shadow; the user's
+// request of 22/10). Shown by the guard (--stop-guard, the session's long-lived process) on the command "busy <hwnd>",
+// removed 1.618 s after "idle". Layered window always in front, borderless, click-through, never activated, absent from
+// the taskbar (tool window) and from captures (WDA_EXCLUDEFROMCAPTURE).
+// Analytic rendering (shadow, coin) from logo.png decoded by GDI+: no added dependency.
+// NEXUS_WINDOWS_INDICATOR=0 turns it off.
 static unsafe partial class BusyIndicator
 {
     public const int LingerMs = 1618, PeriodMs = 1618, Frames = 48, FadeMs = 300, Size = 72, Margin = 28;
@@ -49,7 +49,7 @@ static unsafe partial class BusyIndicator
 
     static bool IsBusy() { lock (Gate) return active || Clock.ElapsedMilliseconds - lastEnd < LingerMs; }
 
-    // ---- Courbes d'animation (identiques a NexusBrowser) ----
+    // ---- Animation curves (identical to NexusBrowser) ----
     static double Bezier(double x1, double y1, double x2, double y2, double t)
     {
         double lo = 0, hi = 1;
@@ -94,14 +94,14 @@ static unsafe partial class BusyIndicator
     static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
     static double Erf(double x)
     {
-        // Abramowitz-Stegun 7.1.26 (erreur < 1,5e-7) : bord flou d'un disque (ombre gaussienne).
+        // Abramowitz-Stegun 7.1.26 (error < 1.5e-7): blurred edge of a disc (Gaussian shadow).
         var s = Math.Sign(x); x = Math.Abs(x);
         var t = 1 / (1 + 0.3275911 * x);
         var y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.Exp(-x * x);
         return s * y;
     }
 
-    // Piece : logo rond reduit par moyenne de surface, liseré blanc 0,18 sur 2 px. RGBA premultiplie en double.
+    // Coin: round logo reduced by area averaging, white 0.18 rim over 2 px. Premultiplied RGBA in double.
     static double[] Coin(int diameter, int ring, out int side)
     {
         var (lw, lh, lp) = Logo();
@@ -154,12 +154,12 @@ static unsafe partial class BusyIndicator
         {
             Array.Clear(buffer);
             var phase = (double)f / count;
-            // Sans halo (demande de Julien du 22/10 : le fond bleu-violet faisait « moche ») : la piece et son ombre seules.
+            // No halo (the user's request of 22/10: the blue-violet background looked "ugly"): the coin and its shadow alone.
             var cos = Math.Cos(AngleAt(phase) * Math.PI / 180);
             var squeeze = Math.Abs(cos);
             if (squeeze > 0.02)
             {
-                // Ombre portee (0 8px 22px noir 0,55), ecrasee avec la piece.
+                // Drop shadow (0 8px 22px black 0.55), squashed with the coin.
                 var shadowY = center + 8 * scale;
                 for (var y = 0; y < side; y++)
                     for (var x = 0; x < side; x++)
@@ -169,7 +169,7 @@ static unsafe partial class BusyIndicator
                         if (a < 0.002) continue;
                         Over(buffer, (y * side + x) * 4, 0, 0, 0, a);
                     }
-                // Piece : colonnes reduites par moyenne de surface, revers en miroir.
+                // Coin: columns reduced by area averaging, mirrored back side.
                 var width = Math.Max(1, (int)Math.Round(coinSide * squeeze));
                 var left = (int)Math.Round(center - width / 2.0); var top = (int)Math.Round(center - coinSide / 2.0);
                 var step = (double)coinSide / width;
@@ -198,7 +198,7 @@ static unsafe partial class BusyIndicator
             var frame = new byte[side * side * 4];
             for (var p = 0; p < side * side; p++)
             {
-                // BGRA premultiplie pour UpdateLayeredWindow.
+                // Premultiplied BGRA for UpdateLayeredWindow.
                 frame[p * 4] = ToByte(buffer[p * 4 + 2]); frame[p * 4 + 1] = ToByte(buffer[p * 4 + 1]);
                 frame[p * 4 + 2] = ToByte(buffer[p * 4]); frame[p * 4 + 3] = ToByte(buffer[p * 4 + 3]);
             }
@@ -236,7 +236,7 @@ static unsafe partial class BusyIndicator
         return result;
     }
 
-    // ---- Fenetre ----
+    // ---- Window ----
     // WNDCLASSEXW, blittable: the window procedure is a static UnmanagedCallersOnly function (no marshalled delegate to
     // keep alive) and the names are character pointers, so the registration is source-generated (trimming, Native AOT).
     [StructLayout(LayoutKind.Sequential)]
@@ -342,12 +342,12 @@ static unsafe partial class BusyIndicator
 
     static void Loop()
     {
-        SetThreadDpiAwarenessContext(-4); // PER_MONITOR_AWARE_V2 : position et taille en pixels reels de chaque ecran
+        SetThreadDpiAwarenessContext(-4); // PER_MONITOR_AWARE_V2: position and size in real pixels of each screen
         var instance = GetModuleHandleW(null);
         fixed (char* name = ClassName)
         {
             var cls = new WndClassEx { Size = (uint)sizeof(WndClassEx), Proc = &WindowProcedure, Instance = instance, ClassName = name };
-            RegisterClassExW(in cls); // deja enregistree apres une relance du fil : sans effet
+            RegisterClassExW(in cls); // already registered after a thread restart: no effect
         }
         Window = CreateWindowExW(WsEx, ClassName, "NexusCodex", WsPopup, 0, 0, 1, 1, 0, 0, instance, 0);
         if (Window == 0) throw new InvalidOperationException("CreateWindowExW failed: " + Marshal.GetLastWin32Error());
@@ -359,7 +359,7 @@ static unsafe partial class BusyIndicator
         while (true)
         {
             Wake.WaitOne();
-            if (!IsBusy()) continue; // signal d'une action deja finie et retiree
+            if (!IsBusy()) continue; // signal of an action already finished and removed
             var start = Clock.ElapsedMilliseconds;
             long visibleSince = start; long? hideFrom = null;
             while (true)
@@ -395,7 +395,7 @@ static unsafe partial class BusyIndicator
                 var origin = new Point();
                 var blend = new Blend { Op = 0, Flags = 0, Alpha = (byte)Math.Clamp((int)Math.Round(255 * grow), 0, 255), Format = 1 };
                 UpdateLayeredWindow(Window, screen, ref position, ref size, memory, ref origin, 0, ref blend, 2);
-                SetWindowPos(Window, -1, 0, 0, 0, 0, SwpFlags); // toujours devant, sans activation
+                SetWindowPos(Window, -1, 0, 0, 0, 0, SwpFlags); // always in front, without activation
                 ShownAt = (position.X, position.Y, side);
                 var spent = Clock.ElapsedMilliseconds - now;
                 Thread.Sleep((int)Math.Max(0, PeriodMs / Frames - spent));

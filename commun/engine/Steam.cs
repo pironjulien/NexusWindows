@@ -6,8 +6,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 
-// Le client Valve emploie CEF dans steamwebhelper, pas les commutateurs Chromium d'une application Electron.
-// Aucun lancement/arret implicite d'un client deja ouvert : sa session reste celle de Julien.
+// The Valve client uses CEF in steamwebhelper, not the Chromium switches of an Electron application.
+// No implicit start or stop of a client already open: its session stays the user's.
 static unsafe partial class Steam
 {
     public const int ShutdownWaitMs = 60000, StartWaitMs = 90000, DevtoolsWaitMs = 10000, DevtoolsPort = 8080;
@@ -159,7 +159,7 @@ static unsafe partial class Steam
     {
         if (!OwnNames.Contains(row.Name)) return false;
         var path = pathOf == null ? Canonical(ProcessPath(row.Pid)) : pathOf(row.Pid);
-        if (path == null) return false; // un descendant illisible n'est jamais suppose etre Steam lui-meme
+        if (path == null) return false; // an unreadable descendant is never assumed to be Steam itself
         if (!Path.GetFileName(path).Equals(row.Name, StringComparison.OrdinalIgnoreCase)) return false;
         return row.Name.Equals("conhost.exe", StringComparison.OrdinalIgnoreCase)
             ? string.Equals(path, Path.Combine(Environment.SystemDirectory, "conhost.exe"), StringComparison.OrdinalIgnoreCase)
@@ -188,7 +188,7 @@ static unsafe partial class Steam
         try
         {
             using var socket = new ClientWebSocket(); socket.Options.Proxy = null;
-            using var cancel = new CancellationTokenSource(500); // toute la preuve : connexion, requete et reponse
+            using var cancel = new CancellationTokenSource(500); // the whole proof: connection, request and answer
             socket.ConnectAsync(new Uri(url), cancel.Token).GetAwaiter().GetResult();
             socket.SendAsync(Encoding.UTF8.GetBytes("{\"id\":1,\"method\":\"Browser.getVersion\",\"params\":{}}"), WebSocketMessageType.Text, true, cancel.Token).GetAwaiter().GetResult();
             var buffer = new byte[4096];
@@ -261,7 +261,7 @@ static unsafe partial class Steam
                 using var handler = new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false };
                 using var client = new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(500) };
                 using var reply = JsonDocument.Parse(client.GetStringAsync($"http://127.0.0.1:{port}/json/version").GetAwaiter().GetResult());
-                // PID et socket relus apres HTTP : un simple serveur JSON ayant pris le port ne suffit pas.
+                // PID and socket read again after HTTP: a mere JSON server that took the port is not enough.
                 if (CdpReply(reply.RootElement, port) && ProbeCdp(reply.RootElement.GetProperty("webSocketDebuggerUrl").GetString()!))
                 {
                     var current = Table(); var currentHelpers = Helpers(exe, current, Roots(exe, current));
@@ -275,7 +275,7 @@ static unsafe partial class Steam
     public static string? PortConflict(HashSet<uint> helpers) => Listeners().Any(l => l.Port == DevtoolsPort && (!helpers.Contains(l.Pid) || l.Address != "127.0.0.1"))
         ? "Steam DevTools port 8080 belongs to another process or is not restricted to 127.0.0.1; nothing was restarted" : null;
 
-    // Portage et tests partagent les memes decisions : aucun processus, reseau ou fenetre n'est touche par ce mode.
+    // Port and tests share the same decisions: no process, network or window is touched in this mode.
     public static int SelfTest()
     {
         using var input = JsonDocument.Parse(Console.In.ReadToEnd());
@@ -387,7 +387,7 @@ static partial class Program
             if (!reused && devtools && Steam.PortConflict(helpers) is { } conflict) throw new ActionRefusedException(conflict);
             if (running && restart)
             {
-                // Relire les jeux immediatement avant l'unique demande de fermeture propre.
+                // Read the games again right before the single clean close request.
                 Refresh(); var games = Steam.Games(exe, table, roots);
                 if (games.Length > 0) throw new ActionRefusedException("Steam restart refused: game or launcher running under Steam: " + string.Join(", ", games));
                 Start(new ProcessStartInfo(exe, "-shutdown") { UseShellExecute = false, CreateNoWindow = true });
@@ -396,8 +396,8 @@ static partial class Program
                 while (shutdown.ElapsedMilliseconds < Steam.ShutdownWaitMs)
                 {
                     EmergencyStop.ThrowIfStopped(); Refresh(); ReturnIfTaken();
-                    // Des helpers peuvent survivre a leur parent ou apparaitre pendant sa fermeture : attendre ceux
-                    // du meme client aussi, sans les arreter et sans attribuer leur port a la nouvelle session.
+                    // Helpers can outlive their parent or appear while it closes: wait for those of the same client
+                    // too, without stopping them and without giving their port to the new session.
                     previous.UnionWith(Steam.InstalledHelpers(exe, table));
                     if (roots.Count == 0 && !table.Any(p => previous.Contains(p.Pid))) break;
                     Thread.Sleep(100);
@@ -417,7 +417,7 @@ static partial class Program
             else
             {
                 Refresh();
-                // Un client relance entre la verification et maintenant n'est jamais pris pour un nouveau depart.
+                // A client restarted between the check and now is never taken for a new start.
                 if (roots.Count > 0) throw new InvalidOperationException("Steam started during launch preparation; startup flags were not applied; observe before deciding");
                 if (devtools && Steam.PortConflict(helpers) is { } laterConflict) throw new InvalidOperationException(laterConflict);
                 Start(Steam.StartInfo(exe, args, devtools));

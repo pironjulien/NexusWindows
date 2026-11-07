@@ -1,20 +1,21 @@
 using System.Diagnostics;
 
-// Chromium (Chrome, Edge, Electron) en arriere-plan, recette COMMUNE des trois NexusWindows (banc du 21/10 ; NexusClaude
-// act_chromium._select_by_typing / _sim_focus, NexusAGY _chromium_simulated_typing) : Chromium ne lit le clavier que
-// fenetre active, et la liste d'un <select> ne s'ouvre pas en arriere-plan (« Option did not appear after expanding »).
-// Activation SIMULEE : WM_NCACTIVATE puis WM_ACTIVATE envoyes a la fenetre de premier niveau (elle se croit active sans
-// l'etre, premier plan de Julien intact), focus DOM par MSAA accSelect (relu), caracteres par WM_CHAR, effet relu ;
-// desactivation POSTEE en sortie (traitee apres les caracteres encore en file), toute activation potentielle comprise.
-// Sous le jeton de premier plan commun, dans une echeance bornee (Budget apres le jeton, voie complete et nettoyage
-// compris). Premiere fois pour un processus : son droit de premier plan de lancement a pu servir
-// (premier plan pris puis rendu, rapporte) et Chromium a recu une vraie desactivation : activation renvoyee et focus
-// repris avant toute frappe. Frappe par UNITES bornees : focus de la cible relu avant chacune, valeur relue apres chacune
-// (rien ne part tant que ce qui precede n'est pas relu ; jamais de delai arbitraire). Comparaisons EXACTES (fins de ligne
-// seules normalisees). Avant le premier caractere, tout echec = non applicable ; apres, issue inconnue (arret d'urgence
-// compris, dit « after input »), jamais rejouee. Fenetre deja au premier plan : voie non applicable, les techniques
-// habituelles s'appliquent (Background.cs).
-// Echec apres au moins un caractere envoye : issue inconnue (jamais convertie en « non applicable »).
+// Chromium (Chrome, Edge, Electron) in the background, the SHARED recipe of the three NexusWindows profiles (bench of
+// 21/10; NexusClaude act_chromium._select_by_typing / _sim_focus, NexusAGY _chromium_simulated_typing): Chromium reads
+// the keyboard only while its window is active, and a <select>'s list does not open in the background ("Option did not
+// appear after expanding"). SIMULATED activation: WM_NCACTIVATE then WM_ACTIVATE sent to the top-level window (it
+// believes itself active without being so, the user's foreground untouched), DOM focus through MSAA accSelect (read
+// back), characters through WM_CHAR, effect read back; deactivation POSTED on exit (handled after the characters still
+// queued), every potential activation included.
+// Under the shared foreground token, within a bounded deadline (Budget after the token, whole path and cleanup
+// included). First time for a process: its launch foreground right may have been used (foreground taken then given
+// back, reported) and Chromium received a real deactivation: activation sent again and focus taken back before any
+// typing. Typing in bounded UNITS: the target's focus read again before each, the value read back after each (nothing
+// leaves until what came before is read back; never an arbitrary delay). EXACT comparisons (only line endings
+// normalized). Before the first character, any failure = not applicable; after it, an unknown outcome (emergency stop
+// included, said "after input"), never replayed. A window already in the foreground: path not applicable, the usual
+// techniques apply (Background.cs).
+// Failure after at least one character sent: unknown outcome (never turned into "not applicable").
 sealed class AfterInputException(string message, Exception inner) : InvalidOperationException(message, inner);
 
 static partial class ChromiumInput
@@ -24,9 +25,9 @@ static partial class ChromiumInput
     // Message text (typeText, WriteClaude): packets of 64 characters, each still read back before the next one. Eight per
     // packet made a short message take one read-back every 8 characters (05/11: about 2 s for a 58-character line).
     public const int TextUnit = 64;
-    // Texte : contrat historique du profil Claude (NexusClaude server._run, timeout_s=180, frappe par tranches sans
-    // plafond global de 9 s), pour les trois profils MCP depuis le 01/11. Chaque paquet reste relu et garde (focus,
-    // presence, STOP, annulation du client MCP). Le mode requete JSON sans --mcp (Program.cs) garde Budget.
+    // Text: historical contract of the Claude profile (NexusClaude server._run, timeout_s=180, typing in slices without a
+    // global 9 s cap), for the three MCP profiles since 01/11. Each packet is still read back and guarded (focus,
+    // presence, STOP, MCP client cancellation). The JSON request mode without --mcp (Program.cs) keeps Budget.
     public const int McpTextBudget = 170_000;
     public static int TextBudget { get; set; } = McpTextBudget;
     static readonly HashSet<uint> Primed = new();
@@ -38,8 +39,8 @@ static partial class ChromiumInput
     public readonly record struct HostChild(string Class, uint Pid, long Root);
     public static bool OwnedCef(uint pid, long root, IEnumerable<HostChild> children) => pid != 0 && root != 0 && children.Any(
         child => child.Class == "CefBrowserWindow" && child.Pid == pid && child.Root == root);
-    // Steam/CEF dans un cadre SDL n'accepte PAS l'activation simulee du HWND de Chrome. La publication et les clics
-    // peuvent neanmoins traiter son contenu web. Un nom SDL ou un enfant appartenant a un autre processus ne suffit pas.
+    // Steam/CEF in an SDL frame does NOT accept the simulated activation of Chrome's HWND. Publishing and clicks can
+    // still handle its web content. An SDL name or a child belonging to another process is not enough.
     public static bool IsCefHost(nint window)
     {
         var top = Top(window); var pid = Win32.ProcessOf(top); var found = false;
@@ -56,12 +57,12 @@ static partial class ChromiumInput
     public static bool InForeground(nint window) => Top(Win32.GetForegroundWindow()) == Top(window);
     static nint Top(nint window) => Win32.GetAncestor(window, Win32.GA_ROOT) is var root && root != 0 ? root : window;
 
-    // Clic sur une surface editable Chromium : focus sans activation, relu.
-    // started : appele juste avant le premier message d'activation (RunAction : « entree partie » a partir de la seulement).
+    // Click on a Chromium editable surface: focus without activation, read back.
+    // started: called just before the first activation message (RunAction: "input left" only from there on).
     public static Result Focus(nint window, Node target, int? quietMs, Action? started = null) =>
         Run(window, target, quietMs, "focus", started, (_, _) => new("background:simulated-activation", "accSelect focus (simulated activation)", "applied"));
 
-    // <select> Chromium : focus puis frappe du libelle (une unite) ; la recherche au clavier choisit l'option.
+    // Chromium <select>: focus then typing of the label (one unit); keyboard search picks the option.
     public static Result Select(nint window, Node target, string option, int? quietMs, Action? started = null)
     {
         if (option.Length == 0 || option.Length > 64) throw new BackgroundNotApplicableException("Option label must be 1 to 64 characters to be typed");
@@ -69,7 +70,7 @@ static partial class ChromiumInput
             TypeUnits(window, target, top, option, deadline, [option], _ => null, value => Same(value, option), "option typed"));
     }
 
-    // Texte ajoute en fin d'un champ ou editeur riche Chromium (caret place en fin, relu unite par unite).
+    // Text appended at the end of a Chromium field or rich editor (caret put at the end, read back unit by unit).
     public static Result Type(nint window, Node target, string text, int? quietMs, Action? started = null)
     {
         if (text.Length == 0) throw new BackgroundNotApplicableException("Nothing to type");
@@ -83,10 +84,10 @@ static partial class ChromiumInput
         }, budget: TextBudget);
     }
 
-    // Touche ou raccourci (Ctrl+K) Chromium : activation simulee, touches postees a la fenetre de premier niveau avec
-    // l'etat clavier simule pour son fil (Keys.PostCombo), desactivation postee ; aucun element vise, la page recoit les
-    // touches a son focus DOM. Recette de NexusClaude (methods.simulated_activation, « simulated activation, simulated
-    // keyboard » : Ctrl+K recu par la page, premier plan de Julien intact). Effet relu par la session (« sent »).
+    // Chromium key or shortcut (Ctrl+K): simulated activation, keys posted to the top-level window with the keyboard
+    // state simulated for its thread (Keys.PostCombo), deactivation posted; no targeted element, the page receives the
+    // keys at its DOM focus. NexusClaude's recipe (methods.simulated_activation, "simulated activation, simulated
+    // keyboard": Ctrl+K received by the page, the user's foreground untouched). Effect read back by the session ("sent").
     public static Result SendKeys(nint window, string spec, int? quietMs, Action? started = null)
     {
         var (mods, vk, layout) = Keys.ParseForChromium(window, spec);
@@ -115,10 +116,10 @@ static partial class ChromiumInput
         return mods.Contains(0x11) && vk is 'A' or 'C' or 'V' or 'X' or 'Y' or 'Z';
     }
 
-    // Egalite exacte, fins de ligne seules normalisees (relecture de Codex du 22/10 : casse et espaces comptent).
+    // Exact equality, only line endings normalized (Codex's review of 22/10: case and spaces count).
     public static bool Same(string? actual, string expected) => actual is not null && actual.Replace("\r\n", "\n") == expected.Replace("\r\n", "\n");
 
-    // Unites de frappe : au plus Unit unites UTF-16, sans couper une paire de substitution.
+    // Typing units: at most Unit UTF-16 units, without splitting a surrogate pair.
     public static List<string> Units(string text, int size = Unit)
     {
         var units = new List<string>();
@@ -132,7 +133,7 @@ static partial class ChromiumInput
         return units;
     }
 
-    // Controle hors ligne (tests) : stdin = {"units": texte} ou {"same": [reel, attendu]}.
+    // Offline check (tests): stdin = {"units": text} or {"same": [actual, expected]}.
     public static int SelfTest()
     {
         using var input = System.Text.Json.JsonDocument.Parse(Console.In.ReadToEnd());
@@ -171,7 +172,7 @@ static partial class ChromiumInput
         return tree.Nodes.Count > 0 ? tree.Nodes[^1].Value : null;
     }
 
-    // `expectedSoFar(typed)` : valeur attendue apres les unites deja envoyees (null : relecture seulement a la fin).
+    // `expectedSoFar(typed)`: expected value after the units already sent (null: read back only at the end).
     static Outcome TypeUnits(nint window, Node target, nint top, string text, long deadline, List<string> units,
         Func<string, string?> expectedSoFar, Func<string?, bool> done, string what)
     {
@@ -193,7 +194,7 @@ static partial class ChromiumInput
                 foreach (var ch in unit) { Win32.Post(top, WM_CHAR, ch, 1); sent++; }
                 typed += unit;
                 if (expectedSoFar(typed) is not { } expected || typed.Length == text.Length) continue;
-                // Rien ne part tant que cette unite n'est pas relue (sans delai arbitraire : echeance seulement).
+                // Nothing leaves until this unit is read back (no arbitrary delay: a deadline only).
                 while (!Same(ReadValue(window, target, deadline), expected))
                 {
                     if (Remaining(deadline) <= 0) throw new InvalidOperationException("Typed unit not read back in time: typing stopped");
@@ -209,7 +210,7 @@ static partial class ChromiumInput
         }
         catch (EmergencyStopException) when (sent > 0)
         {
-            // Arret d'urgence apres des caracteres (frappe ou relecture) : etat partiel, jamais « rien n'a ete envoye ».
+            // Emergency stop after characters (typing or read-back): a partial state, never "nothing was sent".
             throw new EmergencyStopException($"Emergency stop after input: {Partial()}; outcome unknown, do not replay");
         }
         catch (Exception error) when (sent > 0 && error is not EmergencyStopException)
@@ -241,7 +242,7 @@ static partial class ChromiumInput
         var input = Win32.Probe().LastInput;
         var taken = false;
         string? giveBack = null;
-        var activated = false; // aucun message d'activation avant : rien a defaire en sortie
+        var activated = false; // no activation message before: nothing to undo on exit
         void TakeTargetFocus()
         {
             if (target is null) return;
@@ -250,13 +251,13 @@ static partial class ChromiumInput
         try
         {
             started?.Invoke();
-            activated = true; // preconditions, jeton, pause et STOP passes : le premier message d'activation part
+            activated = true; // preconditions, token, pause and STOP passed: the first activation message leaves
             Activate(top);
             TakeTargetFocus();
             if (first)
             {
-                // Premiere activation simulee de ce processus : son droit de premier plan de lancement a pu servir pendant
-                // le focus. Premier plan rendu a Julien, puis activation renvoyee et focus repris ; rien n'est encore tape.
+                // First simulated activation of this process: its launch foreground right may have been used during the
+                // focus. Foreground given back to the user, then activation sent again and focus taken back; nothing typed yet.
                 Thread.Sleep(FirstSettleMs);
                 if (Top(Win32.GetForegroundWindow()) == top)
                 {
@@ -274,7 +275,7 @@ static partial class ChromiumInput
         }
         catch (Exception error) when (error is not (BackgroundNotApplicableException or EmergencyStopException or ActionRefusedException or JulienActiveException or AfterInputException))
         {
-            // Avant le premier caractere (focus, delai, lecture) : rien n'a ete tape.
+            // Before the first character (focus, delay, read): nothing was typed.
             throw new BackgroundNotApplicableException($"Chromium input impossible before typing ({error.GetType().Name}: {error.Message}): nothing was typed");
         }
         finally
@@ -295,7 +296,7 @@ static partial class ChromiumInput
         }
     }
 
-    // Prise et restitution du premier plan de la derniere voie (lues par RunAction, y compris apres une erreur).
+    // Taking and giving back the foreground of the last path (read by RunAction, after an error too).
     [ThreadStatic] public static bool LastTaken;
     [ThreadStatic] public static string? LastGiveBack;
 

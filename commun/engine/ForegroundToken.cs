@@ -6,7 +6,7 @@ using System.Text.Json;
 sealed class ForegroundToken : IDisposable
 {
     const long Offset = 1L << 32;
-    public const int WaitMs = 8000; // attente maximale du jeton
+    public const int WaitMs = 8000; // longest wait for the token
     readonly FileStream stream;
     [ThreadStatic] static ForegroundToken? current;
     int references = 1;
@@ -31,8 +31,8 @@ sealed class ForegroundToken : IDisposable
                 try { stream.Lock(Offset, 1); break; }
                 catch (IOException)
                 {
-                    // Attente interruptible (commun/foreground-token.md, comme `abort` de commun/foreground_lock.py) :
-                    // l'arret d'urgence est relu a chaque tour de 50 ms, jamais seulement apres les 8 s.
+                    // Interruptible wait (commun/foreground-token.md, like `abort` in commun/foreground_lock.py): the
+                    // emergency stop is read again every 50 ms, never only after the 8 s.
                     EmergencyStop.ThrowIfStopped();
                     if (timer.ElapsedMilliseconds >= WaitMs)
                     {
@@ -70,8 +70,8 @@ sealed class ForegroundToken : IDisposable
     }
 }
 
-// Julien a-t-il repris clavier ou souris pendant l'attente du jeton ? GetLastInputInfo compte toute entree (injectee
-// comprise) : prudent, une entree d'un autre agent differe aussi. Aucune entree n'a encore ete envoyee ici.
+// Did the user take the keyboard or mouse back while waiting for the token? GetLastInputInfo counts every input
+// (injected included): cautious, another agent's input defers too. No input has been sent here yet.
 sealed class JulienActiveException(string message) : InvalidOperationException(message);
 static class JulienPause
 {
@@ -86,23 +86,24 @@ static class JulienPause
     }
 }
 
-// Premier plan rendu a Julien SOUS le jeton, avant de rendre le jeton (commun/foreground-token.md) : la fenetre active
-// notee a la prise du jeton est remise devant, seulement si la fenetre cible (son processus) tient encore le premier
-// plan. Si Julien est passe a une autre fenetre, rien ne lui est repris. Etats : restored, not-taken (la cible n'a pas
-// le premier plan, ou Julien etait deja dans la cible), kept-by-julien, none (aucune fenetre a qui le rendre), refused.
+// Foreground given back to the user UNDER the token, before giving the token back (commun/foreground-token.md): the
+// active window noted when the token was taken is brought back in front, only if the target window (its process) still
+// holds the foreground. If the user moved to another window, nothing is taken from them. States: restored, not-taken
+// (the target does not hold the foreground, or the user was already in the target), kept-by-julien, none (no window to
+// give it back to), refused.
 static class ForegroundReturn
 {
     static readonly HashSet<string> Switchers = new(StringComparer.OrdinalIgnoreCase) { "Shell_TrayWnd", "Shell_SecondaryTrayWnd", "XamlExplorerHostIslandWindow", "MultitaskingViewFrame", "TaskSwitcherWnd", "ForegroundStaging" };
 
-    // `input` : LastInput note avec la fenetre ; relu avant chaque geste de restitution et pendant chaque attente. Julien
-    // (ou un pair) a touche clavier ou souris entre-temps : son choix est garde, rien n'est remis devant (relecture de
-    // Codex, 21/10 : la seconde tentative pouvait tomber au milieu de sa saisie).
-    // `sameProcess` : la cible peut etre une AUTRE fenetre du processus de Julien (lancement qui ouvre un document dans
-    // son instance) ; sa fenetre est alors rendue aussi (relecture de Codex du 23/10).
+    // `input`: LastInput noted with the window; read again before each restoring gesture and during each wait. The user
+    // (or a peer) touched the keyboard or mouse meanwhile: their choice is kept, nothing is brought back in front (Codex's
+    // review, 21/10: the second attempt could land in the middle of their typing).
+    // `sameProcess`: the target may be ANOTHER window of the user's process (a launch that opens a document in their
+    // instance); their window is then given back too (Codex's review of 23/10).
     public static string GiveBack(nint noted, nint target, uint? input = null, bool sameProcess = false)
     {
-        // Sans reference donnee (repli UIA, bail physique) : saisie notee a l'entree, ce qui couvre la restitution elle-meme
-        // sans confondre les entrees precedentes de l'agent avec Julien (relecture de Codex, 21/10).
+        // No reference given (UIA fallback, physical lease): input noted on entry, which covers the restore itself without
+        // mistaking the agent's earlier inputs for the user's (Codex's review, 21/10).
         input ??= Win32.Probe().LastInput;
         bool Moved() => Win32.Probe().LastInput != input;
         if (target == 0 || noted == 0) return "none";
@@ -110,13 +111,13 @@ static class ForegroundReturn
         var fg = Win32.GetForegroundWindow();
         if (fg == noted) return "not-taken";
         var targetPid = Win32.ProcessOf(target);
-        if (!sameProcess && Win32.ProcessOf(noted) == targetPid) return "not-taken"; // Julien etait deja dans l'application cible
+        if (!sameProcess && Win32.ProcessOf(noted) == targetPid) return "not-taken"; // the user was already in the target application
         if (fg == 0) return "not-taken";
         if (Win32.ProcessOf(fg) != targetPid) return "kept-by-julien";
         if (!Restorable(noted)) return "none";
         for (var attempt = 0; attempt < 2; attempt++)
         {
-            if (Win32.GetForegroundWindow() != fg) break; // le premier plan a change entre-temps : ne rien forcer
+            if (Win32.GetForegroundWindow() != fg) break; // the foreground changed meanwhile: force nothing
             if (Moved()) return "kept-by-julien";
             var own = Win32.GetCurrentThreadId();
             var thread = Win32.GetWindowThreadProcessId(fg, out _);
@@ -129,8 +130,8 @@ static class ForegroundReturn
             if (Wait(noted, 150, Moved)) return "restored";
             if (Moved()) return "kept-by-julien";
         }
-        // Plus de repli par WM_SYSCOMMAND SC_HOTKEY POSTE : une attente expiree ne retire pas le message de la file, qui
-        // pouvait reactiver l'ancienne fenetre apres le jeton et apres un choix de Julien (relecture de Codex, 21/10).
+        // No more fallback through a POSTED WM_SYSCOMMAND SC_HOTKEY: an expired wait does not remove the message from the
+        // queue, which could reactivate the old window after the token and after the user's choice (Codex's review, 21/10).
         return Win32.GetForegroundWindow() is var now && now != 0 && Win32.ProcessOf(now) != targetPid && now != noted ? "kept-by-julien" : "refused";
     }
     static bool Wait(nint window, int ms, Func<bool>? stop = null)

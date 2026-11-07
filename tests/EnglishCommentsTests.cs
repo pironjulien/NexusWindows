@@ -1,9 +1,12 @@
-// The public code is commented in English. Comments written in French before the profiles were merged are translated
-// when their file changes: this list of files that still hold them may only shrink. A new French comment in any other
-// file fails, and so does a listed file once it is clean (remove it from the list).
-// Comments are read by a small C# lexer (strings, verbatim, raw and character literals are skipped, so a URL or a French
-// UI text in a string is never a comment), line comments and /* */ blocks alike. Quoted words (« Nouveau chat », "OK")
-// are the user's interface, not the comment's language: they are left out before the words are counted.
+// The public code is commented in English: the C# sources of the engine, its launcher and the tests, and every versioned
+// PowerShell and batch script. The comments written in French before the profiles were merged were all translated on
+// 07/11/2026; a French comment in any of these files fails.
+// C# comments are read by a small C# lexer (strings, verbatim, raw and character literals are skipped, so a URL or a
+// French UI text in a string is never a comment), line comments and /* */ blocks alike. Script comments are read the same
+// way: PowerShell # comments and <# #> blocks outside its strings and here-strings, batch rem and :: lines. Quoted words
+// (« Nouveau chat », "OK") are the user's interface, not the comment's language: they are left out before the words are
+// counted.
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -11,43 +14,8 @@ namespace NexusWindows.Tests;
 
 public sealed partial class EnglishCommentsTests
 {
-    static readonly string[] StillFrench =
-    [
-        "commun/engine/Background.cs",
-        "commun/engine/BusyIndicator.cs",
-        "commun/engine/Capture.cs",
-        "commun/engine/Cdp.cs",
-        "commun/engine/ChromiumInput.cs",
-        "commun/engine/Clipboard.cs",
-        "commun/engine/ComUia.cs",
-        "commun/engine/ComWorker.cs",
-        "commun/engine/EmergencyStop.cs",
-        "commun/engine/Explorer.cs",
-        "commun/engine/ForegroundToken.cs",
-        "commun/engine/GardeFous.cs",
-        "commun/engine/Journal.cs",
-        "commun/engine/Keys.cs",
-        "commun/engine/Marks.cs",
-        "commun/engine/MenuSearch.cs",
-        "commun/engine/Ocr.cs",
-        "commun/engine/Physical.cs",
-        "commun/engine/Pointer.cs",
-        "commun/engine/Presence.cs",
-        "commun/engine/Program.cs",
-        "commun/engine/Routines.cs",
-        "commun/engine/Steam.cs",
-        "commun/engine/TkInput.cs",
-        "commun/engine/TkWheel.cs",
-        "commun/engine/WebP.cs",
-        "commun/engine/Wgc.cs",
-        "commun/engine/WheelPlan.cs",
-        "commun/engine/Win32.cs",
-        "commun/engine/WindowManagement.cs",
-        "commun/engine/WinRt.cs",
-    ];
-
     [Fact]
-    public void Comments_are_in_english_and_the_french_backlog_only_shrinks()
+    public void Comments_are_in_english()
     {
         var root = TestEnvironment.RepositoryRoot;
         var french = new[] { "commun/engine", "commun/launcher", "tests" }
@@ -55,8 +23,102 @@ public sealed partial class EnglishCommentsTests
             .Where(file => Comments(File.ReadAllText(file)).Any(IsFrench))
             .Select(file => Path.GetRelativePath(root, file).Replace('\\', '/'))
             .Order(StringComparer.Ordinal).ToList();
-        Assert.Empty(french.Except(StillFrench));
-        Assert.Empty(StillFrench.Except(french));
+        Assert.Empty(french);
+    }
+
+    // Versioned scripts only (git ls-files): local, excluded scripts of the working folder are not the public code.
+    [Fact]
+    public void Script_comments_are_in_english()
+    {
+        var root = TestEnvironment.RepositoryRoot;
+        var scripts = VersionedFiles(root, "*.ps1", "*.cmd");
+        Assert.Contains("commun/native-runtime.ps1", scripts);
+        var french = scripts
+            .Where(file => ScriptComments(File.ReadAllText(Path.Combine(root, file)), Path.GetExtension(file)).Any(IsFrench))
+            .ToList();
+        Assert.Empty(french);
+    }
+
+    [Theory]
+    [InlineData("# Ferme la fenêtre", ".ps1", true)]
+    [InlineData("<# Vérifie l'état du champ\n   avant la frappe #>", ".ps1", true)]
+    [InlineData("$a = 1 # déjà fait", ".ps1", true)]
+    [InlineData("# Close the window", ".ps1", false)]
+    [InlineData("throw 'Runtime commun absent : exécuter install.ps1.' # an English comment", ".ps1", false)] // a string
+    [InlineData("$s = \"la fenêtre # pour le test\" # English", ".ps1", false)]
+    [InlineData("$h = @'\n# avec la fenêtre\n'@ # here-string", ".ps1", false)]
+    [InlineData("Write-Host https://example.com/page#la-fenetre-des-options", ".ps1", false)] // # inside a word
+    [InlineData("rem Ferme la fenêtre", ".cmd", true)]
+    [InlineData(":: déjà fait pour la fenêtre", ".cmd", true)]
+    [InlineData("@rem Close the window\necho la fenêtre", ".cmd", false)]
+    public void French_is_found_in_script_comments_and_not_in_strings(string code, string extension, bool french)
+        => Assert.Equal(french, ScriptComments(code, extension).Any(IsFrench));
+
+    static List<string> VersionedFiles(string root, params string[] patterns)
+    {
+        var start = new ProcessStartInfo("git") { WorkingDirectory = root, RedirectStandardOutput = true, UseShellExecute = false, StandardOutputEncoding = Encoding.UTF8 };
+        foreach (var argument in new[] { "ls-files", "-z", "--" }.Concat(patterns)) start.ArgumentList.Add(argument);
+        using var git = Process.Start(start)!;
+        var output = git.StandardOutput.ReadToEnd();
+        git.WaitForExit();
+        Assert.Equal(0, git.ExitCode);
+        return [.. output.Split('\0', StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal)];
+    }
+
+    // The comments of a PowerShell (.ps1) or batch (.cmd, .bat) script, outside its strings.
+    internal static IEnumerable<string> ScriptComments(string code, string extension)
+    {
+        var comments = new List<string>();
+        if (extension is ".cmd" or ".bat")
+        {
+            foreach (var line in code.Split('\n'))
+            {
+                var text = line.Trim().TrimStart('@');
+                if (text.StartsWith("::", StringComparison.Ordinal)) comments.Add(text[2..]);
+                else if (text.Length >= 3 && text[..3].Equals("rem", StringComparison.OrdinalIgnoreCase) && (text.Length == 3 || char.IsWhiteSpace(text[3])))
+                    comments.Add(text[3..]);
+            }
+            return comments;
+        }
+        var i = 0;
+        while (i < code.Length)
+        {
+            var c = code[i];
+            if (c == '<' && At(code, i + 1) == '#')
+            {
+                var end = code.IndexOf("#>", i + 2, StringComparison.Ordinal);
+                if (end < 0) end = code.Length;
+                comments.Add(code[(i + 2)..end]);
+                i = Math.Min(code.Length, end + 2);
+            }
+            else if (c == '#' && (i == 0 || char.IsWhiteSpace(code[i - 1]) || code[i - 1] is ';' or '(' or '{' or '}' or '|'))
+            {
+                var end = code.IndexOf('\n', i);
+                if (end < 0) end = code.Length;
+                comments.Add(code[(i + 1)..end]);
+                i = end;
+            }
+            else if (c == '@' && At(code, i + 1) is '\'' or '"' && At(code, i + 2) is '\n' or '\r')
+            {
+                // Here-string: closed by its quote and @ at the start of a line.
+                var close = code.IndexOf("\n" + At(code, i + 1) + "@", i + 2, StringComparison.Ordinal);
+                i = close < 0 ? code.Length : close + 3;
+            }
+            else if (c == '\'')
+            {
+                var end = i + 1;
+                while (end < code.Length && !(code[end] == '\'' && At(code, end + 1) != '\'')) end += code[end] == '\'' ? 2 : 1;
+                i = end + 1;
+            }
+            else if (c == '"')
+            {
+                var end = i + 1;
+                while (end < code.Length && !(code[end] == '"' && At(code, end + 1) != '"')) end += code[end] is '`' or '"' ? 2 : 1;
+                i = end + 1;
+            }
+            else i++;
+        }
+        return comments;
     }
 
     [Theory]

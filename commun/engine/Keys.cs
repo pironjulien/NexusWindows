@@ -1,13 +1,14 @@
 using System.Runtime.InteropServices;
 
-// Touches et raccourcis en arriere-plan (banc commun des trois NexusWindows, 21/10/2026 ; raccourcis portes de
-// NexusClaude et NexusAGY le 25/10, banc de parite : Ctrl+K 0/3 ici, 3/3 chez eux) : WM_KEYDOWN/WM_KEYUP postes au focus
-// du fil de la cible ; pour Ctrl/Maj, l'etat clavier de CE fil est simule le temps du traitement (AttachThreadInput au
-// seul fil de la cible, jamais a celui du premier plan), tenu WaitForInputIdle (2 s au plus) puis au moins HoldMs, puis
-// seules les touches simulees reprennent leur valeur. WaitForInputIdle n'est pas un accuse : l'effet reste relu par la
-// session, jamais annonce (« sent »). Tk : focus simule (WM_SETFOCUS envoye, WM_KILLFOCUS poste apres les touches).
-// Chromium : activation simulee (ChromiumInput.Keys). Alt et Windows : refus (les raccourcis systeme attendent
-// WM_SYSKEYDOWN). WPF, UWP, Firefox : non applicable (ignorent les touches postees, mesure).
+// Keys and shortcuts in the background (shared bench of the three NexusWindows profiles, 21/10/2026; shortcuts ported
+// from NexusClaude and NexusAGY on 25/10, parity bench: Ctrl+K 0/3 here, 3/3 there): WM_KEYDOWN/WM_KEYUP posted to the
+// focus of the target's thread; for Ctrl/Shift, the keyboard state of THAT thread is simulated while it processes
+// (AttachThreadInput to the target's thread only, never to the foreground one's), held through WaitForInputIdle (2 s at
+// most) then at least HoldMs, then only the simulated keys get their value back. WaitForInputIdle is not an
+// acknowledgement: the effect is still read back by the session, never announced ("sent"). Tk: simulated focus
+// (WM_SETFOCUS sent, WM_KILLFOCUS posted after the keys). Chromium: simulated activation (ChromiumInput.Keys). Alt and
+// Windows: refused (system shortcuts expect WM_SYSKEYDOWN). WPF, UWP, Firefox: not applicable (they ignore posted keys,
+// measured).
 static partial class Keys
 {
     [StructLayout(LayoutKind.Sequential)]
@@ -39,8 +40,8 @@ static partial class Keys
 
     const uint WM_SYSKEYDOWN = 0x0104, WM_SYSKEYUP = 0x0105;
     const uint WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101, WM_SETFOCUS = 0x0007, WM_KILLFOCUS = 0x0008;
-    // Modificateurs simules tenus au moins 0,5 s apres l'envoi : a 0,15 s, Ctrl+K poste a une fenetre Win32 recouverte
-    // arrivait parfois apres la restauration (mesure de NexusClaude du 23/10, bench/miss_probes.py).
+    // Simulated modifiers held at least 0.5 s after sending: at 0.15 s, Ctrl+K posted to a covered Win32 window sometimes
+    // arrived after the restore (NexusClaude's measurement of 23/10, bench/miss_probes.py).
     public const int HoldMs = 500;
     const int VK_SHIFT = 0x10, VK_CONTROL = 0x11;
     static readonly Dictionary<string, int> Named = new(StringComparer.OrdinalIgnoreCase)
@@ -55,9 +56,9 @@ static partial class Keys
 
     static string ClassOf(nint hwnd) { var b = new char[256]; var n = GetClassNameW(hwnd, b, b.Length); return new string(b, 0, Math.Max(0, n)); }
 
-    // « Control_L+s », « ctrl+k », « Return » : (modificateurs, touche). Alt/Windows : refus, rien n'est envoye.
-    // Disposition du fil CIBLE (relecture de Codex, 21/10) : celle du helper traduisait « 1 » d'un clavier QWERTY en
-    // « & » dans une cible AZERTY, et sa Maj implicite pouvait etre fausse.
+    // "Control_L+s", "ctrl+k", "Return": (modifiers, key). Alt/Windows: refused, nothing is sent.
+    // Layout of the TARGET thread (Codex's review, 21/10): the helper's layout turned "1" of a QWERTY keyboard into "&" in
+    // an AZERTY target, and its implicit Shift could be wrong.
     static int Modifier(string name) => name.ToLowerInvariant() switch
     {
         "ctrl" or "control" or "control_l" or "control_r" => VK_CONTROL,
@@ -172,8 +173,8 @@ static partial class Keys
 
     static bool InFront(uint thread) { var fg = Win32.GetForegroundWindow(); return fg != 0 && Win32.GetWindowThreadProcessId(fg, out _) == thread; }
 
-    // Etat clavier simule pour le seul fil cible ; en sortie, seules les touches simulees reprennent leur valeur d'avant
-    // (leur etat PHYSIQUE si Julien a pris la cible entre-temps) ; lecture impossible : l'etat d'avant, entier.
+    // Keyboard state simulated for the target thread only; on exit, only the simulated keys get their previous value back
+    // (their PHYSICAL state if the user took the target meanwhile); unreadable: the whole previous state.
     sealed class SimulatedModifiers : IDisposable
     {
         readonly uint own = Win32.GetCurrentThreadId(), thread, pid;
@@ -218,8 +219,8 @@ static partial class Keys
         }
     }
 
-    // Touche ou raccourci postes a `target` ; modificateurs simules pour le fil de `owner` (la fenetre visee).
-    // started() avant le premier message : au-dela, toute erreur est une issue inconnue (jamais rejouee).
+    // Key or shortcut posted to `target`; modifiers simulated for the thread of `owner` (the targeted window).
+    // started() before the first message: past it, any error is an unknown outcome (never replayed).
     internal static string PostCombo(nint owner, nint target, List<int> mods, int vk, nint layout, Action started)
     {
         var sent = 0;
@@ -268,9 +269,9 @@ static partial class Keys
             return GetGUIThreadInfo(thread, ref info) && info.Focus != 0 && (info.Focus == window || IsChild(window, info.Focus)) ? info.Focus : window;
         }
         if (!tk) return new("background:messages", PostCombo(window, Focused(), mods, vk, layout, started), "sent");
-        // Tk ne route le clavier qu'a sa fenetre focalisee, tenue de WM_SETFOCUS (FocusIn) : focus simule ENVOYE a sa seule
-        // fenetre (jamais WM_ACTIVATE), touches postees, puis WM_KILLFOCUS POSTE (traite apres elles). Mesure de NexusClaude
-        // du 23/10 : Ctrl+K recu, fenetre recouverte, premier plan et curseur intacts.
+        // Tk routes the keyboard only to its focused window, kept from WM_SETFOCUS (FocusIn): simulated focus SENT to its
+        // window alone (never WM_ACTIVATE), keys posted, then WM_KILLFOCUS POSTED (handled after them). NexusClaude's
+        // measurement of 23/10: Ctrl+K received, window covered, foreground and cursor untouched.
         if (SendMessageTimeoutW(window, WM_SETFOCUS, 0, 0, 0x0002 /* ABORTIFHUNG */, 1000, out _) == 0)
             throw new BackgroundNotApplicableException("Tk did not answer WM_SETFOCUS within 1 s: no key was sent");
         try
@@ -280,7 +281,7 @@ static partial class Keys
         }
         finally
         {
-            // Reprise entre-temps par Julien : son vrai focus n'est pas defait.
+            // Taken back meanwhile by the user: their real focus is not undone.
             if (!InFront(thread)) try { Win32.Post(window, WM_KILLFOCUS, 0, 0); } catch (InvalidOperationException) { }
         }
     }

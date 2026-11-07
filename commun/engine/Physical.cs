@@ -1,16 +1,16 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
 
-// Vraie souris et vrai clavier PROPRES au helper (SendInput), sans Sky (decision de Julien du 22/10 : un NexusWindows
-// complet et autonome, Sky en secours seulement). Meme recette que nexus-windows for Claude (realinput.py), eprouvee au
-// banc commun : seulement quand l'arriere-plan est impossible et l'entree physique permise, l'APPELANT tenant le jeton
-// commun de premier plan (withForeground) qui rendra la fenetre de Julien a la fin.
-// 1. la cible passe devant (restauree si reduite) ; Windows refuse : rien n'est envoye ;
-// 2. avant chaque lot : arret d'urgence, cible toujours devant, point sur une fenetre du processus cible ;
-// 3. deplacement et boutons d'un clic dans UN SEUL SendInput, coordonnees absolues jointes a chaque evenement (rien ne
-//    s'intercale, le clic ne tombe jamais sous le curseur de Julien) ;
-// 4. curseur remis a sa place si nous l'avons deplace et qu'il n'a pas bouge depuis.
-// Pixels reels de chaque ecran (app.manifest PerMonitorV2), comme la capture native.
+// The helper's OWN real mouse and keyboard (SendInput), without Sky (the user's decision of 22/10: a complete,
+// self-sufficient NexusWindows, Sky as a fallback only). Same recipe as nexus-windows for Claude (realinput.py), proven on
+// the shared bench: only when the background is impossible and physical input is allowed, the CALLER holding the shared
+// foreground token (withForeground) that will give the user's window back at the end.
+// 1. the target comes forward (restored if minimized); Windows refuses: nothing is sent;
+// 2. before each batch: emergency stop, target still in front, point on a window of the target process;
+// 3. the move and the buttons of a click in ONE SINGLE SendInput, absolute coordinates attached to each event (nothing
+//    slips in between, the click never lands under the user's cursor);
+// 4. cursor put back in its place if we moved it and it has not moved since.
+// Real pixels of each screen (app.manifest PerMonitorV2), like the native capture.
 static partial class Physical
 {
     const uint INPUT_MOUSE = 0, INPUT_KEYBOARD = 1;
@@ -52,9 +52,9 @@ static partial class Physical
         return 0;
     }
 
-    // Fenetre de la cible : la fenetre liee elle-meme ou une fenetre qu'elle POSSEDE (chaine des proprietaires : boite,
-    // menu possede). Jamais une soeur du meme processus (relecture de Codex du 22/10 12:22 : deux fenetres Edge), ni une
-    // surgissante seulement classee comme telle (12:57 : une palette non activante etrangere couvrant le point passait).
+    // The target's window: the bound window itself or a window it OWNS (chain of owners: dialog, owned menu). Never a
+    // sibling of the same process (Codex's review of 22/10 12:22: two Edge windows), nor a popup merely classed as such
+    // (12:57: a foreign non-activating palette covering the point got through).
     static bool OfTarget(nint hwnd, nint target)
     {
         if (hwnd == 0) return false;
@@ -66,9 +66,9 @@ static partial class Physical
         return false;
     }
 
-    // La cible devant, ou refus (rien n'est envoye). Restauree si reduite ; fil du premier plan attache le temps de
-    // SetForegroundWindow, comme la restitution du premier plan (ForegroundReturn).
-    // Mise au premier plan seule (bail d'interaction de la session, sous son jeton) : sans Sky.
+    // The target in front, or refused (nothing is sent). Restored if minimized; the foreground thread attached for the
+    // time of SetForegroundWindow, like the foreground restore (ForegroundReturn).
+    // Bringing to the foreground alone (the session's interaction lease, under its token): without Sky.
     public static object Activate(nint window, Action started)
     {
         if (!Win32.IsWindowEnabled(window)) throw new ActionRefusedException("Window is disabled (a modal dialog may be open)");
@@ -115,7 +115,7 @@ static partial class Physical
         throw new ActionRefusedException($"Windows refuses to bring the window to the front (foreground held by {(holder == 0 ? "no window" : Win32.ClassName(holder))}): nothing was sent");
     }
 
-    // Avant chaque lot : arret d'urgence, cible devant, point sur la cible (fenetre intercalee : arret, rien d'autre).
+    // Before each batch: emergency stop, target in front, point on the target (a window slipped in between: stop, nothing else).
     static void Guard(nint window, int? x = null, int? y = null)
     {
         EmergencyStop.ThrowIfStopped();
@@ -134,7 +134,7 @@ static partial class Physical
     static Input Mouse(uint flags, int dx = 0, int dy = 0, int data = 0) =>
         new() { Type = INPUT_MOUSE, U = new InputUnion { Mouse = new MouseInput { Dx = dx, Dy = dy, Data = unchecked((uint)data), Flags = flags } } };
 
-    // Evenement souris AU point : deplacement absolu sur le bureau virtuel joint au bouton ou a la molette.
+    // Mouse event AT the point: absolute move on the virtual desktop attached to the button or the wheel.
     static Input At(uint flags, int x, int y, int data = 0)
     {
         int left = GetSystemMetrics(76), top = GetSystemMetrics(77), width = GetSystemMetrics(78), height = GetSystemMetrics(79);
@@ -155,8 +155,8 @@ static partial class Physical
         started();
         var inserted = (int)SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<Input>());
         if (inserted == inputs.Length) return;
-        // Lot insere en partie (relecture de Codex du 22/10 12:22) : boutons et touches appuyes dans la partie inseree
-        // et non relaches sont relaches au mieux, puis issue inconnue, jamais rejouee.
+        // Batch partly inserted (Codex's review of 22/10 12:22): buttons and keys pressed in the inserted part and not
+        // released are released as well as possible, then an unknown outcome, never replayed.
         Release(inputs[..Math.Max(0, inserted)]);
         throw new InvalidOperationException($"Windows inserted {inserted} of {inputs.Length} simulated input events (locked screen, UAC or secure desktop); outcome unknown, do not replay");
     }
@@ -180,8 +180,8 @@ static partial class Physical
         if (ups.Count > 0) SendInput((uint)ups.Count, [.. ups], Marshal.SizeOf<Input>());
     }
 
-    // `relocate` : cible d'une observation native, relue SOUS le jeton apres la mise au premier plan et juste avant
-    // l'entree (identite, ascendance, rectangle) ; rend le centre de sa partie visible (relecture de Codex du 22/10 12:22).
+    // `relocate`: target of a native observation, read again UNDER the token after coming to the foreground and just
+    // before the input (identity, ancestry, rectangle); returns the center of its visible part (Codex's review of 22/10 12:22).
     public static object Act(nint window, JsonElement request, Action started, Func<(int X, int Y)>? relocate = null)
     {
         int Int(string key) => request.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
@@ -190,14 +190,14 @@ static partial class Physical
         if (action is not ("click" or "wheel" or "drag" or "type" or "key" or "move")) throw new InvalidOperationException("Unknown physical action");
         if (!Win32.IsWindowEnabled(window)) throw new ActionRefusedException("Window is disabled (a modal dialog may be open)");
         var (x, y) = (Int("x"), Int("y"));
-        // Controles avant toute entree : bouton connu, touche analysable, texte non vide.
+        // Checks before any input: known button, parsable key, non-empty text.
         var button = Str("button", "left");
         if (action == "click" && !Buttons.ContainsKey(button)) throw new InvalidOperationException("Invalid mouse button");
         (List<int> Mods, int Vk) combo = ([], 0);
         if (action == "key") combo = Keys.ParseFor(Str("key", ""), GetKeyboardLayout(Win32.GetWindowThreadProcessId(window, out _)));
         var text = Str("text", "");
         if (action == "type" && text.Length == 0) throw new InvalidOperationException("Empty text");
-        // Point d'une capture native : le cadre DWM releve a la capture est relu ; fenetre deplacee = refus (comme Pointer).
+        // Point of a native capture: the DWM frame noted at the capture is read again; a moved window = refused (like Pointer).
         void CheckFrame()
         {
             if (!request.TryGetProperty("frame", out var f) || f.ValueKind != JsonValueKind.Array) return;
@@ -210,7 +210,7 @@ static partial class Physical
         Win32.GetCursorPos(out var cursor);
         var moved = false;
         if (relocate is not null && !SupportsRelocation(action)) throw new ActionRefusedException("Only click, move or wheel may use a native target: observe a native screenshot");
-        // Clic droit : menus ouverts AVANT, pour rapporter celui que CE clic ouvre (comme le clic droit poste).
+        // Right click: menus open BEFORE, to report the one THIS click opens (like the posted right click).
         var rightClick = action == "click" && button == "right";
         var menusBefore = rightClick ? Win32.LinkedMenuPopups(window).ToHashSet() : [];
         BringToFront(window);
@@ -239,8 +239,8 @@ static partial class Physical
                 }
                 case "move":
                 {
-                    // Survol : le curseur reste au point (c'est le but du geste) ; le premier plan est rendu comme apres tout
-                    // geste physique.
+                    // Hover: the cursor stays at the point (that is the gesture's purpose); the foreground is given back as
+                    // after any physical gesture.
                     Guard(window, x, y);
                     Send(started, At(0, x, y));
                     mechanism = "SendInput move (hover, cursor left at the point)";
@@ -251,7 +251,7 @@ static partial class Physical
                     Guard(window, x, y);
                     var (deltaY, deltaX) = (Int("deltaY"), Int("deltaX"));
                     var events = new List<Input> { At(0, x, y) };
-                    if (deltaY != 0) events.Add(At(MOUSEEVENTF_WHEEL, x, y, deltaY)); // signe Windows (negatif = vers le bas), comme « point »
+                    if (deltaY != 0) events.Add(At(MOUSEEVENTF_WHEEL, x, y, deltaY)); // Windows sign (negative = down), like "point"
                     if (deltaX != 0) events.Add(At(MOUSEEVENTF_HWHEEL, x, y, deltaX));
                     Send(started, [.. events]);
                     moved = true;
@@ -270,7 +270,7 @@ static partial class Physical
                         for (var i = 1; i <= Steps; i++)
                         {
                             Thread.Sleep(15);
-                            Guard(window); // la destination peut etre une autre fenetre
+                            Guard(window); // the destination may be another window
                             Send(started, At(0, x + (tx - x) * i / Steps, y + (ty - y) * i / Steps));
                         }
                     }
@@ -288,7 +288,7 @@ static partial class Physical
                     mechanism = "SendInput key";
                     break;
                 }
-                default: // type : unites UTF-16, sauts de ligne par Entree ; garde avant chaque caractere
+                default: // type: UTF-16 units, line breaks through Enter; guard before each character
                 {
                     var units = text.Replace("\r\n", "\n");
                     var sent = 0;
@@ -311,7 +311,7 @@ static partial class Physical
                             Thread.Sleep(2);
                         }
                     }
-                    // Apres des unites envoyees : etat partiel, jamais « rien n'a ete envoye » (relecture de Codex du 22/10 12:22).
+                    // After units were sent: a partial state, never "nothing was sent" (Codex's review of 22/10 12:22).
                     catch (EmergencyStopException) when (sent > 0)
                     {
                         throw new EmergencyStopException($"Emergency stop after input: {sent} of {units.Length} characters sent; outcome unknown, do not replay");

@@ -6,9 +6,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-// Procedures verifiees et persistantes (schema 1) :
-// - jamais d'autorisation (confirm, accord) ni de texte utilisateur non parametre dans la definition
-// - expansion {{parametre}}, validation des selecteurs et postconditions, synchronisation miroir.
+// Verified, persistent procedures (schema 1):
+// - never an authorization (confirm, accord) nor unparameterized user text in the definition
+// - {{parameter}} expansion, validation of selectors and postconditions, mirror synchronization.
 static class Routines
 {
     static readonly Regex ParamRegex = new(@"\{\{\s*([\p{L}_][\p{L}\p{N}_]*)\s*\}\}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
