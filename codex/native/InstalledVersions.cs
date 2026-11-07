@@ -128,7 +128,12 @@ static partial class InstalledVersions
         void Remove(string path, string label)
         {
             var size = Size(path);
-            if (TryDelete(path)) { removed.Add(label); bytes += size; } else kept.Add(label + " (in use)");
+            switch (TryDelete(path))
+            {
+                case Removal.Removed: removed.Add(label); bytes += size; break;
+                case Removal.SetAside: kept.Add(label + " (set aside, removed at the next pass)"); break;
+                default: kept.Add(label + " (in use)"); break;
+            }
         }
 
         // An engine or launcher runs from a place the scan could not read: no version or launcher is known to be unused.
@@ -248,15 +253,19 @@ static partial class InstalledVersions
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return 0; }
     }
 
+    internal enum Removal { Removed, SetAside, InUse }
+
     // Renamed away first, then deleted: never half removed. Windows refuses the rename only while a file inside is open
     // without delete sharing (an engine's engine.lock, a browser's profile files), not merely because a program runs from
-    // the folder. A folder already set aside is renamed again, the same check before its deletion.
-    static bool TryDelete(string folder)
+    // the folder. A folder already set aside is renamed again, the same check before its deletion. A folder moved but
+    // not deleted (a file inside still mapped or held with delete sharing) is not counted removed: it stays set aside
+    // under .prune-* and the next pass removes it.
+    internal static Removal TryDelete(string folder)
     {
         var aside = Path.Combine(Path.GetDirectoryName(folder)!, ".prune-" + Guid.NewGuid().ToString("N"));
         try { Directory.Move(folder, aside); }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return false; }
-        try { Directory.Delete(aside, recursive: true); return true; }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return true; } // left aside: removed at the next pass
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return Removal.InUse; }
+        try { Directory.Delete(aside, recursive: true); return Removal.Removed; }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return Removal.SetAside; }
     }
 }

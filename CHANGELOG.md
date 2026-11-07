@@ -8,6 +8,20 @@ Releases up to 30 October 2026 were made in separate repositories for each profi
 Antigravity 3.6.0), since removed; those versions remain on PyPI (`nexus-windows-claude`, `nexus-windows-antigravity`)
 and npm (`nexus-windows-codex`).
 
+## [3.17.3] - 2026-11-07
+
+### Fixed
+- The cleanup of earlier versions counted a folder it had moved aside but could not delete (a file inside still in
+  use) as removed, with its size: it is now reported "set aside, removed at the next pass" and only folders actually
+  deleted are counted.
+
+### Tests
+- The running-engine test now reaches the blinded pass before checking the lock, so an engine without `engine.lock`
+  (3.17.1 and earlier, `test.ps1 -Engine`) fails exactly there, its folder moved away; a lock-less control (a running
+  copy of `cmd.exe` in a version folder) shows on every run that a blinded pass moves such a folder.
+- The fallback when `engine.lock` cannot be created (the engine file itself held open) and the scan of an elevated
+  process of the same account (run when one is present) are covered.
+
 ## [3.17.2] - 2026-11-07
 
 ### Fixed
