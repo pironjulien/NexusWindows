@@ -1,10 +1,12 @@
 <Project>
-  <!-- Builds and test outputs outside OneDrive: %USERPROFILE%\.nexus\build\nexuswindows\<project>. An explicit
-       -p:BaseIntermediateOutputPath (the installer's immutable build) still takes precedence. -->
+  <!-- Builds and test outputs outside OneDrive: ~/.nexus/build/nexuswindows/<project>. An explicit
+       -p:BaseIntermediateOutputPath (the installer's immutable build) still takes precedence. The user profile comes
+       from .NET, not $(USERPROFILE): Dependabot restores on Linux, where USERPROFILE is unset and '/.nexus' at the file
+       system root is denied, so its NuGet updates silently found nothing. -->
   <PropertyGroup>
-    <NexusWindowsBuild>$(USERPROFILE)\.nexus\build\nexuswindows\$(MSBuildProjectName)\</NexusWindowsBuild>
-    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(NexusWindowsBuild)obj\</BaseIntermediateOutputPath>
-    <BaseOutputPath Condition="'$(BaseOutputPath)' == ''">$(NexusWindowsBuild)bin\</BaseOutputPath>
+    <NexusWindowsBuild>$([System.IO.Path]::Combine($([System.Environment]::GetFolderPath(SpecialFolder.UserProfile)), '.nexus', 'build', 'nexuswindows', '$(MSBuildProjectName)'))$([System.IO.Path]::DirectorySeparatorChar)</NexusWindowsBuild>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(NexusWindowsBuild)obj/</BaseIntermediateOutputPath>
+    <BaseOutputPath Condition="'$(BaseOutputPath)' == ''">$(NexusWindowsBuild)bin/</BaseOutputPath>
   </PropertyGroup>
   <!-- Analysis policy of every project: the .NET 10 recommended rule set (pinned, so a newer SDK on a workstation that
        builds the engine from source adds no rule by surprise), code style rules enforced in the build, and any warning

@@ -46,6 +46,12 @@ and npm (`nexus-windows-codex`).
 - The real-process checks of the shared emergency stop (stop file, guard, refusals) and foreground token (exclusion,
   deferral, release when the holder ends or dies) moved from the Node suites to xUnit
   (`SharedProtocolProcessTests`); the foreground token cases hold the PC's real lock and run with `test.ps1 -Full`.
+- `Directory.Build.props` takes the user profile from .NET instead of `$(USERPROFILE)`, with no hard-coded backslash:
+  Dependabot restores on Linux, where `USERPROFILE` is unset, so the build folder became `/.nexus` (denied) and its
+  NuGet updates silently found nothing. Output folders on Windows are unchanged.
+- CodeQL runs from a workflow file (`.github/workflows/codeql.yml`, `actions` and `csharp`, default queries, actions
+  pinned by commit) instead of the repository's default setup, so OpenSSF Scorecard credits the SAST check for
+  commits pushed without pull requests.
 
 ## [3.16.28] - 2026-11-06
 
