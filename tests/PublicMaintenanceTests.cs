@@ -155,4 +155,77 @@ public sealed class PublicMaintenanceTests
         Assert.Equal(Path.Combine(home, "native"), Path.GetDirectoryName(Path.GetDirectoryName(engine)), ignoreCase: true);
         Assert.Empty(Directory.GetDirectories(home, "stage-*"));
     }
+
+    // NexusFree 1.3.3's failure (07/11): its update renamed the running single-file engine aside and wrote the new
+    // version at its path; sessions already open then read the new file and every call failed. Here a real engine runs an
+    // MCP session from the installed version, get.ps1 -UpdateOnly installs another version, and that session keeps
+    // answering from its own unchanged folder (versioned, never rewritten, kept while it runs) until it ends.
+    [Fact]
+    public async Task A_running_session_keeps_answering_from_its_own_version_after_an_update()
+    {
+        var root = Path.Combine(TestEnvironment.SharedHome, "live-update-" + Guid.NewGuid().ToString("N"));
+        var profile = Path.Combine(root, "profile");
+        var home = Path.Combine(profile, ".nexus", "nexus-windows");
+        Directory.CreateDirectory(home);
+        File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), Path.Combine(home, "NexusWindows.exe"));
+        File.WriteAllText(Path.Combine(home, "installation.json"), "{\"previous\":true}");
+
+        string Package(string name, string marker)
+        {
+            var packageRoot = Path.Combine(root, name);
+            Directory.CreateDirectory(Path.Combine(packageRoot, "engine"));
+            File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), Path.Combine(packageRoot, "NexusWindows.exe"));
+            File.Copy(SelfTest.Engine, Path.Combine(packageRoot, "engine", "NexusWindows.exe"));
+            foreach (var file in new[] { "NexusWindows.Engine.dll", "NexusWindows.Engine.runtimeconfig.json", "NexusWindows.Engine.deps.json" })
+                File.Copy(Path.Combine(AppContext.BaseDirectory, file), Path.Combine(packageRoot, "engine", file));
+            File.Copy(Path.Combine(TestEnvironment.RepositoryRoot, "commun", "garde-fous.json"), Path.Combine(packageRoot, "engine", "garde-fous.json"));
+            File.WriteAllText(Path.Combine(packageRoot, "engine", "release.txt"), marker);  // another package, another version folder
+            var zip = Path.Combine(root, name + ".zip");
+            ZipFile.CreateFromDirectory(packageRoot, zip);
+            return zip;
+        }
+
+        async Task<string> Update(string zip)
+        {
+            var start = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"))
+            {
+                UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true,
+            };
+            foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(TestEnvironment.RepositoryRoot, "get.ps1"), "-UpdateOnly" }) start.ArgumentList.Add(arg);
+            start.Environment["NEXUS_WINDOWS_PROFILE"] = profile;
+            start.Environment["NEXUS_WINDOWS_SOURCE"] = zip;
+            start.Environment["NEXUS_PACK"] = "1";
+            start.Environment["NEXUS_PACK_TARGETS"] = "codex";
+            using var process = Process.Start(start)!;
+            var output = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+            var error = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+            await process.WaitForExitAsync(TestContext.Current.CancellationToken);
+            Assert.True(process.ExitCode == 0, await error + await output);
+            return JsonNode.Parse(File.ReadAllText(Path.Combine(home, "installation.json")))!["NativeExecutable"].S();
+        }
+
+        static void Answers(McpStdioTests.Server session, string when)
+        {
+            var reply = session.Rpc("tools/call", new { name = "windows", arguments = new { } });
+            Assert.True(reply["result"] is not null && !(reply["result"]?["isError"]?.GetValue<bool>() ?? false), when + ": " + reply.ToJsonString());
+        }
+
+        var first = await Update(Package("first", "first"));
+        var firstFolder = Path.GetDirectoryName(first)!;
+        var firstFiles = Directory.GetFiles(firstFolder).ToDictionary(path => Path.GetFileName(path), File.ReadAllBytes);
+        using (var session = new McpStdioTests.Server(["--mcp", "--agent", "codex"], executable: first))
+        {
+            Answers(session, "before the update");
+            var second = await Update(Package("second", "second"));
+            Assert.NotEqual(first, second, StringComparer.OrdinalIgnoreCase);
+            // The running version is neither rewritten nor removed (the update's prune keeps what a process runs).
+            foreach (var (name, bytes) in firstFiles) Assert.Equal(bytes, File.ReadAllBytes(Path.Combine(firstFolder, name)));
+            Answers(session, "after the update, same session");
+            using (var next = new McpStdioTests.Server(["--mcp", "--agent", "codex"], executable: second)) Answers(next, "new session on the new version");
+            Answers(session, "after a new session started");
+        }
+        // Once that session has ended, the next update removes its version.
+        await Update(Package("third", "third"));
+        Assert.False(Directory.Exists(firstFolder));
+    }
 }

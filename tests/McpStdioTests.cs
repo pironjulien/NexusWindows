@@ -17,9 +17,9 @@ public class McpStdioTests
         bool disposed;
         public int Pid => process.Id;
 
-        public Server(string[] arguments, IDictionary<string, string>? environment = null)
+        public Server(string[] arguments, IDictionary<string, string>? environment = null, string? executable = null)
         {
-            var start = new ProcessStartInfo(SelfTest.Engine)
+            var start = new ProcessStartInfo(executable ?? SelfTest.Engine)
             {
                 RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
                 CreateNoWindow = true, UseShellExecute = false, StandardOutputEncoding = new System.Text.UTF8Encoding(false),
