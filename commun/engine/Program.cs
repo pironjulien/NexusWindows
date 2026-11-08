@@ -199,7 +199,7 @@ static partial class Program
         if (request.TryGetProperty("expectedProcessStartedUtc", out var expectedBirth) && expectedBirth.ValueKind == JsonValueKind.String &&
             (expectedBirth.GetString() is not { Length: > 0 } birth || ProcessStartedUtc(pid) != birth))
             throw Refuse("Window process birth changed; nothing was sent");
-        if (Exclusion(process.ProcessName, hwnd) is { } refusal) throw Refuse(refusal);
+        if (Exclusion(process.ProcessName, hwnd) is { } refusal) throw action ? new GuardRailException(refusal) : new InvalidOperationException(refusal);
         var actualApp = AppId(process);
         UiTree? full = null, identity = null;
         try
@@ -442,7 +442,7 @@ static partial class Program
                     root = boxIndex < target.Ancestors.Length ? nodes[target.Ancestors[boxIndex]] : target;
                 }
                 else root = nodes[0];
-                if (target.Password) throw new ActionRefusedException("Password controls require the dedicated supported workflow");
+                if (target.Password) throw new GuardRailException("Password controls require the dedicated supported workflow");
                 if (op == "secondary" && Text(request, "action") != "ScrollIntoView" && !target.Actions.Contains(Text(request, "action"))) throw new ActionRefusedException("Secondary action is not exposed");
                 // Visible first (same rule as the other agents): an element out of view with nothing overlapping its window
                 // is never clicked by target; scroll it, then observe again.
@@ -694,7 +694,7 @@ static partial class Program
         if (!System.Text.RegularExpressions.Regex.IsMatch(uri, "^ms-settings:[A-Za-z0-9-]*$"))
             throw new ActionRefusedException("Only ms-settings: pages can be opened here; nothing was launched");
         // Shared policy read BEFORE the launch (unreadable: refused, fail closed) and applied to the Settings target.
-        if (GardeFous.BlockReason("SystemSettings", "Windows.UI.Core.CoreWindow") is { } blocked) throw new ActionRefusedException(blocked + "; nothing was launched");
+        if (GardeFous.BlockReason("SystemSettings", "Windows.UI.Core.CoreWindow") is { } blocked) throw new GuardRailException(blocked + "; nothing was launched");
         using var token = ForegroundToken.Acquire("open a Settings page");
         JulienPause.ThrowIfActive(quietMs); // waiting for the token may take a while: the user's pause is read again under the token
         EmergencyStop.ThrowIfStopped();
@@ -1037,7 +1037,7 @@ static partial class Program
             names.Add(package.Split('.').Last());
         }
         foreach (var name in names)
-            if (name.Length > 0 && GardeFous.BlockReason(name, "") is { } blocked) throw new ActionRefusedException(blocked + "; nothing was launched");
+            if (name.Length > 0 && GardeFous.BlockReason(name, "") is { } blocked) throw new GuardRailException(blocked + "; nothing was launched");
         if (Steam.IsExecutable(exePath)) return LaunchSteam(exePath!, plan.Args, devtools, restart, quietMs);
         using var token = ForegroundToken.Acquire("launch an application");
         JulienPause.ThrowIfActive(quietMs);

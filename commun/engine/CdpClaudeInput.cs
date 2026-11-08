@@ -153,7 +153,7 @@ static partial class Cdp
         var root = data.RootElement;
         if (root.ValueKind != JsonValueKind.Object || !root.GetProperty("connected").GetBoolean() || !root.GetProperty("focused").GetBoolean())
             throw new ActionRefusedException("DOM target/focus changed; no further input sent");
-        if (!secretSafeKey && root.GetProperty("password").GetBoolean()) throw new ActionRefusedException("Password fields are refused; no input sent");
+        if (!secretSafeKey && root.GetProperty("password").GetBoolean()) throw new GuardRailException("Password fields are refused; no input sent");
         if (editable && !root.GetProperty("editable").GetBoolean()) throw new ActionRefusedException("DOM target is not writable; no input sent");
         if (session.Call("DOM.describeNode", new CdpPinFocusJson(objectId: objectId)).GetProperty("node").GetProperty("backendNodeId").GetInt32() != backend)
             throw new ActionRefusedException("DOM backend identity changed; no further input sent");

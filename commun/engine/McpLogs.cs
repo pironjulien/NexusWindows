@@ -44,7 +44,7 @@ static partial class McpServer
             "action" or "do" => ["click", "set", "clear", "type", "setValue", "typeText", "key", "secondary", "select", "scroll", "hover", "drag", "wait", "focus", "menu", "contextMenu", "check", "uncheck", "double_click", "right_click", "expand", "collapse", "restore", "minimize", "maximize", "close", "bottom", "front", "move", "resize", "launch", "openSettings", "openFolder", "activate", "window"],
             "show" or "mode" => ["auto", "both", "image", "elements", "text", "changes", "none", "background", "foreground", "physical", "native"],
             "direction" => ["up", "down", "left", "right", "into_view"],
-            "status" => ["success", "verified", "already", "already-satisfied", "waited", "unknown", "unverified", "unmet", "refused", "interrupted", "stopped", "deferred", "confirmation-required", "sent", "sent-unconfirmed", "paused", "before-input", "not-applicable", "acknowledged", "refused-before-input", "returned", "input-uncertain"],
+            "status" => ["success", "verified", "already", "already-satisfied", "waited", "unknown", "unverified", "unmet", "failed", "refused", "interrupted", "stopped", "deferred", "confirmation-required", "sent", "sent-unconfirmed", "paused", "before-input", "not-applicable", "acknowledged", "refused-before-input", "returned", "input-uncertain"],
             "foregroundReturned" => ["restored", "none", "kept-by-julien", "unchanged", "failed", "target-gone", "not-taken", "refused", "held-for-interaction", "kept-requested"],
             _ => [],
         };
@@ -142,7 +142,7 @@ static partial class McpServer
             var explicitFailure = data?["success"] is JsonValue success && success.TryGetValue<bool>(out var succeeded) && !succeeded ||
                 data?["verified"] is JsonValue verified && verified.TryGetValue<bool>(out var proved) && !proved ||
                 data?["opened"] is JsonValue opened && opened.TryGetValue<bool>(out var wasOpened) && !wasOpened;
-            var unresolved = status is "unknown" or "unverified" or "unmet" or "refused" or "interrupted" or "stopped" or "deferred" or "confirmation-required" or "sent-unconfirmed";
+            var unresolved = status is "unknown" or "unverified" or "unmet" or "failed" or "refused" or "interrupted" or "stopped" or "deferred" or "confirmation-required" or "sent-unconfirmed";
             var tool = CanonicalNormalizeToolName(name);
             var ok = error == null && !Bool(response, "isError") && (paused || !explicitFailure && !unresolved || tool == "act" && SentWithoutExpectOnly(data));
             if (!new[] { "windows", "look", "act", "launch", "window", "notifications", "clipboard", "logs" }.Contains(tool)) tool = "invalid";

@@ -34,13 +34,19 @@ static partial class JournalSelfTests
             // The version is the engine's own (McpServer.Version), as every MCP action passes it.
             WriteEntry("codex", McpServer.Version, "sess-1", @"process:C:\Windows\notepad.exe", "click", "verified", "background:uia", 42, false, "Clicked the target", ts);
             WriteEntry("codex", McpServer.Version, "sess-1", @"process:C:\Windows\notepad.exe", "wait", "waited", null, 7, false, "Waited 7 ms; no desktop input sent", ts);
-            WriteEntry("codex", McpServer.Version, null, @"process:C:\Windows\notepad.exe", "setValue", "refused", null, 5, false, "Target not found: \"Secret field\" (window 12)", ts);
+            // Failure and guard rail classified by the act step itself (RoutineFailure), then journaled: a target not found
+            // before any input is a failure (✗), only a guard rail that sent nothing on purpose is `refus`.
+            var notFound = McpServer.RoutineFailure(new InvalidOperationException("Target not found: \"Secret field\" (window 12)"), false);
+            var guarded = McpServer.RoutineFailure(new GuardRailException("Blocked by the shared garde-fous policy: \"Secret app\" is protected"), false);
+            Assert(notFound["status"]!.GetValue<string>() == "failed" && guarded["status"]!.GetValue<string>() == "refused", "act step: failure vs guard rail");
+            WriteEntry("codex", McpServer.Version, null, @"process:C:\Windows\notepad.exe", "setValue", notFound["status"]!.GetValue<string>(), null, 5, false, notFound["message"]!.GetValue<string>(), ts);
             WriteEntry("codex", McpServer.Version, "sess-2", "notepad.exe", "typeText", "julien-active", null, -3, false, "Julien is typing: \"private text\"", ts);
+            WriteEntry("codex", McpServer.Version, "sess-2", "notepad.exe", "click", guarded["status"]!.GetValue<string>(), null, 2, false, guarded["message"]!.GetValue<string>(), ts);
             var file = Path.Combine(tmp, "windows", "codex", "2026-10.jsonl");
             Assert(File.Exists(file), "journal file created");
             var lines = File.ReadAllLines(file, Encoding.UTF8).Where(l => l.Length > 0).ToArray();
-            Assert(lines.Length == 4, "one line per action");
-            Assert(!string.Join("\n", lines).Contains("Secret field") && !string.Join("\n", lines).Contains("private text"), "no screen or typed text");
+            Assert(lines.Length == 5, "one line per action");
+            Assert(!string.Join("\n", lines).Contains("Secret field") && !string.Join("\n", lines).Contains("private text") && !string.Join("\n", lines).Contains("Secret app"), "no screen or typed text");
             var keys = new[] { "v", "ts", "agent", "outil", "appel", "app", "cadre", "action", "technique", "issue", "ms", "premier_plan", "erreur" };
             var valid = new[] { "✓", "=", "~", "✗", "refus", "différé", "arrêt" };
             var docs = lines.Select(l => JsonDocument.Parse(l)).ToArray();
@@ -61,13 +67,14 @@ static partial class JournalSelfTests
                     Assert(r.GetProperty("ms").ValueKind == JsonValueKind.Number && r.GetProperty("ms").TryGetInt64(out var ms) && ms >= 0, "ms non-negative integer");
                     Assert(r.GetProperty("premier_plan").ValueKind is JsonValueKind.True or JsonValueKind.False, "premier_plan boolean");
                 }
-                var (click, wait, refused, deferred) = (docs[0].RootElement, docs[1].RootElement, docs[2].RootElement, docs[3].RootElement);
+                var (click, wait, failed, deferred, refused) = (docs[0].RootElement, docs[1].RootElement, docs[2].RootElement, docs[3].RootElement, docs[4].RootElement);
                 Assert(click.GetProperty("appel").GetString() == "sess-1" && click.GetProperty("action").GetString() == "click", "appel and action");
                 Assert(click.GetProperty("issue").GetString() == "✓" && click.GetProperty("ms").GetInt64() == 42, "issue verified, ms 42");
                 Assert(click.GetProperty("erreur").ValueKind == JsonValueKind.Null, "erreur null on a verified step, even with a report message");
                 Assert(wait.GetProperty("issue").GetString() == "✓" && wait.GetProperty("erreur").ValueKind == JsonValueKind.Null, "a completed wait is verified, without erreur");
-                Assert(refused.GetProperty("appel").ValueKind == JsonValueKind.Null, "appel null without a session");
-                Assert(refused.GetProperty("issue").GetString() == "refus" && refused.GetProperty("erreur").GetString() == "Target not found", "failure: short stable cause");
+                Assert(failed.GetProperty("appel").ValueKind == JsonValueKind.Null, "appel null without a session");
+                Assert(failed.GetProperty("issue").GetString() == "✗" && failed.GetProperty("erreur").GetString() == "Target not found", "failure before input: ✗ with its short stable cause");
+                Assert(refused.GetProperty("issue").GetString() == "refus" && refused.GetProperty("erreur").GetString() == "Blocked by the shared garde-fous policy", "guard rail: refus with its cause, never the app name");
                 Assert(deferred.GetProperty("issue").GetString() == "différé" && deferred.GetProperty("erreur").GetString() == "Julien is typing", "deferred: cause cut before screen text");
                 Assert(deferred.GetProperty("ms").GetInt64() == 0, "negative duration clamped to 0");
             }

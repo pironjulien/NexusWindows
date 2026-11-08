@@ -11,6 +11,19 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+## [3.17.8] - 2026-11-08
+
+### Fixed
+- Shared journal: a step that failed before any input (target not found, window gone, invalid argument, disabled
+  element) is journaled `✗` with its short cause instead of `refus`, which the shared format keeps for a guard rail
+  that sent nothing on purpose (garde-fous policy, protected application, password control or clipboard, blind paste
+  then submit, foreground input not permitted). Such a step now reports the status `failed` (mark `✗` unchanged);
+  guard rails keep `refused`. The review counted those failures as guard rails and left them out of its alerts.
+
+### Changed
+- Tests: the journal self-check classifies a target not found and a garde-fous refusal through the act step itself
+  and checks that they are journaled `✗` and `refus` with their short cause.
+
 ## [3.17.7] - 2026-11-08
 
 ### Fixed
@@ -898,7 +911,8 @@ took 64 s and 14 calls; Codex now takes three calls and about 2 s, with no foreg
 - A UIA or Win32 input whose effect is not confirmed no longer triggers another technique or a physical click;
   repeated inputs require a newer observation of the same window; `expanded` and `focused` postconditions are checked.
 
-[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.7...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.8...HEAD
+[3.17.8]: https://github.com/pironjulien/NexusWindows/compare/v3.17.7...v3.17.8
 [3.17.7]: https://github.com/pironjulien/NexusWindows/compare/v3.17.6...v3.17.7
 [3.17.6]: https://github.com/pironjulien/NexusWindows/compare/v3.17.5...v3.17.6
 [3.17.5]: https://github.com/pironjulien/NexusWindows/compare/v3.17.4...v3.17.5

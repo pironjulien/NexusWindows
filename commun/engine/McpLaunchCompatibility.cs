@@ -142,7 +142,7 @@ static partial class McpServer
     }
     static void ClaudeCheckExecutable(string exe, string arguments, bool devtools)
     {
-        if (GardeFous.BlockReason(Path.GetFileName(exe), "", GardeFous.CurrentAgent) is { } blocked) throw new ActionRefusedException(blocked);
+        if (GardeFous.BlockReason(Path.GetFileName(exe), "", GardeFous.CurrentAgent) is { } blocked) throw new GuardRailException(blocked);
         var browser = ClaudeBrowser(exe); var chromium = ClaudeChromium(exe);
         if (devtools && browser && !ClaudeBrowserNames.Contains(Path.GetFileName(exe), StringComparer.OrdinalIgnoreCase))
             throw new ActionRefusedException("DevTools needs the browser's main executable; a browser proxy would open the user's profile");
@@ -160,7 +160,7 @@ static partial class McpServer
     {
         if (devtools) throw new ActionRefusedException("devtools=true needs the full Chromium/Electron executable path, not an opaque Start menu shortcut");
         foreach (var label in new[] { name, id.Split('!')[0].Split('_')[0], id.Split('!')[0].Split('_')[0].Split('.').Last() })
-            if (GardeFous.BlockReason(label, "", GardeFous.CurrentAgent) is { } blocked) throw new ActionRefusedException(blocked);
+            if (GardeFous.BlockReason(label, "", GardeFous.CurrentAgent) is { } blocked) throw new GuardRailException(blocked);
         if (args.Contains("single-argument", StringComparison.OrdinalIgnoreCase) || Program.SplitArgs(args).Any(t => t.Trim() == "--")) throw new ActionRefusedException("Opaque Start menu arguments may not neutralize the control/profile guards");
         foreach (var token in Program.SplitArgs(args).Select(t => t.Trim()))
             if (ClaudeSwitchKey(token) is { } key && (ClaudeControlSwitches.Contains(key) || key is "user-data-dir" or "profile-directory")) throw new ActionRefusedException("Opaque Start menu arguments may not select a browser profile or control channel");

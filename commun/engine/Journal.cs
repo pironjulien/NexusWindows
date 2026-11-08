@@ -19,6 +19,7 @@ static class Journal
         ["unmet"] = "~",
         ["unknown"] = "~",
         ["interrupted"] = "~",
+        ["failed"] = "✗",
         ["refused"] = "refus",
         ["confirmation-required"] = "refus",
         ["julien-active"] = "différé",

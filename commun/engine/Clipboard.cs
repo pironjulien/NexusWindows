@@ -122,7 +122,7 @@ static partial class Clipboard
                 if (lent == null)
                 {
                     if (IsClipboardFormatAvailable(Exclude) || Denied(History))
-                        throw new ActionRefusedException("The user's clipboard holds private content (password manager); nothing was written");
+                        throw new GuardRailException("The user's clipboard holds private content (password manager); nothing was written");
                     lent = Keep();
                 }
                 if (!EmptyClipboard()) throw new InvalidOperationException("The clipboard could not be emptied; nothing was written");

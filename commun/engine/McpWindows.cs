@@ -65,7 +65,7 @@ static partial class McpServer
         var birth = Program.ProcessStartedUtc((uint)target.Pid);
         if (string.IsNullOrEmpty(birth)) throw new ActionRefusedException("Window process birth unavailable; nothing was sent");
         var cls = Win32.ClassName(window);
-        if (GardeFous.BlockReason(process.ProcessName, cls) is { } blocked) throw new ActionRefusedException(blocked);
+        if (GardeFous.BlockReason(process.ProcessName, cls) is { } blocked) throw new GuardRailException(blocked);
         // ApplicationFrameHost is attested against the content application's AppId by Program.Execute.
         if (!process.ProcessName.Equals("ApplicationFrameHost", StringComparison.OrdinalIgnoreCase)
             && !Program.AppId(process).Equals(target.App, StringComparison.OrdinalIgnoreCase))

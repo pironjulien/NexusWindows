@@ -183,14 +183,14 @@ static partial class McpServer
         ValidateRoutineAuthorizations(args, steps.Count, next);
         state.CurrentObservation = null; state.CurrentObservationId = null;
         var paste = GardeFous.CheckBlindPaste(steps.OfType<JsonObject>().SelectMany(s => (Str(s, "kind") == "key" ? Str(s, "key").Split(' ', StringSplitOptions.RemoveEmptyEntries) : new[] { Str(s, "key") }).Select(key => (Str(s, "kind"), key, Bool(s, "confirm")))));
-        if (paste.Length > 0) throw new ActionRefusedException(paste);
+        if (paste.Length > 0) throw new GuardRailException(paste);
         var timer = Stopwatch.StartNew();
         // A batch that types text keeps going for as long as its foreground lease does (30 s + the text's typing time),
         // so a type that took longer than 30 s is not followed by a pause before its Enter.
         var ceiling = (double)NativeInteraction.BudgetFor(steps);
         var budget = Math.Clamp(args["time_budget"] != null ? Number(args, "time_budget") * 1000 : Number(args, "timeBudgetMs", ceiling), 0, ceiling);
         var physicalAllowed = RoutinePhysicalAllowed(state.Agent, args);
-        if (RoutineBoolean(args, "interaction", false) && !physicalAllowed) throw new ActionRefusedException("interaction:true requires permission for foreground input; nothing sent");
+        if (RoutineBoolean(args, "interaction", false) && !physicalAllowed) throw new GuardRailException("interaction:true requires permission for foreground input; nothing sent");
         using var interaction = RoutineBoolean(args, "interaction", false) && state.Interaction == null ? NativeInteraction.Begin(state, steps) : null;
         var completedThisCall = 0;
         for (var i = next; i < steps.Count; i++)
@@ -406,7 +406,10 @@ static partial class McpServer
             NativeConfirmationException => StepResult("confirmation-required", "✗", false, false, error.Message),
             EmergencyStopException => StepResult("stopped", "✗", false, false, error.Message),
             JulienActiveException => StepResult("deferred", "✗", false, false, error.Message),
-            _ => StepResult("refused", "✗", null, false, error.Message),
+            // Only a guard rail is a refusal (journal `refus`); target not found, window gone, invalid argument or a
+            // disabled element failed before any input (journal `✗`, shared FORMAT.md).
+            GuardRailException or ForegroundNeededException => StepResult("refused", "✗", null, false, error.Message),
+            _ => StepResult("failed", "✗", null, false, error.Message),
         };
         if (!inputAttempted && error is ForegroundNeededException) result["needsForeground"] = true;
         return NativeFailureAttempts(result, error);

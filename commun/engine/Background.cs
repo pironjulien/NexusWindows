@@ -5,6 +5,10 @@ using System.Text.Json;
 sealed class BackgroundNotApplicableException(string message) : InvalidOperationException(message);
 // Refused before any input (password, excluded application, changed identity, disabled command): no fallback.
 class ActionRefusedException(string message) : InvalidOperationException(message);
+// A guard rail that sent nothing on purpose (shared garde-fous policy, protected application, password control or
+// clipboard, blind paste then submit, foreground input not permitted): journaled `refus`. Any other refusal before
+// input (target not found, window gone, invalid argument, disabled element) is a failure, journaled `✗`.
+sealed class GuardRailException(string message) : ActionRefusedException(message);
 // A gesture with no background technique here but possible with the real mouse or keyboard (01/11): a uniform refusal
 // for the three profiles, which says the foreground is needed and the AI must ask for the user's agreement.
 sealed class ForegroundNeededException(string reason) : ActionRefusedException(

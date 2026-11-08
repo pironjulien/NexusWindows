@@ -295,7 +295,7 @@ static partial class McpServer
         if (kind is "setValue" or "typeText")
         {
             if (target == null && selector == null) throw new InvalidOperationException("Text input needs a named field (or a field retained by click)");
-            if (Bool(target, "password")) throw new ActionRefusedException("Password controls require the dedicated supported workflow");
+            if (Bool(target, "password")) throw new GuardRailException("Password controls require the dedicated supported workflow");
             var text = action == "clear" ? "" : Str(step, kind == "setValue" ? "value" : "text", Str(step, "text"));
             step[kind == "setValue" ? "value" : "text"] = text;
             if (kind == "setValue") step.Remove("text");
@@ -549,7 +549,7 @@ static partial class McpServer
         var target = selector != null ? StepTarget(snapshot, step, selector) : null;
         var semanticTarget = target;
         if (step["ocrTarget"] is JsonObject ocrTarget) ValidateCurrentOcr(state, snapshot, ocrTarget);
-        if (Bool(target, "password")) throw new ActionRefusedException("Password controls are refused; no input sent");
+        if (Bool(target, "password")) throw new GuardRailException("Password controls are refused; no input sent");
         if (kind is "setValue" or "typeText" && target != null && Str(target, "role") is not ("edit" or "document" or "combobox"))
             throw new ActionRefusedException("Text input requires an editable field; no input sent");
         using var textSubmit = kind is ("setValue" or "typeText") && target != null && Str(step, "text", Str(step, "value")).IndexOfAny(['\r', '\n']) >= 0

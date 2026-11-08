@@ -28,7 +28,7 @@ static partial class McpServerSelfTests
                 Check(ReferenceEquals(original, error) && calls == 1, "fallback errors are rethrown unchanged without replay");
                 var failure = RoutineFailure(error, entered);
                 Check(failure["attempts"] is JsonArray { Count: 2 } && Str(failure["attempts"]![1], "status") == (entered ? "input-uncertain" : "refused-before-input"), "failure metadata survives the same classification path");
-                Check(Str(failure, "status") == (entered ? "unknown" : "refused"), "trace annotations leave refusal/unknown classification intact");
+                Check(Str(failure, "status") == (entered ? "unknown" : "failed"), "trace annotations leave failure/unknown classification intact");
                 Check(!failure["attempts"]!.ToJsonString().Contains("private-"), "trace metadata excludes diagnostic, key, target and field text");
             }
         }

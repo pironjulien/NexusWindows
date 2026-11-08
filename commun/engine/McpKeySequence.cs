@@ -202,7 +202,7 @@ static partial class McpServer
         else focused = FocusedKeyLeaf(snapshot, state.RetainedFocus);
         if (requireReady && !nativeReady && !Bool(focused, "focused"))
             throw new ActionRefusedException("The keyboard focus cannot be verified in the named window; no key sent");
-        if (Bool(focused, "password")) throw new ActionRefusedException("Password controls are refused; no key sent");
+        if (Bool(focused, "password")) throw new GuardRailException("Password controls are refused; no key sent");
         return new JsonObject { ["nativeWindow"] = nativeReady ? JsonValue.Create((long)info.Focus) : null, ["element"] = focused != null ? ElementIdentity(snapshot, focused) : null };
     }
     // The focused element a key without target goes to. Several focused leaves (Chrome: the address bar and the page

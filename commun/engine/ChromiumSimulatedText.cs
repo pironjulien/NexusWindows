@@ -179,7 +179,7 @@ static partial class ChromiumInput
         if (target.FrameworkId != "Chrome" || !TextTarget(target) || target.Password || target.Disabled || target.RuntimeId.Length == 0)
             throw new ActionRefusedException("Simulated text needs the exact non-secret editable Chromium target");
         using var process = Process.GetProcessById((int)Win32.ProcessOf(window));
-        if (GardeFous.BlockReason(process.ProcessName, Win32.ClassName(window), GardeFous.CurrentAgent) is { } blocked) throw new ActionRefusedException(blocked);
+        if (GardeFous.BlockReason(process.ProcessName, Win32.ClassName(window), GardeFous.CurrentAgent) is { } blocked) throw new GuardRailException(blocked);
         uint? input = null; var windowPid = Win32.ProcessOf(window); var birth = Program.ProcessStartedUtc(windowPid); var windowClass = Win32.ClassName(window);
         var alreadyForeground = InForeground(window);
         if (birth == null) throw new ActionRefusedException("Window process identity unavailable; no simulated text sent");

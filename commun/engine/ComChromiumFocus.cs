@@ -26,7 +26,7 @@ static partial class ComWorker
         RequireWindowIdentity(window, request);
         if (Win32.ClassName(window) != request.GetProperty("expectedWindowClass").GetString()) throw Before("Chromium window class changed; no focus sent");
         using var process = Process.GetProcessById((int)Win32.ProcessOf(window));
-        if (GardeFous.BlockReason(process.ProcessName, Win32.ClassName(window), GardeFous.CurrentAgent) is { } blocked) throw new ActionRefusedException(blocked);
+        if (GardeFous.BlockReason(process.ProcessName, Win32.ClassName(window), GardeFous.CurrentAgent) is { } blocked) throw new GuardRailException(blocked);
     }
 
     static Outcome BoundChromiumFocus(nint element, nint window, JsonElement request, bool take)

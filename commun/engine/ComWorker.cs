@@ -531,8 +531,12 @@ static partial class ComBridge
     {
         if (error == nameof(EmergencyStopException)) return Stop(message, beforeInput);
         if (!beforeInput) return new InvalidOperationException(message + " (outcome unknown)");
-        Exception refusal = error == nameof(ActionRefusedException)
-            ? new ActionRefusedException(message) : new BackgroundNotApplicableException(message);
+        Exception refusal = error switch
+        {
+            nameof(GuardRailException) => new GuardRailException(message),
+            nameof(ActionRefusedException) => new ActionRefusedException(message),
+            _ => new BackgroundNotApplicableException(message),
+        };
         refusal.Data["beforeInput"] = true;
         return refusal;
     }

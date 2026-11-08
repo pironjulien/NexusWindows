@@ -34,7 +34,7 @@ static partial class ComWorker
 {
     internal static string AppendableValue(bool password, bool enabled, bool readOnly, Func<string?> read)
     {
-        if (password) throw new ActionRefusedException("Password values are refused; no text sent");
+        if (password) throw new GuardRailException("Password values are refused; no text sent");
         if (!enabled) throw new ActionRefusedException("The field became disabled; no text sent");
         if (readOnly) throw new ActionRefusedException("The field is read-only; no text sent");
         var value = read() ?? throw new ActionRefusedException("The complete current value cannot be read; no text sent");
