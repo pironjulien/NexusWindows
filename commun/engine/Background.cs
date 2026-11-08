@@ -699,7 +699,9 @@ static partial class Program
     {
         var cef = target.FrameworkId == "Chrome" && ChromiumInput.IsCefHost(window);
         var order = ClickOrder(target.Role, invoke, select, cef);
-        return FirstCall(() => ComBridge.Call(new ProgramUiaClickJson(op: "click", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow, order: order)));
+        // The Invoked proof is listened for only where a provider raises it (never the Win32/WinForms MSAA proxy).
+        var listenInvoked = target.FrameworkId is not ("Win32" or "WinForm");
+        return FirstCall(() => ComBridge.Call(new ProgramUiaClickJson(op: "click", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow, order: order, listenInvoked: listenInvoked)));
     }
     internal static string[] ClickOrder(string role, bool invoke, bool select, bool cef)
     {

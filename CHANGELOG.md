@@ -11,6 +11,12 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+### Fixed
+- A click proven by the clicked element alone is `✓` again without `expect`, as the README states: the UI Automation
+  "Invoked" event its provider raises (WPF, Chromium, Electron), listened for on that element only, or its own state
+  read back after Toggle or SelectionItem.Select. Both proofs were lost when 3.9.0 left the Python engine, so every
+  WPF button click came back `~`. The Invoke is still sent once; WinForms and Win32 buttons stay `~`.
+
 ## [3.17.9] - 2026-11-08
 
 ### Changed

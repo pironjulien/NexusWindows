@@ -17,7 +17,7 @@ sealed record ProgramPointActionJson(bool ok, string technique, string mechanism
 sealed record ProgramOpenedMenuJson(long id, uint pid, long owner, string className);
 sealed record ProgramOpenedMenuJson2(long[] ambiguous);
 sealed record ProgramKeyActionJson(bool ok, string technique, string mechanism, string effect);
-sealed record ProgramUiaClickJson(string op, long windowId, int[] runtimeId, long nativeWindow, string[] order);
+sealed record ProgramUiaClickJson(string op, long windowId, int[] runtimeId, long nativeWindow, string[] order, bool listenInvoked = false);
 sealed record ProgramUiaSetValueJson(string op, long windowId, int[] runtimeId, long nativeWindow, string value);
 sealed record ProgramUiaExpandCollapseJson(string op, long windowId, int[] runtimeId, long nativeWindow, string action, bool invokeFallback);
 sealed record BusyIndicatorRunJson(string @event, string error);

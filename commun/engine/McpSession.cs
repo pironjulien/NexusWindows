@@ -404,11 +404,18 @@ static partial class McpServer
         if (expect["includes"] != null) return NormalizeLegacyText(actual?.ToString()).Contains(NormalizeLegacyText(Str(expect, "includes")), StringComparison.OrdinalIgnoreCase);
         return expect.ContainsKey("exists") && Bool(expect, "exists");
     }
+    // A click proven by the clicked element alone (README, step marks): the Invoked event its provider raised, or its own
+    // state read back after Toggle or SelectionItem.Select. Never another change on screen (a clock or a stream does that too).
+    internal const string InvokedProof = "Invoked: the control reported the click (its result is not read: give expect to check it)";
+    internal static bool SelfProvedClick(JsonObject step, JsonObject? outcome) =>
+        Str(step, "kind") == "click" && Str(outcome, "effect") == "applied" &&
+        Str(outcome, "mechanism") is ComWorker.InvokedMechanism or "Toggle" or "SelectionItem.Select";
     internal static JsonObject? NativeResultWithoutProofRead(JsonObject step, JsonObject? outcome, string? error)
     {
         if (error != null) return StepResult("unknown", "~", null, false, error, outcome);
         if (step["expect"] is JsonObject) return null;
         if (Str(step, "kind") == "scroll" && Str(outcome, "effect") == "applied" && Str(outcome, "mechanism").StartsWith("ScrollPattern ", StringComparison.Ordinal)) return null;
+        if (SelfProvedClick(step, outcome)) return null;
         return StepResult("sent-unconfirmed", "~", null, false, "Input sent; no exact postcondition was supplied. Look before deciding the next gesture.", outcome);
     }
     static JsonObject ProveNative(SessionState state, JsonObject step, JsonObject before, JsonObject? outcome, string? error = null, bool inputEverSent = true)
@@ -420,7 +427,9 @@ static partial class McpServer
             var after = InspectNative(state);
             if (step["expect"] is not JsonObject expect)
             {
-                return StepResult("verified", "✓", true, true, "Chosen container's scroll offset changed and was read back", outcome);
+                var proof = !SelfProvedClick(step, outcome) ? "Chosen container's scroll offset changed and was read back"
+                    : Str(outcome, "mechanism") == ComWorker.InvokedMechanism ? InvokedProof : "The clicked control's own state changed and was read back";
+                return StepResult("verified", "✓", true, true, proof, outcome);
             }
             var timer = Stopwatch.StartNew(); var timeout = Math.Clamp(Number(step, "timeoutMs", 1618), 0, 30000);
             while (true)

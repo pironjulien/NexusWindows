@@ -102,6 +102,11 @@ static partial class McpServerSelfTests
         Check(Str(NativeResultWithoutProofRead(Args("{\"kind\":\"click\",\"expect\":{}}"), null, "fixture failure"), "status") == "unknown", "an existing input error needs no unused proof read");
         Check(NativeResultWithoutProofRead(Args("{\"kind\":\"click\",\"expect\":{}}"), null, null) == null, "an explicit postcondition always retains its after-action read");
         Check(NativeResultWithoutProofRead(Args("{\"kind\":\"scroll\"}"), Args("{\"effect\":\"applied\",\"mechanism\":\"ScrollPattern vertical\"}"), null) == null, "a verified offset scroll keeps its after-action read too");
+        // README promise (08/11, lost in the native port): a click proven by the clicked element alone is ✓ without expect.
+        foreach (var proved in new[] { ComWorker.InvokedMechanism, "Toggle", "SelectionItem.Select" })
+            Check(NativeResultWithoutProofRead(Args("{\"kind\":\"click\"}"), Args($"{{\"effect\":\"applied\",\"mechanism\":\"{proved}\"}}"), null) == null, $"a click proven by {proved} goes on to ✓");
+        Check(Str(NativeResultWithoutProofRead(Args("{\"kind\":\"click\"}"), Args("{\"effect\":\"sent\",\"mechanism\":\"Invoke\"}"), null), "mark") == "~", "an Invoke whose event was not heard stays ~");
+        Check(Str(NativeResultWithoutProofRead(Args("{\"kind\":\"click\"}"), Args("{\"effect\":\"applied\",\"mechanism\":\"LegacyIAccessible.DoDefaultAction\"}"), null), "mark") == "~", "only the element's own proofs count");
         count += NativeRoutineMirrorSelfTest();
         Console.WriteLine(new JsonObject { ["ok"] = true, ["assertions"] = count, ["gui"] = false }.ToJsonString()); return 0;
     }

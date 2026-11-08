@@ -84,7 +84,8 @@ static partial class ComWorker
         {
             var outcome = op switch
             {
-                "click" => Click(element, request.GetProperty("order").EnumerateArray().Select(e => e.GetString() ?? "").ToArray()),
+                "click" => Click(element, request.GetProperty("order").EnumerateArray().Select(e => e.GetString() ?? "").ToArray(),
+                    request.TryGetProperty("listenInvoked", out var listen) && listen.ValueKind == JsonValueKind.True),
                 "invoke" => WithPattern(element, ComUia.InvokePatternId, p => { BeforeAct(); ComUia.CallSlot(p, 3); return new Outcome(Uia, "Invoke", "sent"); },
                     () => throw Before("No InvokePattern")),
                 "scrollIntoView" => WithPattern(element, ComUia.ScrollItemPatternId, p => { BeforeAct(); ComUia.CallSlot(p, 3); return new Outcome(Uia, "ScrollItem.ScrollIntoView", "sent"); }, () => throw Before("No ScrollItemPattern")),
@@ -289,14 +290,18 @@ static partial class ComWorker
         ComUia.CallSlot(pattern, 3);
         return new(Uia, "SelectionItem.Select", EffectAfterCall(ComUia.ReadInt(pattern, 6) != 0));
     }
-    static Outcome Click(nint element, string[] order) => ChooseClick(order, name => name switch
+    internal const string InvokedMechanism = "Invoke (Invoked event heard)";
+    static Outcome Click(nint element, string[] order, bool listenInvoked = false) => ChooseClick(order, name => name switch
     {
         "toggle" => WithPattern<Outcome?>(element, ComUia.TogglePatternId, p => Toggle(p), () => null),
-        "invoke" => WithPattern<Outcome?>(element, ComUia.InvokePatternId, p => { BeforeAct(); ComUia.CallSlot(p, 3); return new(Uia, "Invoke", "sent"); }, () => null),
+        "invoke" => WithPattern<Outcome?>(element, ComUia.InvokePatternId, p => listenInvoked
+            ? (ComUia.Shared.InvokeHeard(element, p, BeforeAct) ? new(Uia, InvokedMechanism, "applied") : new(Uia, "Invoke", "sent"))
+            : InvokeOnce(p), () => null),
         "default" => WithPattern<Outcome?>(element, ComUia.LegacyIAccessiblePatternId, p => { BeforeAct(); ComUia.CallSlot(p, 4); return new(Uia, "LegacyIAccessible.DoDefaultAction", "sent"); }, () => null),
         "select" => WithPattern<Outcome?>(element, ComUia.SelectionItemPatternId, p => Select(p), () => null),
         _ => null,
     });
+    static Outcome InvokeOnce(nint pattern) { BeforeAct(); ComUia.CallSlot(pattern, 3); return new(Uia, "Invoke", "sent"); }
     // The next pattern is consulted only if the previous one does not exist (null). An input without a read-back effect,
     // a lost ACK or an error after BeforeAct stay terminal: neither another pattern nor another click.
     internal static Outcome ChooseClick(string[] order, Func<string, Outcome?> attempt)
