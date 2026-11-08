@@ -11,6 +11,12 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+### Fixed
+- Tests: the error-mode check in a child process expects only the two bits always inherited
+  (`SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX`): the runtime briefly sets exactly those two while it loads a
+  native library on another thread, so a child started in that window lacked `SEM_NOGPFAULTERRORBOX` and the check
+  failed now and then in CI. The full mode is still checked in the test process right after it is set.
+
 ## [3.17.8] - 2026-11-08
 
 ### Fixed
