@@ -13,6 +13,7 @@ static class Journal
         ["verified"] = "✓",
         ["already"] = "=",
         ["already-satisfied"] = "=",
+        ["waited"] = "✓",
         ["observed"] = "~",
         ["sent-unconfirmed"] = "~",
         ["unmet"] = "~",
@@ -112,7 +113,8 @@ static class Journal
             statut: s,
             ms: Math.Max(0L, durationMs),
             premier_plan: fg,
-            erreur: CleanError(error)
+            // A verified or already-satisfied step carries its report message (Waited 500 ms...), never an error.
+            erreur: issue is "✓" or "=" ? null : CleanError(error)
         );
     }
 

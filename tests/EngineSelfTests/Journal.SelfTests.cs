@@ -29,17 +29,49 @@ static partial class JournalSelfTests
         try
         {
             Environment.SetEnvironmentVariable("NEXUS_JOURNAL_HOME", tmp);
-            var ts = new DateTimeOffset(2026, 10, 29, 12, 0, 0, TimeSpan.Zero);
-            WriteEntry("codex", "1.0.0", "sess-1", @"process:C:\Windows\notepad.exe", "click", "verified", "background:uia", 42, false, null, ts);
+            var ts = new DateTimeOffset(2026, 10, 29, 12, 0, 0, 123, TimeSpan.Zero);
+            // Shared journal FORMAT.md v1: every line complete, so a writer that goes silent or drops a field fails here.
+            // The version is the engine's own (McpServer.Version), as every MCP action passes it.
+            WriteEntry("codex", McpServer.Version, "sess-1", @"process:C:\Windows\notepad.exe", "click", "verified", "background:uia", 42, false, "Clicked the target", ts);
+            WriteEntry("codex", McpServer.Version, "sess-1", @"process:C:\Windows\notepad.exe", "wait", "waited", null, 7, false, "Waited 7 ms; no desktop input sent", ts);
+            WriteEntry("codex", McpServer.Version, null, @"process:C:\Windows\notepad.exe", "setValue", "refused", null, 5, false, "Target not found: \"Secret field\" (window 12)", ts);
+            WriteEntry("codex", McpServer.Version, "sess-2", "notepad.exe", "typeText", "julien-active", null, -3, false, "Julien is typing: \"private text\"", ts);
             var file = Path.Combine(tmp, "windows", "codex", "2026-10.jsonl");
             Assert(File.Exists(file), "journal file created");
-            var content = File.ReadAllText(file, Encoding.UTF8).Trim();
-            using var doc = JsonDocument.Parse(content);
-            var root = doc.RootElement;
-            Assert(root.GetProperty("agent").GetString() == "codex", "agent codex");
-            Assert(root.GetProperty("app").GetString() == "notepad.exe", "app notepad.exe");
-            Assert(root.GetProperty("issue").GetString() == "✓", "issue verified");
-            Assert(root.GetProperty("ms").GetInt64() == 42, "ms 42");
+            var lines = File.ReadAllLines(file, Encoding.UTF8).Where(l => l.Length > 0).ToArray();
+            Assert(lines.Length == 4, "one line per action");
+            Assert(!string.Join("\n", lines).Contains("Secret field") && !string.Join("\n", lines).Contains("private text"), "no screen or typed text");
+            var keys = new[] { "v", "ts", "agent", "outil", "appel", "app", "cadre", "action", "technique", "issue", "ms", "premier_plan", "erreur" };
+            var valid = new[] { "✓", "=", "~", "✗", "refus", "différé", "arrêt" };
+            var docs = lines.Select(l => JsonDocument.Parse(l)).ToArray();
+            try
+            {
+                foreach (var d in docs)
+                {
+                    var r = d.RootElement;
+                    foreach (var key in keys) Assert(r.TryGetProperty(key, out _), "field " + key);
+                    Assert(r.GetProperty("v").ValueKind == JsonValueKind.Number && r.GetProperty("v").GetInt32() == 1, "v 1");
+                    Assert(r.GetProperty("ts").GetString() == "2026-10-29T12:00:00.123Z", "ts UTC ISO 8601 with milliseconds");
+                    Assert(DateTimeOffset.TryParseExact(r.GetProperty("ts").GetString(), "yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AssumeUniversal, out _), "ts parses");
+                    Assert(r.GetProperty("agent").GetString() == "codex", "agent codex");
+                    Assert(r.GetProperty("outil").GetString() == McpServer.Version, "outil is the engine version");
+                    Assert(r.GetProperty("app").GetString() == "notepad.exe", "app notepad.exe");
+                    Assert(valid.Contains(r.GetProperty("issue").GetString()), "issue valid");
+                    Assert(r.GetProperty("ms").ValueKind == JsonValueKind.Number && r.GetProperty("ms").TryGetInt64(out var ms) && ms >= 0, "ms non-negative integer");
+                    Assert(r.GetProperty("premier_plan").ValueKind is JsonValueKind.True or JsonValueKind.False, "premier_plan boolean");
+                }
+                var (click, wait, refused, deferred) = (docs[0].RootElement, docs[1].RootElement, docs[2].RootElement, docs[3].RootElement);
+                Assert(click.GetProperty("appel").GetString() == "sess-1" && click.GetProperty("action").GetString() == "click", "appel and action");
+                Assert(click.GetProperty("issue").GetString() == "✓" && click.GetProperty("ms").GetInt64() == 42, "issue verified, ms 42");
+                Assert(click.GetProperty("erreur").ValueKind == JsonValueKind.Null, "erreur null on a verified step, even with a report message");
+                Assert(wait.GetProperty("issue").GetString() == "✓" && wait.GetProperty("erreur").ValueKind == JsonValueKind.Null, "a completed wait is verified, without erreur");
+                Assert(refused.GetProperty("appel").ValueKind == JsonValueKind.Null, "appel null without a session");
+                Assert(refused.GetProperty("issue").GetString() == "refus" && refused.GetProperty("erreur").GetString() == "Target not found", "failure: short stable cause");
+                Assert(deferred.GetProperty("issue").GetString() == "différé" && deferred.GetProperty("erreur").GetString() == "Julien is typing", "deferred: cause cut before screen text");
+                Assert(deferred.GetProperty("ms").GetInt64() == 0, "negative duration clamped to 0");
+            }
+            finally { foreach (var d in docs) d.Dispose(); }
         }
         finally
         {

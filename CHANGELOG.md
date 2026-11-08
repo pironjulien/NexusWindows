@@ -11,6 +11,18 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+## [3.17.7] - 2026-11-08
+
+### Fixed
+- Shared journal: a verified or already-satisfied step no longer writes its report message as `erreur` (the field is
+  `null` on `✓` and `=`), and a completed `wait` step is journaled `✓` instead of `~` with the status `unknown`.
+
+### Changed
+- Tests: the journal self-check now verifies every field of the shared format v1 on each line (`v` 1, `ts` in UTC ISO
+  8601 with milliseconds, `outil` the engine version, `appel`, `issue` among the valid values, `ms` a non-negative
+  integer, `erreur` null on success and a short cause without screen text on a failure), so a journal that goes silent
+  or loses a field fails the tests.
+
 ## [3.17.6] - 2026-11-08
 
 ### Fixed
@@ -886,7 +898,8 @@ took 64 s and 14 calls; Codex now takes three calls and about 2 s, with no foreg
 - A UIA or Win32 input whose effect is not confirmed no longer triggers another technique or a physical click;
   repeated inputs require a newer observation of the same window; `expanded` and `focused` postconditions are checked.
 
-[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.6...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.7...HEAD
+[3.17.7]: https://github.com/pironjulien/NexusWindows/compare/v3.17.6...v3.17.7
 [3.17.6]: https://github.com/pironjulien/NexusWindows/compare/v3.17.5...v3.17.6
 [3.17.5]: https://github.com/pironjulien/NexusWindows/compare/v3.17.4...v3.17.5
 [3.17.4]: https://github.com/pironjulien/NexusWindows/compare/v3.17.3...v3.17.4

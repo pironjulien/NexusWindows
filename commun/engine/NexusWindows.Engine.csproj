@@ -8,7 +8,7 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>NexusWindows.Engine</AssemblyName>
-    <Version>3.17.6</Version>
+    <Version>3.17.7</Version>
     <!-- The runtime content is identified by its SHA-256: never stamp it with the last commit when a qualification is
          built from the current worktree. -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
