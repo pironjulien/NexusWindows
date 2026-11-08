@@ -13,6 +13,10 @@
   action at the target point). Forcing a CDP port on Chromium apps or running apps in a separate session or desktop
   were tried and rejected; CDP is only for the AI apps' already-open ports, when the native path would risk the account.
 - Never send a second technique after a first one was sent for the same step (no double action).
+- The READMEs are the product's promise. Removing or rewriting code (an engine port, a dropped adapter) means checking
+  every claim it backed, in all four READMEs and the cookbook: on 08/11/2026 ten promises (click proof, batch tally,
+  scroll ranges, Codex dialog following...) were found lost since the 30/10 native port. Fix the code or the claim in
+  the same change, with a test.
 - Restart Antigravity through its Start menu shortcut, which carries `--remote-debugging-port`; launching
   `Antigravity.exe` directly loses the port and cuts the relay and the keypad off from it.
 
