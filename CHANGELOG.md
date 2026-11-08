@@ -11,6 +11,12 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+### Changed
+- `look`: an image or text without action, value or focus that only repeats its parent's name or value (Gemini's
+  cards list each title as a button then an image; an edit repeats its value as text) is no longer listed; the summary
+  counts these labels and `detail="full"` still lists them. On Gemini's home page the default list drops from 132 to
+  105 elements (text −17 %), and a query for a card title finds one target instead of two.
+
 ### Fixed
 - Tests: the error-mode check in a child process expects only the two bits always inherited
   (`SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX`): the runtime briefly sets exactly those two while it loads a

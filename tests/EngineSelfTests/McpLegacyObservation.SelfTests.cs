@@ -103,6 +103,27 @@ static partial class McpServerSelfTests
         var counts = ParentCounts(dense); var items = Elements(dense).OfType<JsonObject>().ToList();
         Check(EmptyContainer(items[1], counts) && !EmptyContainer(items[2], counts) && !EmptyContainer(items[3], counts), "only an unnamed container holding elements is a layout wrapper");
         Check(Regions(dense, counts).SequenceEqual(new[] { "[2] list \"Messages\" (10)" }), "a named container with most items is the region to look within");
+        // A label repeating its parent (Gemini card: button then image of the same title; edit then its text) is hidden; a
+        // label with its own words, an actionable or focused one, or one whose parent is unknown stays listed (08/11).
+        var cards = JsonNode.Parse("""
+            {"elements":[
+            {"index":0,"role":"window","name":"Gemini","ancestors":[]},
+            {"index":1,"role":"button","name":"Streaming","invoke":true,"ancestors":[0]},
+            {"index":2,"role":"image","name":"Streaming","ancestors":[0,1]},
+            {"index":3,"role":"button","name":"Lire l'aperçu","invoke":true,"ancestors":[0,1]},
+            {"index":4,"role":"edit","name":"Prompt","value":"Hymne  médiéval\nsolennel","ancestors":[0]},
+            {"index":5,"role":"text","name":"Hymne médiéval solennel","ancestors":[0,4]},
+            {"index":6,"role":"button","name":"Genre, Cinématique","ancestors":[0]},
+            {"index":7,"role":"text","name":"Cinématique","ancestors":[0,6]},
+            {"index":8,"role":"image","name":"Streaming","invoke":true,"ancestors":[0,1]},
+            {"index":9,"role":"text","name":"Streaming","focused":true,"ancestors":[0,1]},
+            {"index":10,"role":"text","name":"Streaming","ancestors":[0,99]},
+            {"index":11,"role":"button","name":"Streaming","ancestors":[0,1]},
+            {"index":12,"role":"text","name":"","ancestors":[0,1]}]}
+            """)!.AsObject();
+        var byIndex = Elements(cards).OfType<JsonObject>().ToDictionary(e => (int)Number(e, "index"), e => e);
+        var echoed = Elements(cards).OfType<JsonObject>().Where(e => EchoLabel(e, byIndex)).Select(e => (int)Number(e, "index")).ToArray();
+        Check(echoed.SequenceEqual(new[] { 2, 5 }), "only a non-actionable image or text repeating its parent's name or value is an echo");
         var full = JsonNode.Parse("""{"index":7,"role":"button","name":"OK","automationId":"","value":null,"disabled":false,"focused":true,"checked":null,"selected":false,"password":false,"runtimeId":[42,7],"nativeWindow":5,"ancestors":[1,4],"bounds":[1,2,3,4],"actions":[],"flags":["offscreen"]}""")!.AsObject();
         var compact = CompactElement(full);
         Check(JsonNode.DeepEquals(compact, JsonNode.Parse("""{"index":7,"role":"button","name":"OK","selected":false,"focused":true,"flags":["offscreen"],"bounds":[1,2,3,4],"parent":4}""")), "compact element keeps states and drops defaults and internal identities");

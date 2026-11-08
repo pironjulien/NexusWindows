@@ -114,6 +114,17 @@ static partial class McpServer
     internal static bool EmptyContainer(JsonObject element, Dictionary<int, int> descendants)
         => Str(element, "role") is "pane" or "group" or "custom" && Str(element, "name").Length == 0 && Str(element, "automationId").Length == 0
             && element["value"] == null && !Bool(element, "focused") && !Bool(element, "ocr") && descendants.GetValueOrDefault((int)Number(element, "index", -1)) > 0;
+    // A label that repeats its parent: an image or text without action, value or focus whose name is its direct parent's
+    // name or value (Gemini's 24 cards list each title twice, button then image; an edit repeats its value as text, 08/11).
+    // The parent stays listed and carries the action; the echo comes back with detail="full".
+    internal static bool EchoLabel(JsonObject element, Dictionary<int, JsonObject> byIndex)
+    {
+        if (Str(element, "role") is not ("image" or "text") || Bool(element, "invoke") || Bool(element, "focused") || Bool(element, "ocr") || Bool(element, "selected") || Bool(element, "checked")
+            || element["value"] != null || element["actions"] is JsonArray { Count: > 0 }) return false;
+        var name = NormalizeLegacyText(Str(element, "name"));
+        if (name.Length == 0 || element["ancestors"] is not JsonArray { Count: > 0 } ancestors || !byIndex.TryGetValue(ancestors[^1]!.GetValue<int>(), out var parent)) return false;
+        return name == NormalizeLegacyText(Str(parent, "name")) || name == NormalizeLegacyText(Str(parent, "value"));
+    }
     // show="table": headers then rows of the grid at or under element N (GridPattern/TablePattern, Explorer Details view,
     // DataGridView, WPF DataGrid), or, without a grid (Task Manager), the rows of the observed tree: list, data or tree
     // items under N, one cell per child.
@@ -278,8 +289,10 @@ static partial class McpServer
         var parents = ParentCounts(snapshot);
         var skeleton = Str(args, "detail") != "full";
         bool Inside(JsonObject e) => within < 0 || Number(e, "index", -1) == within || (e["ancestors"] as JsonArray)?.Any(i => i!.GetValue<int>() == within) == true;
-        bool Noise(JsonObject e) => skeleton && EmptyContainer(e, parents);
-        var hidden = Elements(snapshot).OfType<JsonObject>().Count(e => Wanted(e) && Inside(e) && Noise(e));
+        var byIndex = Elements(snapshot).OfType<JsonObject>().GroupBy(e => (int)Number(e, "index", -1)).ToDictionary(g => g.Key, g => g.First());
+        bool Noise(JsonObject e) => skeleton && (EmptyContainer(e, parents) || EchoLabel(e, byIndex));
+        var hidden = Elements(snapshot).OfType<JsonObject>().Count(e => Wanted(e) && Inside(e) && skeleton && EmptyContainer(e, parents));
+        var echoes = Elements(snapshot).OfType<JsonObject>().Count(e => Wanted(e) && Inside(e) && skeleton && !EmptyContainer(e, parents) && EchoLabel(e, byIndex));
         // Every element's line is remembered, whatever this look lists: "changes" then compares the whole window state,
         // even after a narrow query (31/10: a filtered look followed by changes listed everything as new).
         var allLines = Elements(snapshot).OfType<JsonObject>().ToDictionary(e => (int)Number(e, "index"), e => NativeLine(e, reference));
@@ -325,6 +338,7 @@ static partial class McpServer
             : changed ? $"{listed.Count} added or changed element(s), {removed.Count} removed" : $"{listed.Count} of {total} element(s) listed")
             + (query.Length > 0 ? $" for query \"{query}\"" : "") + (within >= 0 ? $" within [{within}]" : "")
             + (hidden > 0 ? $"; {hidden} empty container(s) hidden" : "")
+            + (echoes > 0 ? $"; {echoes} label(s) repeating their parent hidden" : "")
             + (Elements(snapshot).OfType<JsonObject>().Count(e => (e["flags"] as JsonArray)?.Any(f => f?.ToString() == "unreadable") == true) is var unreadable and > 0
                 ? $"; content of {unreadable} element(s) unreadable by UI Automation (flag unreadable): use the image and image points there" : "")
             + (candidates.Count > listed.Count ? $"; {candidates.Count - listed.Count} more: narrow with query, within or max_elements" : "")
