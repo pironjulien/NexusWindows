@@ -45,12 +45,6 @@ static partial class Physical
     };
 
     internal static bool SupportsRelocation(string action) => action is "click" or "move" or "wheel";
-    public static int TargetSelfTest()
-    {
-        using var input = JsonDocument.Parse(Console.In.ReadToEnd());
-        Console.WriteLine(EngineJson.Serialize(input.RootElement.EnumerateArray().Select(e => SupportsRelocation(e.GetString() ?? "")).ToArray()));
-        return 0;
-    }
 
     // The target's window: the bound window itself or a window it OWNS (chain of owners: dialog, owned menu). Never a
     // sibling of the same process (Codex's review of 22/10 12:22: two Edge windows), nor a popup merely classed as such

@@ -13,9 +13,9 @@ static partial class McpServer
         string Started, string Revision, string Boundary, JsonArray Steps, int Next, JsonArray Results,
         JsonArray? Definition, string? Remember, string? Routine, string? RoutineStamp, JsonArray Anchors, int Transitions);
 
-    static string Str(JsonNode? o, string key, string fallback = "") => o?[key] is JsonValue v && v.TryGetValue<string>(out var s) ? s : fallback;
-    static bool Bool(JsonNode? o, string key, bool fallback = false) => o?[key] is JsonValue v && v.TryGetValue<bool>(out var b) ? b : fallback;
-    static double Number(JsonNode? o, string key, double fallback = 0)
+    internal static string Str(JsonNode? o, string key, string fallback = "") => o?[key] is JsonValue v && v.TryGetValue<string>(out var s) ? s : fallback;
+    internal static bool Bool(JsonNode? o, string key, bool fallback = false) => o?[key] is JsonValue v && v.TryGetValue<bool>(out var b) ? b : fallback;
+    internal static double Number(JsonNode? o, string key, double fallback = 0)
     {
         if (o?[key] is not JsonValue v) return fallback;
         if (v.TryGetValue<double>(out var n)) return double.IsFinite(n) ? n : fallback;
@@ -23,7 +23,7 @@ static partial class McpServer
         if (v.TryGetValue<long>(out var l)) return l;
         return fallback;
     }
-    static JsonObject ObjectOf(JsonElement e) => JsonNode.Parse(e.GetRawText())!.AsObject();
+    internal static JsonObject ObjectOf(JsonElement e) => JsonNode.Parse(e.GetRawText())!.AsObject();
     static JsonObject NativeRequest(SessionState state, string operation)
     {
         state.Interaction?.Check();
@@ -73,7 +73,7 @@ static partial class McpServer
             }
         }
     }
-    static JsonArray Elements(JsonObject snapshot) => snapshot["elements"] as JsonArray ?? throw new InvalidOperationException("Incomplete native observation");
+    internal static JsonArray Elements(JsonObject snapshot) => snapshot["elements"] as JsonArray ?? throw new InvalidOperationException("Incomplete native observation");
     static JsonObject TranslateNativeAlias(string name, JsonObject arguments)
     {
         var args = arguments.DeepClone().AsObject();
@@ -107,7 +107,7 @@ static partial class McpServer
     }
     static bool HasStableSelector(JsonObject element) => Str(element, "automationId").Length > 0 || Str(element, "name").Length > 0;
     // Center of the element's part inside the observed window frame, relative to that frame (pointer x/y of a step).
-    static (int X, int Y)? VisibleCenterOf(JsonObject snapshot, JsonObject element)
+    internal static (int X, int Y)? VisibleCenterOf(JsonObject snapshot, JsonObject element)
     {
         if (snapshot["frame"] is not JsonObject frame || element["bounds"] is not JsonArray { Count: 4 } b) return null;
         var (fl, ft) = (Number(frame, "left"), Number(frame, "top"));
@@ -177,7 +177,7 @@ static partial class McpServer
     }
     internal static string TabName(string name) => Regex.Replace(name, @"\s+-\s+(?:Utilisation (?:élevée )?de la mémoire|(?:High )?memory usage)\s+-\s+[0-9]+(?:[.,][0-9]+)?\s*(?:[KMGTPE](?:o|B))\z", "",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-    static JsonObject ElementIdentity(JsonObject snapshot, JsonObject element) => new()
+    internal static JsonObject ElementIdentity(JsonObject snapshot, JsonObject element) => new()
     {
         ["runtimeId"] = element["runtimeId"]?.DeepClone(), ["nativeWindow"] = element["nativeWindow"]?.DeepClone(),
         ["role"] = element["role"]?.DeepClone(), ["name"] = element["name"]?.DeepClone(), ["automationId"] = element["automationId"]?.DeepClone(),
@@ -186,7 +186,7 @@ static partial class McpServer
             StableIdentityPart(snapshot, Elements(snapshot).OfType<JsonObject>().Single(e => Number(e, "index", -1) == i!.GetValue<int>()))).ToArray())
     };
     static JsonObject IdentityPart(JsonObject element) => new() { ["runtimeId"] = element["runtimeId"]?.DeepClone(), ["nativeWindow"] = element["nativeWindow"]?.DeepClone(), ["role"] = element["role"]?.DeepClone(), ["name"] = element["name"]?.DeepClone(), ["automationId"] = element["automationId"]?.DeepClone() };
-    static JsonObject StepTarget(JsonObject snapshot, JsonObject step, JsonObject selector)
+    internal static JsonObject StepTarget(JsonObject snapshot, JsonObject step, JsonObject selector)
     {
         if (step["observedIdentity"] is not JsonObject identity) return UniqueNative(snapshot, selector);
         var matches = Elements(snapshot).OfType<JsonObject>().Where(e => JsonNode.DeepEquals(e["runtimeId"], identity["runtimeId"])).ToList();
@@ -340,7 +340,7 @@ static partial class McpServer
         if (action is "check" or "uncheck" && target != null && target["checked"] == null) throw new ActionRefusedException("Target exposes no checked state");
         return step;
     }
-    static JsonObject NormalizeExpectation(JsonObject snapshot, JsonObject original)
+    internal static JsonObject NormalizeExpectation(JsonObject snapshot, JsonObject original)
     {
         if (original["all"] is JsonArray all) return new JsonObject { ["all"] = new JsonArray(all.OfType<JsonObject>().Select(e => (JsonNode)NormalizeExpectation(snapshot, e)).ToArray()) };
         if (original["selector"] != null || original["text"] != null) { Routines.ValidateExpectation(original); return original.DeepClone().AsObject(); }
@@ -373,7 +373,7 @@ static partial class McpServer
     // ocr: a text the window shows but its tree does not carry (WPF TextBlock named by AutomationProperties.Name, drawn
     // label) is also looked for by OCR in a background capture of the window, before the gesture (an already visible text
     // cannot verify it) and after. Only for a text that must appear; "gone" stays judged on the tree.
-    static bool ExpectationHolds(SessionState state, JsonObject snapshot, JsonObject expect, bool ocr = false)
+    internal static bool ExpectationHolds(SessionState state, JsonObject snapshot, JsonObject expect, bool ocr = false)
     {
         if (expect["all"] is JsonArray all) return all.OfType<JsonObject>().All(e => ExpectationHolds(state, snapshot, e, ocr));
         if (expect["text"] is JsonValue text)
@@ -404,7 +404,7 @@ static partial class McpServer
         if (expect["includes"] != null) return NormalizeLegacyText(actual?.ToString()).Contains(NormalizeLegacyText(Str(expect, "includes")), StringComparison.OrdinalIgnoreCase);
         return expect.ContainsKey("exists") && Bool(expect, "exists");
     }
-    static JsonObject? NativeResultWithoutProofRead(JsonObject step, JsonObject? outcome, string? error)
+    internal static JsonObject? NativeResultWithoutProofRead(JsonObject step, JsonObject? outcome, string? error)
     {
         if (error != null) return StepResult("unknown", "~", null, false, error, outcome);
         if (step["expect"] is JsonObject) return null;
@@ -443,7 +443,7 @@ static partial class McpServer
         if (fields.Count != 1 || Bool(fields[0], "password") || Str(fields[0], "value").Trim().Length == 0) return null;
         return "Text appended after the field's existing text; to replace it, type with replace:true or use set";
     }
-    static JsonObject StepResult(string status, string mark, bool? verified, bool success, string? message, JsonObject? outcome = null) => new()
+    internal static JsonObject StepResult(string status, string mark, bool? verified, bool success, string? message, JsonObject? outcome = null) => new()
     {
         ["status"] = status, ["mark"] = mark, ["verified"] = verified, ["success"] = success,
         ["message"] = message, ["technique"] = outcome?["technique"]?.DeepClone(), ["effect"] = outcome?["effect"]?.DeepClone(),
@@ -462,7 +462,7 @@ static partial class McpServer
     };
     // Called only after the caller proved that its background attempt refused before input.
     // Metadata records the transport path, never a key, field value, selector or exception message.
-    static JsonObject NativeFallbackAttempt(Func<JsonObject> fallback, Func<bool> inputAttempted)
+    internal static JsonObject NativeFallbackAttempt(Func<JsonObject> fallback, Func<bool> inputAttempted)
     {
         var attempts = new JsonArray(new JsonObject { ["method"] = "background", ["status"] = "refused-before-input", ["error_type"] = "BackgroundNotApplicableException" });
         try
@@ -482,31 +482,6 @@ static partial class McpServer
     {
         if (error.Data[NativeAttemptsKey] is JsonArray attempts) result["attempts"] = attempts.DeepClone();
         return result;
-    }
-    static int NativeFallbackTraceSelfTest()
-    {
-        var assertions = 0;
-        void Check(bool value, string why) { if (!value) throw new InvalidOperationException("Fallback trace selftest: " + why); assertions++; }
-        var calls = 0;
-        var outcome = NativeFallbackAttempt(() => { calls++; return new JsonObject { ["ok"] = true, ["effect"] = "sent" }; }, () => true);
-        Check(calls == 1 && outcome["attempts"] is JsonArray { Count: 2 }, "one fallback sends once and retains its preceding refusal");
-        var result = StepResult("unmet", "~", false, false, null, outcome);
-        Check(Str(result, "status") == "unmet" && result["attempts"] is JsonArray { Count: 2 }, "transport return never changes UI proof status");
-        Check(Str(outcome["attempts"]![0], "status") == "refused-before-input" && Str(outcome["attempts"]![1], "status") == "returned", "attempt statuses distinguish no-input refusal from a transport return");
-        foreach (var entered in new[] { false, true })
-        {
-            var original = new IOException("private-field private-key private-text"); calls = 0;
-            try { NativeFallbackAttempt(() => { calls++; throw original; }, () => entered); throw new InvalidOperationException("Expected fallback failure"); }
-            catch (IOException error)
-            {
-                Check(ReferenceEquals(original, error) && calls == 1, "fallback errors are rethrown unchanged without replay");
-                var failure = RoutineFailure(error, entered);
-                Check(failure["attempts"] is JsonArray { Count: 2 } && Str(failure["attempts"]![1], "status") == (entered ? "input-uncertain" : "refused-before-input"), "failure metadata survives the same classification path");
-                Check(Str(failure, "status") == (entered ? "unknown" : "refused"), "trace annotations leave refusal/unknown classification intact");
-                Check(!failure["attempts"]!.ToJsonString().Contains("private-"), "trace metadata excludes diagnostic, key, target and field text");
-            }
-        }
-        return assertions;
     }
     // The one enabled element under a point that has its own UIA gesture, or null (none, or several nested: ambiguous).
     internal static JsonObject? PointGesture(IEnumerable<JsonObject> hits)
@@ -559,7 +534,7 @@ static partial class McpServer
             else if (GardeFous.ConfirmWord(label, context).Length > 0 && !Bool(step, "confirm")) throw new NativeConfirmationException($"Irreversible action \"{label}\": nothing sent; confirm:true requires the user's explicit order");
         }
     }
-    sealed class NativeConfirmationException(string message) : InvalidOperationException(message);
+    internal sealed class NativeConfirmationException(string message) : InvalidOperationException(message);
     // The outward-action guard of a gesture without a named target (keys), for the offline tests.
     internal static void CheckGestureForTest(SessionState state, JsonObject step, JsonObject observation, string title) => CheckGesture(state, step, observation, null, null, title);
 
@@ -778,7 +753,7 @@ static partial class McpServer
         result["foregroundReturned"] = returned;
         return result;
     }
-    static (int X, int Y, JsonArray Frame) NativePoint(SessionState state, JsonObject step, JsonObject snapshot, JsonObject? target)
+    internal static (int X, int Y, JsonArray Frame) NativePoint(SessionState state, JsonObject step, JsonObject snapshot, JsonObject? target)
     {
         if (snapshot["frame"] is not JsonObject frame) throw new ActionRefusedException("No current window frame; look at a native image first");
         var left = Number(frame, "left"); var top = Number(frame, "top"); var width = Number(frame, "width"); var height = Number(frame, "height");

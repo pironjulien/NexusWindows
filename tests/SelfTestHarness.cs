@@ -1,6 +1,7 @@
-// In-process runner for the engine's offline self-checks (formerly the --*-selftest command-line options): the JSON
-// input goes in as standard input, the printed result comes back as text or JSON. Console and environment are process
-// state, so every class using this harness belongs to the non-parallel "Engine" collection.
+// In-process runner for the engine's offline self-checks (formerly the --*-selftest command-line options), which live in
+// tests/EngineSelfTests and never ship in the engine: the JSON input goes in as standard input, the printed result
+// comes back as text or JSON. Console and environment are process state, so every class using this harness belongs to
+// the non-parallel "Engine" collection.
 using System.Text.Json;
 using System.Text.Json.Nodes;
 

@@ -27,7 +27,7 @@ static partial class Keys
     private static partial bool SetKeyboardState(byte[] state);
     [LibraryImport("user32.dll")] private static partial uint MapVirtualKeyExW(uint code, uint type, nint layout);
     [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial short VkKeyScanExW(char ch, nint layout);
-    [LibraryImport("user32.dll")] private static partial nint GetKeyboardLayout(uint thread);
+    [LibraryImport("user32.dll")] internal static partial nint GetKeyboardLayout(uint thread);
     [LibraryImport("user32.dll")] private static partial uint WaitForInputIdle(nint process, uint ms);
     [LibraryImport("kernel32.dll")] private static partial nint OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint pid);
     [LibraryImport("kernel32.dll")]
@@ -43,7 +43,7 @@ static partial class Keys
     // Simulated modifiers held at least 0.5 s after sending: at 0.15 s, Ctrl+K posted to a covered Win32 window sometimes
     // arrived after the restore (NexusClaude's measurement of 23/10, bench/miss_probes.py).
     public const int HoldMs = 500;
-    const int VK_SHIFT = 0x10, VK_CONTROL = 0x11;
+    internal const int VK_SHIFT = 0x10, VK_CONTROL = 0x11;
     static readonly Dictionary<string, int> Named = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Return"] = 0x0D, ["Enter"] = 0x0D, ["Tab"] = 0x09, ["Escape"] = 0x1B, ["Esc"] = 0x1B, ["BackSpace"] = 0x08,
@@ -67,7 +67,7 @@ static partial class Keys
         "win" or "super" or "meta" or "windows" => 0x5B,
         _ => 0,
     };
-    static (List<int> Mods, int Vk) ParseCore(string spec, bool physical, Func<char, short> scanCharacter)
+    internal static (List<int> Mods, int Vk) ParseCore(string spec, bool physical, Func<char, short> scanCharacter)
     {
         var text = spec.Trim().Replace(" ", "");
         string[] parts = text == "+" ? ["+"] : text.Length > 2 && text.EndsWith("++", StringComparison.Ordinal)
@@ -101,7 +101,7 @@ static partial class Keys
         else throw new BackgroundNotApplicableException($"Unknown key « {key} »");
         return (mods, vk);
     }
-    static (List<int> Mods, int Vk) Parse(string spec, nint layout) => ParseCore(spec, false, ch => VkKeyScanExW(ch, layout));
+    internal static (List<int> Mods, int Vk) Parse(string spec, nint layout) => ParseCore(spec, false, ch => VkKeyScanExW(ch, layout));
 
     // Alt in the background, for a Chromium window only (05/11: alt+n, alt+1 refused « system keys »): its shortcuts are read
     // from WM_SYSKEYDOWN with the Alt context bit and the simulated keyboard state, under the same simulated activation as
@@ -121,47 +121,6 @@ static partial class Keys
     // Real input supports Alt/Windows too; the background parser still refuses system modifiers before input.
     public static (List<int> Mods, int Vk) ParseFor(string spec, nint layout) => ParseCore(spec, true, ch => VkKeyScanExW(ch, layout));
     public static bool IsExtended(int vk) => Extended.Contains(vk);
-    internal static void CheckPhysicalGrammar()
-    {
-        var layout = GetKeyboardLayout(0);
-        if (!ParseFor("alt+f4", layout).Mods.Contains(0x12) || !ParseFor("win+r", layout).Mods.Contains(0x5B)) throw new InvalidOperationException("Physical system modifier parsing failed");
-        try { Parse("alt+f4", layout); throw new InvalidOperationException("Background Alt unexpectedly accepted"); }
-        catch (BackgroundNotApplicableException) { }
-    }
-    internal static int KeyGrammarAssertions()
-    {
-        var count = 0;
-        void Check(bool value, string why) { if (!value) throw new InvalidOperationException("Key grammar: " + why); count++; }
-        short Scan(char ch) => ch switch { '+' => 0x1BB, 'a' => 0x41, '1' => 0x131, '#' => 0x6DC, _ => -1 };
-        (List<int> Mods, int Vk) Read(string spec, bool physical = false) => ParseCore(spec, physical, Scan);
-        void Refused(string spec, bool physical = false)
-        {
-            try { Read(spec, physical); } catch (BackgroundNotApplicableException) { count++; return; }
-            throw new InvalidOperationException("Key grammar accepted " + spec);
-        }
-        foreach (var physical in new[] { false, true })
-        {
-            for (var f = 1; f <= 24; f++) Check(Read("f" + f, physical).Vk == 0x6F + f, "F1-F24");
-            foreach (var pair in new Dictionary<string, int> { ["apps"] = 0x5D, ["printscreen"] = 0x2C, ["pause"] = 0x13, ["capslock"] = 0x14,
-                ["numlock"] = 0x90, ["scrolllock"] = 0x91, ["plus"] = 0xBB, ["minus"] = 0xBD, ["comma"] = 0xBC, ["period"] = 0xBE })
-                Check(Read(pair.Key, physical).Vk == pair.Value, "named canonical key");
-            var plus = Read("+", physical); Check(plus.Vk == 0xBB && plus.Mods.SequenceEqual(new[] { VK_SHIFT }), "literal plus uses injected target layout");
-            var ctrlPlus = Read("ctrl++", physical); Check(ctrlPlus.Vk == 0xBB && ctrlPlus.Mods.SequenceEqual(new[] { VK_CONTROL, VK_SHIFT }), "final ++ means plus key");
-            var dedup = Read("ctrl+Control_L+shift+shift+a", physical); Check(dedup.Mods.SequenceEqual(new[] { VK_CONTROL, VK_SHIFT }), "duplicate modifiers send once");
-            Check(Read("ctrl", physical).Vk == VK_CONTROL && Read("ctrl", physical).Mods.Count == 0, "control alone");
-            Check(Read("shift", physical).Vk == VK_SHIFT && Read("shift", physical).Mods.Count == 0, "shift alone");
-            Check(Read("1", physical).Mods.SequenceEqual(new[] { VK_SHIFT }), "layout-dependent digit keeps implicit shift");
-            foreach (var malformed in new[] { "", "ctrl+", "ctrl+shift+", "++", "ctrl+++", "ctrl++a", "+a", "a+enter", "ctrl+shift", "f0", "f25", "ctrl+f25", "#" }) Refused(malformed, physical);
-        }
-        foreach (var system in new[] { "alt", "alt_l", "alt_r", "win", "super", "meta", "windows", "alt+f4", "win+a", "ctrl+win+a" })
-        {
-            Refused(system);
-            Check(Read(system, true).Vk != 0, "physical system key remains available");
-        }
-        Check(IsExtended(Read("apps").Vk), "apps carries the extended flag");
-        Check(Read("menu").Vk == 0x5D, "named menu aliases apps");
-        return count;
-    }
 
     static nint KeyLparam(int vk, bool up, nint layout)
     {

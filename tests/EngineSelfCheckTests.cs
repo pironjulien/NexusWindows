@@ -11,13 +11,13 @@ public class EngineSelfCheckTests
     [Fact]
     public void Garde_fous_journal_routines_and_mcp_selftests()
     {
-        var gf = SelfTest.Json(GardeFous.SelfTest);
+        var gf = SelfTest.Json(GardeFousSelfTests.SelfTest);
         Assert.True(gf["ok"].B());
         Assert.Equal(["claude", "antigravity", "codex"], gf["agents"].Strings());
         Assert.True(gf["lookalikes"].L() >= 60);
-        Assert.True(SelfTest.Json(Journal.SelfTest)["ok"].B());
-        Assert.True(SelfTest.Json(Routines.SelfTest)["ok"].B());
-        var mcp = SelfTest.Json(McpServer.SelfTest);
+        Assert.True(SelfTest.Json(JournalSelfTests.SelfTest)["ok"].B());
+        Assert.True(SelfTest.Json(RoutinesSelfTests.SelfTest)["ok"].B());
+        var mcp = SelfTest.Json(McpServerSelfTests.SelfTest);
         Assert.True(mcp["ok"].B());
         Assert.Equal(["claude", "antigravity", "codex"], mcp["agents"].Strings());
     }
@@ -25,7 +25,7 @@ public class EngineSelfCheckTests
     [Fact]
     public void Observed_identities_french_contracts_image_points_and_stable_deltas()
     {
-        var report = SelfTest.Json(McpServer.SelfTest);
+        var report = SelfTest.Json(McpServerSelfTests.SelfTest);
         Assert.True(report["ok"].B());
         Assert.True(report["legacyObservationAssertions"].L() >= 21, "run the compiled regression scenarios");
         Assert.True(report["fallbackTraceAssertions"].L() >= 11, "trace the actual fallback seam");
@@ -36,21 +36,21 @@ public class EngineSelfCheckTests
     [InlineData("migration")]
     public void Isolated_persistent_fixtures(string mode)
     {
-        Func<int> run = mode == "notifications" ? Notifications.SelfTest : McpServer.MigrationSelfTest;
+        Func<int> run = mode == "notifications" ? NotificationsSelfTests.SelfTest : McpServerSelfTests.MigrationSelfTest;
         Assert.True(SelfTest.Json(run)["ok"].B());
     }
 
     [Fact]
     public void Claude_logs_preserve_legacy_history_and_native_techniques_without_typed_data()
     {
-        var result = SelfTest.Json(McpServer.LogsSelfTest);
+        var result = SelfTest.Json(McpServerSelfTests.LogsSelfTest);
         foreach (var field in new[] { "ok", "history", "readonly", "typedTextOmitted", "techniques" }) Assert.True(result[field].B(), field);
     }
 
     [Fact]
     public void Key_sequence_transport_fresh_guards_and_global_proof_without_gui()
     {
-        var result = SelfTest.Json(McpServer.KeySequenceSelfTest);
+        var result = SelfTest.Json(McpServerSelfTests.KeySequenceSelfTest);
         Assert.True(result["ok"].B());
         Assert.False(result["gui"].B());
         Assert.True(result["assertions"].L() >= 226);
@@ -59,7 +59,7 @@ public class EngineSelfCheckTests
     [Fact]
     public void Routine_compatibility_permissions_refusals_and_private_mirror_isolation()
     {
-        var result = SelfTest.Json(McpServer.RoutineCompatibilitySelfTest);
+        var result = SelfTest.Json(McpServerSelfTests.RoutineCompatibilitySelfTest);
         Assert.True(result["ok"].B());
         Assert.False(result["gui"].B());
         Assert.True(result["assertions"].L() >= 97);
@@ -68,7 +68,7 @@ public class EngineSelfCheckTests
     [Fact]
     public void Claude_shell_scope_preserves_background_refusals_and_exact_foreground_identities()
     {
-        var result = SelfTest.Json(McpServer.ShellCompatibilitySelfTest);
+        var result = SelfTest.Json(McpServerSelfTests.ShellCompatibilitySelfTest);
         Assert.True(result["ok"].B());
         Assert.False(result["gui"].B());
         Assert.True(result["assertions"].L() >= 40);
@@ -77,7 +77,7 @@ public class EngineSelfCheckTests
     [Fact]
     public void Store_support_state_readback_identity_gate_no_retry_and_hidden_application_classification()
     {
-        var result = SelfTest.Json(StorePackages.SelfTest);
+        var result = SelfTest.Json(StorePackagesSelfTests.SelfTest);
         Assert.True(result["ok"].B());
         Assert.True(result["checks"].L() >= 17);
     }
@@ -85,7 +85,7 @@ public class EngineSelfCheckTests
     [Fact]
     public void Virtualized_materialization_realize_precedes_scrolling_and_every_pattern_is_released()
     {
-        var result = SelfTest.Json(ComWorker.VirtualizationSelfTest);
+        var result = SelfTest.Json(ComWorkerSelfTests.VirtualizationSelfTest);
         Assert.True(result["ok"].B());
         Assert.True(result["checks"].L() >= 7);
     }
@@ -93,7 +93,7 @@ public class EngineSelfCheckTests
     [Fact]
     public void Inspection_brackets_a_fresh_tree_and_rejects_window_or_content_replacement()
     {
-        var result = SelfTest.Node(Program.InspectionFrameSelfTest());
+        var result = SelfTest.Node(ProgramSelfTests.InspectionFrameSelfTest());
         Assert.True(result["ok"].B());
         Assert.True(result["checks"].L() >= 10);
     }
@@ -101,7 +101,7 @@ public class EngineSelfCheckTests
     [Fact]
     public void Pointer_messages_restore_the_recipient_dpi_context()
     {
-        var result = SelfTest.Node(Pointer.RecipientContextSelfTest());
+        var result = SelfTest.Node(PointerSelfTests.RecipientContextSelfTest());
         Assert.True(result["ok"].B());
         Assert.True(result["checks"].L() >= 4);
         Assert.False(result["gui"].B());
@@ -111,7 +111,7 @@ public class EngineSelfCheckTests
     [Fact]
     public void Claude_uia_append_reads_the_same_live_field_and_never_replays()
     {
-        var result = SelfTest.Node(ComWorker.AppendValueSelfTest());
+        var result = SelfTest.Node(ComWorkerSelfTests.AppendValueSelfTest());
         Assert.True(result["ok"].B());
         Assert.False(result["gui"].B());
         Assert.True(result["checks"].L() >= 14);
@@ -120,7 +120,7 @@ public class EngineSelfCheckTests
     [Fact]
     public void Claude_chromium_focus_publishes_under_exact_identity_and_never_replays_accSelect()
     {
-        var result = SelfTest.Node(ComWorker.ChromiumFocusSelfTest());
+        var result = SelfTest.Node(ComWorkerSelfTests.ChromiumFocusSelfTest());
         Assert.True(result["ok"].B());
         Assert.False(result["gui"].B());
         Assert.False(result["inputSent"].B());
@@ -130,7 +130,7 @@ public class EngineSelfCheckTests
     [Fact]
     public void Claude_chromium_text_guards_32_bounded_packets_and_2000_runes()
     {
-        var result = SelfTest.Node(ChromiumInput.SimulatedPacketGuardSelfTest());
+        var result = SelfTest.Node(ChromiumInputSelfTests.SimulatedPacketGuardSelfTest());
         Assert.True(result["ok"].B());
         Assert.False(result["gui"].B());
         Assert.False(result["inputSent"].B());
@@ -145,7 +145,7 @@ public class EngineSelfCheckTests
     [Fact]
     public void Chromium_first_read_warmup_is_bounded_and_respects_stop()
     {
-        var result = SelfTest.Node(ComUia.ChromiumWarmupSelfTest());
+        var result = SelfTest.Node(ComUiaSelfTests.ChromiumWarmupSelfTest());
         Assert.True(result["ok"].B());
         Assert.False(result["gui"].B());
         Assert.True(result["checks"].L() >= 24);

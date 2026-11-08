@@ -1,0 +1,57 @@
+// Offline self-checks of commun/engine/JsonShapes.cs, kept out of the shipped engine: they reach it through
+// its internal members (InternalsVisibleTo NexusWindows.Tests) and run in-process from the xUnit tests.
+#pragma warning disable IDE1006 // JSON member names, as the documents spell them
+
+sealed record CdpSelfTestJson(string url, int? port, bool? owned);
+sealed record CdpSelfTestJson2(string error, int? port, bool? owned);
+sealed record CdpSurfaceSelfTestJson(int index, int[] gap);
+sealed record CdpSurfaceSelfTestJson2(string error);
+sealed record CdpProveSelfTestJson(object value);
+sealed record CdpProveSelfTestJson2(string type, string subtype, string description);
+sealed record CdpProveSelfTestJson3(bool ok, string pageTitle);
+sealed record CdpProveSelfTestJson4(string error, string kind, string wheelKind, string pageTitle);
+sealed record CdpProveLiveSelfTestJson(string? scenario, string outcome, string kind, int freshOpened, string? original, string windowBefore, string? domAfter, string windowAfter, string? restoredByTest, bool tabOpened);
+sealed record CdpWheelTraceSelfTestJson2(string outcome, int started, int dispatched, int evaluated);
+sealed record CdpInstrumentedServerJson(int id, CdpInstrumentedServerJson2 result);
+sealed record CdpInstrumentedServerJson2(CdpInstrumentedServerJson3 result);
+sealed record CdpInstrumentedServerJson3(string type, string value);
+sealed record CdpSessionSelfTestJson(int id, CdpSessionSelfTestJson2 result);
+sealed record CdpSessionSelfTestJson2(CdpSessionSelfTestJson3 result);
+sealed record CdpSessionSelfTestJson3(string type, bool value);
+sealed record CdpSessionSelfTestJson4(bool cleaned, global::System.Collections.Generic.List<string> received);
+sealed record CdpClaudeInputSelfTestJson(int index);
+sealed record CdpClaudeInputSelfTestJson2(string focusEditable, string focusAny, string selectAll, string append, string select);
+sealed record CdpClaudeInputSelfTestJson3(string key, string code, int vk, int modifiers, string? text);
+sealed record CdpDomKeyTraceSelfTestJson(int id, CdpDomKeyTraceSelfTestJson2 result);
+sealed record CdpDomKeyTraceSelfTestJson2();
+sealed record CdpDomKeyTraceSelfTestJson3(string outcome, int started, int dispatched, int cleanups, global::System.Collections.Generic.List<string> received, bool automaticReplay, bool gui);
+sealed record ChromiumInputSelfTestJson(bool content, bool cef, bool focusSimulation, bool typeSimulation, bool selectSimulation, bool postedHover, bool wheelDevtools, bool doubleClickInvoke);
+sealed record ChromiumInputSimulatedPacketGuardSelfTestJson(bool ok, int checks, int packets, int packetProofs, int presenceChecks, int proofDuringRune, int utf16Posted, bool gui, bool inputSent);
+sealed record ChromiumInputSimulatedTextSelfTestJson(int? confirmed);
+sealed record ChromiumInputSimulatedTextSelfTestJson2(bool ok, global::Outcome result, string value, global::System.Collections.Generic.List<string> events, int checks, int waits, int inputPackets);
+sealed record ChromiumInputSimulatedTextSelfTestJson3(bool ok, string error, string message, string value, global::System.Collections.Generic.List<string> events, int checks, int waits, int inputPackets);
+sealed record ComWorkerChromiumFocusSelfTestJson(bool ok, int checks, bool gui, bool inputSent);
+sealed record ChromiumContentWarmupSelfTestJson(bool ok, int checks, bool gui, int waitBudgetMs, int pollMs, int failureCooldownMs);
+sealed record ComWorkerAppendValueSelfTestJson(bool ok, int checks, bool gui);
+sealed record ComWorkerVirtualizationSelfTestJson(bool ok, int checks);
+sealed record ComWorkerClickSelfTestJson(string[] order, global::System.Collections.Generic.List<string> calls, int sent, string effect, bool beforeInput);
+sealed record ComWorkerClickSelfTestJson2(string[] order, global::System.Collections.Generic.List<string> calls, int sent, string error, bool beforeInput);
+sealed record ComWorkerExpandSelfTestJson(bool workerBeforeInput, string error, bool beforeInput);
+sealed record ComWorkerExpandSelfTestJson2(string effect, int expandCalls, int invokeCalls);
+sealed record ComWorkerExpandSelfTestJson3(string error, bool beforeInput, int expandCalls, int invokeCalls);
+sealed record GardeFousSelfTestJson(bool ok, string[] agents, int lookalikes);
+sealed record JournalSelfTestJson(bool ok);
+sealed record McpServerSelfTestJson(bool ok, string version, string[] agents, int legacyObservationAssertions, int fallbackTraceAssertions, int windowCompatibilityAssertions);
+sealed record MenuSearchSelfTestJson(long scope);
+sealed record MenuSearchSelfTestJson2(ProgramMenuByNamesJson[] segments);
+sealed record MenuSearchSelfTestJson3(int id);
+sealed record ProgramLaunchSelfTestJson(string target, string args, bool isExe, string? exePath, string start, string arguments);
+sealed record ProgramLaunchSelfTestJson2(string refused);
+sealed record SteamSelfTestJson(string arguments, string fileName, bool useShellExecute);
+sealed record SteamSelfTestJson2(global::System.Collections.Generic.IEnumerable<uint> descendants, string[] games);
+sealed record SteamSelfTestJson3(bool owned, bool cdp);
+sealed record SteamSelfTestJson4(string? command);
+sealed record SteamSelfTestJson5(bool alive);
+sealed record ScrollPlanSelfTestJson(bool vertical, bool forward, int amount, int notches, bool atEnd, int cdpX, int cdpY);
+sealed record WindowManagementSelfTestJson(bool bottom);
+sealed record WindowManagementSelfTestJson2(bool reached);

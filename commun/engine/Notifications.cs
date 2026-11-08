@@ -16,10 +16,10 @@ static partial class Notifications
     static readonly Regex Alnum = new(@"(?<![\w.-])(?=[\w-]*\d)(?=[\w-]*[A-Za-z])[A-Za-z0-9](?:[A-Za-z0-9-]{3,10})[A-Za-z0-9](?![\w-])");
     [LibraryImport("winsqlite3.dll")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
-    private static partial int sqlite3_open_v2([MarshalAs(UnmanagedType.LPUTF8Str)] string path, out nint db, int flags, nint vfs);
+    internal static partial int sqlite3_open_v2([MarshalAs(UnmanagedType.LPUTF8Str)] string path, out nint db, int flags, nint vfs);
     [LibraryImport("winsqlite3.dll")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
-    private static partial int sqlite3_close(nint db);
+    internal static partial int sqlite3_close(nint db);
     [LibraryImport("winsqlite3.dll")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     private static partial int sqlite3_busy_timeout(nint db, int ms);
@@ -47,9 +47,6 @@ static partial class Notifications
     [LibraryImport("winsqlite3.dll")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     private static partial int sqlite3_column_bytes(nint statement, int column);
-    [LibraryImport("winsqlite3.dll")]
-    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
-    private static partial int sqlite3_exec(nint db, [MarshalAs(UnmanagedType.LPUTF8Str)] string sql, nint callback, nint arg, nint error);
 
     public static string Mask(string text, string context) => Context.IsMatch(context.Length > 0 ? context : text) ? Alnum.Replace(Code.Replace(text, "•••"), "•••") : text;
     static string AppName(string id)
@@ -88,30 +85,5 @@ static partial class Notifications
             return output;
         }
         finally { if (statement != 0) _ = sqlite3_finalize(statement); if (db != 0) _ = sqlite3_close(db); }
-    }
-
-    public static int SelfTest()
-    {
-        void Assert(bool value) { if (!value) throw new InvalidOperationException("Notifications selftest failed"); }
-        Assert(Mask("123 456. K7F2QX ab12-cd34 G-123456", "Code de connexion") == "•••. ••• ••• •••");
-        Assert(Mask("2026 1500", "Solde du compte") == "2026 1500");
-        var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "nexus-notifications-" + Guid.NewGuid().ToString("N") + ".db");
-        try
-        {
-            Assert(sqlite3_open_v2(path, out var db, 6, 0) == 0);
-            try
-            {
-                Assert(sqlite3_exec(db, "CREATE TABLE NotificationHandler(RecordId INTEGER,PrimaryId TEXT); CREATE TABLE Notification(Type TEXT,HandlerId INTEGER,ArrivalTime INTEGER,Payload BLOB,ExpiryTime INTEGER); INSERT INTO NotificationHandler VALUES(1,'electron.app.Fixture');", 0, 0, 0) == 0);
-                var now = DateTime.UtcNow.ToFileTimeUtc();
-                Assert(sqlite3_exec(db, $"WITH RECURSIVE seq(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM seq WHERE x<1001) INSERT INTO Notification SELECT 'toast',1,{now}+x,'<text>expired</text>',1 FROM seq; INSERT INTO Notification VALUES('toast',1,{now},'<text>Code de connexion</text><text>&#49;23456. K7F2QX</text>',0);", 0, 0, 0) == 0);
-            }
-            finally { _ = sqlite3_close(db); }
-            var hash = System.Security.Cryptography.SHA256.HashData(System.IO.File.ReadAllBytes(path));
-            var rows = Read(20, "fixture", path);
-            Assert(rows.Count == 1 && rows[0]!["texts"]![1]!.GetValue<string>() == "•••. •••");
-            Assert(hash.SequenceEqual(System.Security.Cryptography.SHA256.HashData(System.IO.File.ReadAllBytes(path))));
-            Console.WriteLine("{\"ok\":true,\"expiredBeforeLimit\":1001,\"readonly\":true}"); return 0;
-        }
-        finally { System.IO.File.Delete(path); }
     }
 }

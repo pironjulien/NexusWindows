@@ -74,7 +74,7 @@ Refresh/navigation must not interrupt an upload still in progress.
 `MissingCooldownMs = 60000` only suppresses the optional 1.5-second warmup retries after missing web content.
 Every call still takes a fresh initial tree; newly present content is returned immediately and clears the miss.
 The miss is process-local. `publication:"no-document"` is a diagnostic, not a 60-second read lock or proof of a
-failed browser action. See `ComChromiumWarmup.cs` and its offline `ChromiumWarmupSelfTest`.
+failed browser action. See `ComChromiumWarmup.cs` and its offline self-test, `tests/EngineSelfTests/ComChromiumWarmup.SelfTests.cs`.
 
 Since 3.16.24 a browser window (Chrome, Edge…) entirely covered by other windows, whose page published nothing, is
 revealed once per read (`ChromiumReveal.cs`): minimize then restore without activation, animation off, same place in

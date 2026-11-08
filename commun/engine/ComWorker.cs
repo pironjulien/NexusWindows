@@ -9,7 +9,7 @@ using System.Text.Json;
 // parent helper keeps its standard input open (the parent's death = the child's end).
 static partial class ComWorker
 {
-    const string Uia = "background:uia";
+    internal const string Uia = "background:uia";
 
     public static int Run()
     {
@@ -35,7 +35,7 @@ static partial class ComWorker
 
     // Boundary of the request: false as long as no call that can act (pattern, focus) has been tried. An emergency stop
     // before it is marked "before any pattern" (Codex's review of 24/10); after it, the outcome stays unknown.
-    [ThreadStatic] static bool Acted;
+    [ThreadStatic] internal static bool Acted;
     internal sealed record WorkerFailure(bool ok, string error, string message, bool beforeInput);
     internal static WorkerFailure Failure(Exception error) => new(false, error.GetType().Name, error.Message, !Acted);
     static void BeforeAct()
@@ -207,25 +207,6 @@ static partial class ComWorker
         if (after != 0) throw new InvalidOperationException("A menu opened for the search is still open; outcome unknown");
     }
 
-    // Offline check (tests): stdin = ["closed" | "open" | "throws"]; output one result per case.
-    public static int CollapseSelfTest()
-    {
-        using var input = JsonDocument.Parse(Console.In.ReadToEnd());
-        var results = new List<string>();
-        foreach (var c in input.RootElement.EnumerateArray())
-        {
-            var kind = c.GetString();
-            try
-            {
-                CollapseVerified(() => { if (kind == "throws") throw new COMException("element gone"); }, () => kind == "open" ? 1 : 0);
-                results.Add("closed");
-            }
-            catch (InvalidOperationException error) { results.Add(error.Message); }
-        }
-        Console.WriteLine(EngineJson.Serialize(results));
-        return 0;
-    }
-
     // Background wheel of an interface that ignores the posted mouse (WPF, shared bench of 21/10, Codex's recipe A):
     // SEMANTIC scrolling of the smallest UI Automation container scrollable on that axis under the point, searched in the
     // subtree of the target window (ComUia.ScrollContainerAt). One small step per notch; position read back for up to
@@ -316,7 +297,7 @@ static partial class ComWorker
     });
     // The next pattern is consulted only if the previous one does not exist (null). An input without a read-back effect,
     // a lost ACK or an error after BeforeAct stay terminal: neither another pattern nor another click.
-    static Outcome ChooseClick(string[] order, Func<string, Outcome?> attempt)
+    internal static Outcome ChooseClick(string[] order, Func<string, Outcome?> attempt)
     {
         foreach (var name in order)
         {
@@ -324,26 +305,6 @@ static partial class ComWorker
             if (outcome is { } done) return done;
         }
         throw Before("No background click pattern for this control"); // no pattern called
-    }
-    internal static object ClickSelfTest(JsonElement test)
-    {
-        Acted = false; var calls = new List<string>(); var sent = 0;
-        var order = Program.ClickOrder(test.GetProperty("role").GetString() ?? "", true, true, test.GetProperty("cef").GetBoolean());
-        try
-        {
-            var outcome = ChooseClick(order, name =>
-            {
-                calls.Add(name);
-                var state = test.GetProperty("patterns").TryGetProperty(name, out var p) ? p.GetString() : null;
-                if (state is null or "missing") return null;
-                if (state == "read-error") throw Before("Pattern unavailable before input");
-                Acted = true; sent++;
-                if (state == "lost") throw new COMException("Provider response lost after input");
-                return new Outcome(Uia, name, state);
-            });
-            return new ComWorkerClickSelfTestJson(order: order, calls: calls, sent: sent, effect: outcome.Effect, beforeInput: !Acted);
-        }
-        catch (Exception e) { var failure = Failure(e); return new ComWorkerClickSelfTestJson2(order: order, calls: calls, sent: sent, error: failure.error, beforeInput: failure.beforeInput); }
     }
     static Outcome SetValue(nint element, string value) => WithPattern(element, ComUia.ValuePatternId, pattern =>
     {
@@ -398,86 +359,6 @@ static partial class ComWorker
     }
     // Known COM refusals whose state can be read back. They still count as transmitted: no other pattern after the call.
     internal static bool IsRefusal(int hresult) => hresult is unchecked((int)0x80131509) or unchecked((int)0x80040200);
-    public static int ExpandSelfTest()
-    {
-        using var input = JsonDocument.Parse(Console.In.ReadToEnd());
-        var results = new List<object>();
-        foreach (var c in input.RootElement.EnumerateArray())
-        {
-            if (c.TryGetProperty("phase", out var phase))
-            {
-                Acted = phase.GetString() == "after";
-                Exception error = c.GetProperty("error").GetString() switch
-                {
-                    "stop" => new EmergencyStopException("stop"),
-                    "refused" => new ActionRefusedException("refused"),
-                    "missing" => new BackgroundNotApplicableException("missing"),
-                    _ => new COMException("provider read failed"),
-                };
-                // A wrong mark, or one kept from a sub-step, cannot contradict the worker's real phase.
-                error.Data["beforeInput"] = c.TryGetProperty("hint", out var hint) && hint.GetBoolean();
-                var reply = Failure(error);
-                Exception mapped;
-                if (phase.GetString() == "startup")
-                {
-                    try { ComBridge.BeforeRequest<object>(() => throw error); throw new InvalidOperationException("Preparation unexpectedly succeeded"); }
-                    catch (Exception preparation) { mapped = preparation; }
-                }
-                else mapped = ComBridge.ReplyError(reply.error, reply.message, reply.beforeInput);
-                results.Add(new ComWorkerExpandSelfTestJson(workerBeforeInput: reply.beforeInput, error: mapped.GetType().Name,
-                    beforeInput: mapped.Data["beforeInput"] is true));
-                continue;
-            }
-            if (c.TryGetProperty("hresult", out var hr)) { results.Add(IsRefusal(unchecked((int)hr.GetUInt32())) ? "refusal" : "unknown"); continue; }
-            if (c.TryGetProperty("route", out _))
-            {
-                Acted = false;
-                var expanded = 0;
-                var invoked = 0;
-                var action = c.TryGetProperty("action", out var a) ? a.GetString() ?? "Expand" : "Expand";
-                var failure = c.TryGetProperty("failure", out var f) ? f.GetString() : null;
-                try
-                {
-                    var outcome = ChooseExpandCollapse(action, !c.TryGetProperty("allowInvoke", out var allow) || allow.GetBoolean(),
-                        () => !c.GetProperty("pattern").GetBoolean() ? null : ExpandCollapseOnce(action, () =>
-                        {
-                            if (failure == "before") throw Before("No input available");
-                            if (failure == "stopped")
-                            {
-                                var stopped = new EmergencyStopException("Emergency stop before the provider call");
-                                stopped.Data["beforeInput"] = true;
-                                throw stopped;
-                            }
-                            Acted = true; expanded++;
-                            if (failure == "refusal") throw new COMException("provider refused after call", unchecked((int)0x80131509));
-                            if (failure == "disabled") throw new COMException("provider disabled after call", unchecked((int)0x80040200));
-                            if (failure == "unknown") throw new COMException("provider failed after call", unchecked((int)0x80004005));
-                        }, () =>
-                        {
-                            if (failure == "read") throw new COMException("read failed after call");
-                            if (failure == "read-stopped") throw new EmergencyStopException("Emergency stop after the provider call");
-                            return c.TryGetProperty("reached", out var r) && r.GetBoolean();
-                        }),
-                        () =>
-                        {
-                            if (!c.GetProperty("invoke").GetBoolean()) return null;
-                            Acted = true; invoked++;
-                            return new Outcome(Uia, "Invoke", "sent");
-                        });
-                    results.Add(new ComWorkerExpandSelfTestJson2(effect: outcome.Effect, expandCalls: expanded, invokeCalls: invoked));
-                }
-                catch (Exception error)
-                {
-                    results.Add(new ComWorkerExpandSelfTestJson3(error: error.GetType().Name, beforeInput: error.Data["beforeInput"] is true,
-                        expandCalls: expanded, invokeCalls: invoked));
-                }
-                continue;
-            }
-            results.Add(EffectAfterCall(c.GetProperty("reached").GetBoolean()));
-        }
-        Console.WriteLine(EngineJson.Serialize(results));
-        return 0;
-    }
 
     // Option of a combo box (container) picked through SelectionItem, then the list closed again: a list left open is a
     // popup above the user's windows (a click from them would pick an option there).

@@ -8,8 +8,8 @@ static partial class McpServer
 {
     internal sealed record ShellActPlan(string Name, string Shortcut, string Process, string Class, string RelativePath, string? Package);
     static readonly ShellActPlan QuickSettingsPlan = new("quick settings", "win+a", "shellhost", "ControlCenterWindow", @"System32\ShellHost.exe", null);
-    static readonly ShellActPlan NotificationsPlan = new("notifications", "win+n", "shellexperiencehost", "Windows.UI.Core.CoreWindow", @"SystemApps\ShellExperienceHost_cw5n1h2txyewy\ShellExperienceHost.exe", "Microsoft.Windows.ShellExperienceHost_cw5n1h2txyewy");
-    static readonly ShellActPlan StartPlan = new("start", "win", "startmenuexperiencehost", "Windows.UI.Core.CoreWindow", @"SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\StartMenuExperienceHost.exe", "Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy");
+    internal static readonly ShellActPlan NotificationsPlan = new("notifications", "win+n", "shellexperiencehost", "Windows.UI.Core.CoreWindow", @"SystemApps\ShellExperienceHost_cw5n1h2txyewy\ShellExperienceHost.exe", "Microsoft.Windows.ShellExperienceHost_cw5n1h2txyewy");
+    internal static readonly ShellActPlan StartPlan = new("start", "win", "startmenuexperiencehost", "Windows.UI.Core.CoreWindow", @"SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\StartMenuExperienceHost.exe", "Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy");
     static readonly ShellActPlan SearchPlan = new("search", "", "searchhost", "Windows.UI.Core.CoreWindow", @"SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\SearchHost.exe", "MicrosoftWindows.Client.CBS_cw5n1h2txyewy");
 
     internal static ShellActPlan? PlanShellAct(JsonObject args)
@@ -28,7 +28,7 @@ static partial class McpServer
     }
 
     // This is the single act boundary of the three profiles: the final observation is made before releasing the foreground lease.
-    static JsonObject RunShellAct(SessionState state, JsonObject args, bool modern)
+    internal static JsonObject RunShellAct(SessionState state, JsonObject args, bool modern)
     {
         var plan = PlanShellAct(args); // A background panel request fails before a lease or SendInput.
         if (plan != null) return RunPanelAct(state, args, modern, plan);

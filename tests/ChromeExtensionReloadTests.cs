@@ -61,7 +61,7 @@ public class ChromeExtensionReloadTests
         Assert.Null(set["replace"]);
     }
 
-    static JsonNode Simulated(object simulatedText) => SelfTest.Json(ChromiumInput.SelfTest, new { simulatedText });
+    static JsonNode Simulated(object simulatedText) => SelfTest.Json(ChromiumInputSelfTests.SelfTest, new { simulatedText });
 
     [Fact]
     public void Replacing_text_in_the_address_bar_is_not_stopped_by_its_inline_suggestion()

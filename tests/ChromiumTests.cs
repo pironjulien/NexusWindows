@@ -9,7 +9,7 @@ namespace NexusWindows.Tests;
 [Collection("Engine")]
 public class ChromiumTests
 {
-    static JsonNode Chromium(object input) => SelfTest.Json(ChromiumInput.SelfTest, input);
+    static JsonNode Chromium(object input) => SelfTest.Json(ChromiumInputSelfTests.SelfTest, input);
     static JsonNode Cef(object[]? children = null, string topClass = "SDL_app") =>
         Chromium(new { cef = new { pid = 17, root = 42, topClass, children = children ?? [new Dictionary<string, object> { ["class"] = "CefBrowserWindow", ["pid"] = 17, ["root"] = 42 }] } });
     static JsonNode Click(object patterns, string role = "tab", bool hosted = true) => Chromium(new { click = new { cef = hosted, role, patterns } });
@@ -170,7 +170,7 @@ public class ChromiumTests
         Assert.Equal(["caret-end", "chars:A", "enter-refused:outward-context-changed"], result["events"].Strings());
     }
 
-    static JsonNode Claude(object input) => SelfTest.Json(Cdp.ClaudeInputSelfTest, input);
+    static JsonNode Claude(object input) => SelfTest.Json(CdpSelfTests.ClaudeInputSelfTest, input);
 
     [Fact]
     public void Claude_dom_keys_function_keys_page_modifiers_printable_characters_and_malformed_combinations()

@@ -15,7 +15,7 @@ using System.Text.RegularExpressions;
 static partial class McpServer
 {
     internal sealed record ClaudeStartApp(string Name, string Id, string? Target = null, string Arguments = "");
-    sealed record ClaudeLaunchPlan(string Kind, string Target, string Arguments, string? Executable,
+    internal sealed record ClaudeLaunchPlan(string Kind, string Target, string Arguments, string? Executable,
         string? AppId, string Name, bool Devtools, bool Restart, string[] Notes);
     static readonly string[] ClaudeBrowserNames = ["msedge.exe", "chrome.exe", "brave.exe", "vivaldi.exe", "opera.exe", "chromium.exe"];
     static readonly HashSet<string> ClaudeControlSwitches = new(StringComparer.OrdinalIgnoreCase)
@@ -126,7 +126,7 @@ static partial class McpServer
         if (matches.Count > 1 && matches[0].Name.Length == matches[1].Name.Length) throw new ActionRefusedException("Ambiguous Start menu name; give its exact name or AppID");
         return matches[0];
     }
-    static bool ClaudeBrowser(string exe)
+    internal static bool ClaudeBrowser(string exe)
     {
         if (ClaudeBrowserNames.Contains(Path.GetFileName(exe), StringComparer.OrdinalIgnoreCase)) return true;
         var folder = Path.GetDirectoryName(exe);
@@ -176,7 +176,7 @@ static partial class McpServer
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return false; }
     }
-    static ClaudeLaunchPlan PlanClaudeLaunch(string raw, string args, bool devtools, bool restart, IReadOnlyList<ClaudeStartApp>? catalogue = null)
+    internal static ClaudeLaunchPlan PlanClaudeLaunch(string raw, string args, bool devtools, bool restart, IReadOnlyList<ClaudeStartApp>? catalogue = null)
     {
         raw = ClaudeExpandPath(raw); args = args.Trim();
         if (raw.Length == 0) throw new ActionRefusedException("Nothing to launch");
@@ -271,7 +271,7 @@ static partial class McpServer
         }
         result.Append('\\', slash * 2); return result.Append('"').ToString();
     }
-    static string ClaudeChromiumArguments(string exe, string arguments, int? port = null, string? profile = null)
+    internal static string ClaudeChromiumArguments(string exe, string arguments, int? port = null, string? profile = null)
     {
         if (!ClaudeChromium(exe)) return arguments;
         var features = new List<string>(); var rest = new List<string>();
@@ -335,7 +335,7 @@ static partial class McpServer
     // E_APPLICATION_NOT_REGISTERED: the activation broker rejected the unsupported file contract, before an app
     // could receive that contract. Unlike an arbitrary COM/transport failure, this explicit rejection permits the
     // ordinary file association path (notably packaged desktop apps). An uncertain dispatch is never replayed.
-    static bool ClaudeFileContractRejected(int hr) => hr == unchecked((int)0x80270254);
+    internal static bool ClaudeFileContractRejected(int hr) => hr == unchecked((int)0x80270254);
     static bool ClaudeDocumentShown((long Id, string App, string Title, long Pid, long Owner, string OwnerTitle) window, string document)
     {
         var name = Path.GetFileName(document);
@@ -582,7 +582,7 @@ static partial class McpServer
             return Steam.Helpers(Executable, table, held);
         }
     }
-    static uint ClaudeSteamPortOwner(IEnumerable<(string Address, uint Pid)> listeners, HashSet<uint> helpers)
+    internal static uint ClaudeSteamPortOwner(IEnumerable<(string Address, uint Pid)> listeners, HashSet<uint> helpers)
     {
         var rows = listeners.ToList();
         if (!Steam.OwnsLoopback(rows, helpers)) throw new ActionRefusedException("Steam DevTools listener is not owned exclusively by its registered local helpers");
@@ -679,7 +679,7 @@ static partial class McpServer
         JsonValue v when v.TryGetValue<double>(out var n) => n != 0,
         _ => true,
     };
-    static string? ClaudeProfileAccount(string? profile)
+    internal static string? ClaudeProfileAccount(string? profile)
     {
         if (profile == null) return null;
         JsonObject Read(string path)
@@ -744,31 +744,5 @@ static partial class McpServer
     {
         if (state.BoundWindow == null || !ClaudeOwnedLaunches.TryGetValue(state, out var bag)) return;
         lock (bag.Sync) foreach (var lease in bag.Items) if (lease.Includes(state.BoundWindow.Value.Id)) lease.Check();
-    }
-    public static int LaunchCompatibilitySelfTest()
-    {
-        using var input = JsonDocument.Parse(Console.In.ReadToEnd()); var results = new JsonArray();
-        foreach (var item in input.RootElement.EnumerateArray())
-        {
-            try
-            {
-                var value = ObjectOf(item); var apps = (value["catalogue"] as JsonArray ?? []).OfType<JsonObject>().Select(a => new ClaudeStartApp(Str(a, "name"), Str(a, "id"), Str(a, "target") is { Length: > 0 } t ? t : null, Str(a, "args"))).ToList();
-                if (value["steamPortFixture"] is JsonObject steam)
-                {
-                    var helpers = steam["helpers"]!.AsArray().Select(p => checked((uint)p!.GetValue<long>())).ToHashSet();
-                    var listeners = steam["listeners"]!.AsArray().OfType<JsonObject>().Select(l => (Str(l, "address"), checked((uint)Number(l, "pid"))));
-                    results.Add(EngineJson.Node(new JsonObject { ["steamOwner"] = ClaudeSteamPortOwner(listeners, helpers), ["sessionKind"] = "genuine-steam-session" })); continue;
-                }
-                var plan = PlanClaudeLaunch(Str(value, "app"), Str(value, "args"), Bool(value, "devtools"), Bool(value, "restart"), apps);
-                var data = new JsonObject { ["kind"] = plan.Kind, ["target"] = plan.Target, ["args"] = plan.Arguments, ["executable"] = plan.Executable, ["appId"] = plan.AppId, ["name"] = plan.Name,
-                    ["commandArguments"] = plan.Executable == null || plan.Kind == "shortcut" ? plan.Arguments : ClaudeChromiumArguments(plan.Executable, plan.Arguments, plan.Devtools ? 16183 : null, plan.Devtools && ClaudeBrowser(plan.Executable) ? @"C:\NexusFixture\fresh profile" : null) };
-                data["parsedArguments"] = new JsonArray(Program.SplitArgs(Str(data, "commandArguments")).Select(s => (JsonNode)JsonValue.Create(s)!).ToArray());
-                if (value["profileFixture"] is JsonValue) data["accountMarker"] = ClaudeProfileAccount(Str(value, "profileFixture"));
-                if (value["activationHResult"] != null) data["fileContractFallbackAllowed"] = ClaudeFileContractRejected(checked((int)Number(value, "activationHResult")));
-                results.Add(EngineJson.Node(data));
-            }
-            catch (Exception error) when (error is ActionRefusedException or InvalidOperationException or InvalidDataException or ArgumentException) { results.Add(EngineJson.Node(new JsonObject { ["refused"] = error.Message })); }
-        }
-        Console.WriteLine(results.ToJsonString()); return 0;
     }
 }

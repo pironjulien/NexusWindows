@@ -54,8 +54,8 @@ static partial class McpServer
         row["foreground"] = Win32.GetForegroundWindow() == hwnd; row["hidden"] = !Win32.IsWindowVisible(hwnd) || Win32.IsCloaked(hwnd);
         row["owner"] ??= 0; row["surface"] = cls == "Shell_TrayWnd" ? "taskbar" : cls is "Progman" or "WorkerW" ? "desktop" : "";
     }
-    readonly record struct WindowToolIdentity(long Window, long Pid, string Birth, long Owner, string Class);
-    static bool SameWindowToolIdentity(WindowToolIdentity expected, WindowToolIdentity actual) => expected == actual;
+    internal readonly record struct WindowToolIdentity(long Window, long Pid, string Birth, long Owner, string Class);
+    internal static bool SameWindowToolIdentity(WindowToolIdentity expected, WindowToolIdentity actual) => expected == actual;
     static WindowToolIdentity ReadWindowToolIdentity((long Id, string App, string Title, long Pid) target)
     {
         var window = (nint)target.Id;
@@ -122,18 +122,5 @@ static partial class McpServer
         }
         outcome["foregroundReturned"] = returned;
         return EngineJson.SerializeToElement(outcome);
-    }
-    static int WindowToolCompatibilitySelfTest()
-    {
-        var count = 0;
-        void Check(bool condition, string reason) { count++; if (!condition) throw new InvalidOperationException("Window tool selftest: " + reason); }
-        var original = new WindowToolIdentity(42, 7, "first-process", 0, "fixture");
-        Check(SameWindowToolIdentity(original, original), "same current window is allowed");
-        Check(!SameWindowToolIdentity(original, original with { Window = 43 }), "another HWND is refused");
-        Check(!SameWindowToolIdentity(original, original with { Pid = 8 }), "recycled HWND in another PID is refused");
-        Check(!SameWindowToolIdentity(original, original with { Birth = "replacement-process" }), "recycled PID is refused");
-        Check(!SameWindowToolIdentity(original, original with { Owner = 99 }), "changed owner is refused");
-        Check(!SameWindowToolIdentity(original, original with { Class = "replacement-class" }), "replaced window class is refused");
-        return count;
     }
 }

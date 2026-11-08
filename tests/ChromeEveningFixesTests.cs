@@ -162,7 +162,7 @@ public class ChromeEveningFixesTests
     [Fact]
     public void Chromium_reveal_is_kept_for_covered_browser_windows()
     {
-        var result = SelfTest.Node(ComUia.ChromiumWarmupSelfTest());
+        var result = SelfTest.Node(ComUiaSelfTests.ChromiumWarmupSelfTest());
         Assert.True(result["ok"].B());
         Assert.True(result["checks"].L() >= 40);
     }

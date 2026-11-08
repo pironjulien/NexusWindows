@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 static partial class McpServer
 {
     // Syntax conversion only: no target and no proof is invented on import.
-    static JsonObject LegacyStep(JsonObject original)
+    internal static JsonObject LegacyStep(JsonObject original)
     {
         var step = original.DeepClone().AsObject();
         if (step["kind"] != null || step["do"] == null && step["action"] == null) return step;
@@ -68,7 +68,7 @@ static partial class McpServer
         return conditions.Count == 1 ? conditions[0]!.DeepClone().AsObject() : new JsonObject { ["all"] = conditions };
     }
     static double DoubleValue(JsonNode? value) => value?.GetValue<double>() ?? 0;
-    static JsonObject LegacySelector(JsonNode value)
+    internal static JsonObject LegacySelector(JsonNode value)
     {
         if (value is JsonObject selector) return selector.DeepClone().AsObject();
         var text = value.ToString().Trim();
@@ -79,7 +79,7 @@ static partial class McpServer
         if (key is "name" or "nom") return new JsonObject { ["name"] = name };
         return LegacyRoles(key).Length > 0 ? new JsonObject { ["role"] = "legacy/" + key, ["name"] = name } : new JsonObject { ["name"] = text };
     }
-    static string[] LegacyRoles(string key) => key switch
+    internal static string[] LegacyRoles(string key) => key switch
     {
         "bouton" or "button" => ["button", "splitbutton"], "case" or "checkbox" => ["checkbox"], "radio" => ["radio"], "champ" => ["edit", "document", "combobox"],
         "edit" => ["edit"], "texte" => ["text", "edit", "document"], "text" => ["text"], "lien" or "link" => ["link"], "menu" => ["menuitem", "menu"], "menuitem" => ["menuitem"],

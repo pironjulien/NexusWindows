@@ -27,7 +27,7 @@ sealed class Bench : IDisposable
 [Collection("Engine")]
 public class LaunchTests
 {
-    static JsonArray Plan(object cases) => SelfTest.Json(Program.LaunchSelfTest, cases).AsArray();
+    static JsonArray Plan(object cases) => SelfTest.Json(ProgramSelfTests.LaunchSelfTest, cases).AsArray();
 
     sealed class Editor : IDisposable
     {
@@ -110,7 +110,7 @@ public class LaunchTests
 
     // ----- Steam (no real client is started or stopped) -----
 
-    static JsonArray Steam(object cases) => SelfTest.Json(global::Steam.SelfTest, cases).AsArray();
+    static JsonArray Steam(object cases) => SelfTest.Json(SteamSelfTests.SelfTest, cases).AsArray();
 
     sealed class SteamBench : IDisposable
     {
@@ -280,7 +280,7 @@ public class LaunchTests
 
     // ----- Claude profile launch planning (McpLaunchCompatibility.cs) -----
 
-    static JsonArray Compat(object cases) => SelfTest.Json(McpServer.LaunchCompatibilitySelfTest, cases).AsArray();
+    static JsonArray Compat(object cases) => SelfTest.Json(McpServerSelfTests.LaunchCompatibilitySelfTest, cases).AsArray();
 
     [Fact]
     public void Claude_launch_preserves_uri_document_folder_and_explicit_packaged_arguments_without_launching()

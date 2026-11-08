@@ -1,6 +1,9 @@
+// Offline self-checks of commun/engine/McpShellSelfTest.cs, kept out of the shipped engine: they reach it through
+// its internal members (InternalsVisibleTo NexusWindows.Tests) and run in-process from the xUnit tests.
 using System.Text.Json.Nodes;
+using static McpServer;
 
-static partial class McpServer
+static partial class McpServerSelfTests
 {
     public static int ShellCompatibilitySelfTest()
     {

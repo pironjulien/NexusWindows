@@ -8,7 +8,7 @@ namespace NexusWindows.Tests;
 [Collection("Engine")]
 public class WindowTests
 {
-    static JsonArray Window(string cases) => SelfTest.Json(WindowManagement.SelfTest, cases).AsArray();
+    static JsonArray Window(string cases) => SelfTest.Json(WindowManagementSelfTests.SelfTest, cases).AsArray();
 
     [Fact]
     public void Window_proof_uses_placement_and_state_rather_than_a_changed_image()
@@ -35,7 +35,7 @@ public class WindowTests
     [Fact]
     public void Semantic_wheel_accepts_fresh_relocation_and_drag_remains_refused()
     {
-        var results = SelfTest.Json(Physical.TargetSelfTest, new[] { "click", "move", "wheel", "drag", "key", "type" });
+        var results = SelfTest.Json(PhysicalSelfTests.TargetSelfTest, new[] { "click", "move", "wheel", "drag", "key", "type" });
         SelfTest.Same("[true,true,true,false,false,false]", results);
     }
 
@@ -56,7 +56,7 @@ public class WindowTests
     [Fact]
     public void Tk_coverage_exact_a_one_pixel_strip_refuses_corners_follow_the_monitor_scale()
     {
-        var lines = SelfTest.Lines(TkWheel.SelfTest);
+        var lines = SelfTest.Lines(TkWheelSelfTests.SelfTest);
         Assert.Equal(5, lines.Length);
         Assert.All(lines, line => Assert.StartsWith("ok ", line));
     }
@@ -64,7 +64,7 @@ public class WindowTests
     [Fact]
     public void Real_ocr_engine_on_an_in_memory_image_text_and_rectangle()
     {
-        Assert.All(SelfTest.Lines(Ocr.SelfTest), line => Assert.StartsWith("ok ", line));
+        Assert.All(SelfTest.Lines(OcrSelfTests.SelfTest), line => Assert.StartsWith("ok ", line));
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public class WindowTests
         // A real Windows.Graphics.Capture session needs an interactive desktop with a GPU: run by test.ps1 -Full, as
         // before (hosted CI runners have none).
         Assert.SkipUnless(Environment.GetEnvironmentVariable("NEXUS_TESTS_FULL") == "1", "Real capture session: test.ps1 -Full.");
-        var lines = SelfTest.Lines(Wgc.SelfTest);
+        var lines = SelfTest.Lines(WgcSelfTests.SelfTest);
         Assert.Equal(3, lines.Length);
         Assert.All(lines, line => Assert.StartsWith("ok ", line));
     }

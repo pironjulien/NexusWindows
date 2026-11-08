@@ -13,7 +13,7 @@ public class CdpTests
 {
     static object Page(string title, string url) => new { type = "page", title, webSocketDebuggerUrl = url };
     static string Ws(string id) => $"ws://127.0.0.1:9222/devtools/page/{id}";
-    static JsonNode Pick(object input) => SelfTest.Json(Cdp.SelfTest, input);
+    static JsonNode Pick(object input) => SelfTest.Json(CdpSelfTests.SelfTest, input);
 
     [Fact]
     public void DevTools_page_decoded_title_exact_match_up_to_the_browser_suffix_otherwise_nothing_is_sent()
@@ -59,7 +59,7 @@ public class CdpTests
     [Fact]
     public void Wheel_at_a_point_only_the_vertical_windows_sign_is_inverted_real_ends_only()
     {
-        var r = SelfTest.Json(ScrollPlan.SelfTest, new object[] {
+        var r = SelfTest.Json(ScrollPlanSelfTests.SelfTest, new object[] {
             new { deltaY = -120, deltaX = 0 }, new { deltaY = 120, deltaX = 0 }, new { deltaY = 0, deltaX = 120 }, new { deltaY = 0, deltaX = -120 },
             new { deltaY = -120, deltaX = 0, percent = 99.95 }, new { deltaY = 120, deltaX = 0, percent = 0.05 }, new { deltaY = -240, deltaX = 0, percent = 100 },
             new { deltaY = 0, deltaX = 0 } }).AsArray();
@@ -77,7 +77,7 @@ public class CdpTests
     [Fact]
     public void Scroll_container_under_the_point_smallest_area_deepest_when_equal_otherwise_ambiguous()
     {
-        JsonNode Choose(string json) => SelfTest.Json(ScrollChoice.SelfTest, json);
+        JsonNode Choose(string json) => SelfTest.Json(ScrollChoiceSelfTests.SelfTest, json);
         Assert.Equal(1, Choose("""{"count":3,"areas":[900,400,1600]}""")["index"].I());
         Assert.Equal(1, Choose("""{"count":2,"areas":[400,400],"parents":{"1":0}}""")["index"].I());
         Assert.Equal(0, Choose("""{"count":2,"areas":[400,400],"parents":{"0":1}}""")["index"].I());
@@ -91,7 +91,7 @@ public class CdpTests
     public void Rendered_surface_exactly_one_visible_surface_the_point_on_it_its_size_the_proven_page()
     {
         JsonNode Surface(string surfaces, string point = "[500,500]", string inner = "[1280,800]") =>
-            SelfTest.Json(Cdp.SurfaceSelfTest, $$"""{"surfaces":{{surfaces}},"point":{{point}},"inner":{{inner}},"ratio":1.25}""");
+            SelfTest.Json(CdpSelfTests.SurfaceSelfTest, $$"""{"surfaces":{{surfaces}},"point":{{point}},"inner":{{inner}},"ratio":1.25}""");
         const string one = "[[100,100,1700,1100]]";
         SelfTest.Same("""{"index":0,"gap":[0,0]}""", Surface(one));
         Assert.Matches("2 visible rendered surfaces", Surface("[[100,100,1700,1100],[300,300,700,600]]")["error"].S());
@@ -104,7 +104,7 @@ public class CdpTests
     [Fact]
     public void Title_proof_the_pose_is_under_the_cleanup_conditional_and_a_failed_cleanup_is_said()
     {
-        JsonNode Prove(string scenario) => SelfTest.Json(Cdp.ProveSelfTest, new { scenario });
+        JsonNode Prove(string scenario) => SelfTest.Json(CdpSelfTests.ProveSelfTest, new { scenario });
         SelfTest.Same("""{"ok":true,"pageTitle":"Labo"}""", Prove("nominal"));
         var lost = Prove("lost-pose");
         Assert.Equal("Labo", lost["pageTitle"].S());
@@ -129,7 +129,7 @@ public class CdpTests
     [Fact]
     public void Fallback_cleanup_goes_through_the_real_connection_factory()
     {
-        var result = SelfTest.Json(Cdp.SessionSelfTest);
+        var result = SelfTest.Json(CdpSelfTests.SessionSelfTest);
         Assert.True(result["cleaned"].B());
         var received = result["received"]!.AsArray();
         Assert.Single(received);
@@ -144,7 +144,7 @@ public class CdpTests
         try
         {
             var environment = new Dictionary<string, string?> { ["NEXUS_SHARED_HOME"] = home };
-            JsonNode Trace(string scenario) => SelfTest.Json(Cdp.WheelTraceSelfTest, new { scenario }, environment);
+            JsonNode Trace(string scenario) => SelfTest.Json(CdpSelfTests.WheelTraceSelfTest, new { scenario }, environment);
             SelfTest.Same("""{"outcome":"unknown","started":1,"dispatched":1,"evaluated":1}""", Trace("ack-lost"));
             SelfTest.Same("""{"outcome":"stopped","started":0,"dispatched":0,"evaluated":1}""", Trace("stop-during-prepare"));
         }
@@ -155,7 +155,7 @@ public class CdpTests
     public void A_winforms_drop_down_or_context_menu_is_a_transient_popup()
     {
         const long popup = 0x80000000, caption = 0x00C00000, noActivate = 0x08000000, tool = 0x80;
-        var result = SelfTest.Json(Win32.PopupSelfTest, new object[] {
+        var result = SelfTest.Json(Win32SelfTests.PopupSelfTest, new object[] {
             new { style = popup, ex = tool, cls = "WindowsForms10.Window.808.app.0.2bf8098_r6_ad1", menu = true, linked = true },
             new { style = popup, ex = noActivate, cls = "Popup" },
             new { style = 0, ex = 0, cls = "ComboLBox" },
@@ -170,7 +170,7 @@ public class CdpTests
         SelfTest.Same("[true,true,true,false,false,false,false,false,true,false]", result);
     }
 
-    static JsonNode Menu(string json) => SelfTest.Json(MenuSearch.SelfTest, json);
+    static JsonNode Menu(string json) => SelfTest.Json(MenuSearchSelfTests.SelfTest, json);
 
     [Fact]
     public void Menu_path_each_segment_directly_under_the_previous_one_ambiguous_or_unreadable_refused()
@@ -215,13 +215,13 @@ public class CdpTests
     [Fact]
     public void Collapse_of_a_menu_opened_for_the_search_is_read_back()
     {
-        var r = SelfTest.Json(ComWorker.CollapseSelfTest, new[] { "closed", "open", "throws" }).AsArray();
+        var r = SelfTest.Json(ComWorkerSelfTests.CollapseSelfTest, new[] { "closed", "open", "throws" }).AsArray();
         Assert.Equal("closed", r[0].S());
         Assert.Matches("still open; outcome unknown", r[1].S());
         Assert.Matches("could not be closed; outcome unknown: element gone", r[2].S());
     }
 
-    static JsonArray Expand(string json) => SelfTest.Json(ComWorker.ExpandSelfTest, json).AsArray();
+    static JsonArray Expand(string json) => SelfTest.Json(ComWorkerSelfTests.ExpandSelfTest, json).AsArray();
 
     [Fact]
     public void An_expand_already_called_is_read_back()
@@ -287,7 +287,7 @@ public class CdpTests
     [Fact]
     public void The_visible_centre_of_a_target_in_a_modal_box_is_taken_in_the_box_never_in_its_owner()
     {
-        var r = SelfTest.Json(Program.CenterSelfTest, """[{"target":[650,100,100,30],"root":[600,0,600,600]},{"target":[650,100,100,30],"root":[0,0,300,300]}]""").AsArray();
+        var r = SelfTest.Json(ProgramSelfTests.CenterSelfTest, """[{"target":[650,100,100,30],"root":[600,0,600,600]},{"target":[650,100,100,30],"root":[0,0,300,300]}]""").AsArray();
         SelfTest.Same("[700,115]", r[0]!);
         Assert.Matches("off-screen", r[1].S());
     }
@@ -303,13 +303,13 @@ public class CdpTests
              {"box":200,"chain":[{{Node(100)}},{{Node(200)}},{{Node(0)}}]},
              {"box":200,"chain":[{{Node(100, true)}},{{Node(200, true)}},{{Node(0)}}]}]
             """;
-        SelfTest.Same("[2,-1,-1,-1,-1]", SelfTest.Json(Program.ModalSelfTest, cases));
+        SelfTest.Same("[2,-1,-1,-1,-1]", SelfTest.Json(ProgramSelfTests.ModalSelfTest, cases));
     }
 
     [Fact]
     public void Chromium_typing_exact_comparison_and_bounded_units_that_never_split_a_surrogate_pair()
     {
-        JsonNode Chromium(object input) => SelfTest.Json(ChromiumInput.SelfTest, input);
+        JsonNode Chromium(object input) => SelfTest.Json(ChromiumInputSelfTests.SelfTest, input);
         Assert.True(Chromium(new { same = new[] { "Bonjour", "Bonjour" } }).B());
         Assert.True(Chromium(new { same = new[] { "a\r\nb", "a\nb" } }).B());
         Assert.False(Chromium(new { same = new[] { "bonjour", "Bonjour" } }).B());
@@ -332,7 +332,7 @@ public class CdpTests
         var hwnd = Environment.GetEnvironmentVariable("NEXUS_LIVE_HWND");
         Assert.SkipWhen(!long.TryParse(hwnd, out var handle), "NEXUS_LIVE_HWND (a bench browser window) not set.");
         var scenario = Environment.GetEnvironmentVariable("NEXUS_LIVE_SCENARIO") ?? "nominal";
-        var (code, output) = SelfTest.Text(Cdp.ProveLiveSelfTest, System.Text.Json.JsonSerializer.Serialize(new { hwnd = handle, scenario }));
+        var (code, output) = SelfTest.Text(CdpSelfTests.ProveLiveSelfTest, System.Text.Json.JsonSerializer.Serialize(new { hwnd = handle, scenario }));
         Assert.True(code == 0, output);
     }
 }

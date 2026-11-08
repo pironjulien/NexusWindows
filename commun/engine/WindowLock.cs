@@ -85,7 +85,7 @@ sealed class WindowLock : IDisposable
         try
         {
             using var token = Acquire(window, args[2], wait);
-            Console.WriteLine(EngineJson.Serialize(new JournalSelfTestJson(ok: true)));
+            Console.WriteLine(EngineJson.Serialize(new WindowLockHeldJson(ok: true)));
             Console.Out.Flush();
             Console.In.ReadToEnd();
             return 0;

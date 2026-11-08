@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 static partial class McpServer
 {
-    sealed class NativeLookMemory
+    internal sealed class NativeLookMemory
     {
         public string Identity = "";
         public int Next;
@@ -19,7 +19,7 @@ static partial class McpServer
     }
     static readonly ConditionalWeakTable<SessionState, Dictionary<long, NativeLookMemory>> NativeLooks = new();
     [ThreadStatic] static (long Window, string Birth)? BoundObservationIdentity;
-    static NativeLookMemory LookMemory(SessionState state, long window, JsonObject? snapshot = null)
+    internal static NativeLookMemory LookMemory(SessionState state, long window, JsonObject? snapshot = null)
     {
         var windows = NativeLooks.GetOrCreateValue(state);
         if (!windows.TryGetValue(window, out var memory)) windows[window] = memory = new();
@@ -31,7 +31,7 @@ static partial class McpServer
         return memory;
     }
     static string NodeKey(JsonObject snapshot, JsonObject element) => StableIdentityPart(snapshot, element).ToJsonString(JsonOut);
-    static void PublishNativeIndices(SessionState state, JsonObject snapshot, NativeLookMemory memory)
+    internal static void PublishNativeIndices(SessionState state, JsonObject snapshot, NativeLookMemory memory)
     {
         var translated = new Dictionary<int, int>();
         foreach (var element in Elements(snapshot).OfType<JsonObject>())
@@ -46,7 +46,7 @@ static partial class McpServer
             element["ancestors"] = new JsonArray((element["ancestors"] as JsonArray ?? new()).Select(i => (JsonNode)JsonValue.Create(translated[i!.GetValue<int>()])!).ToArray());
         }
     }
-    static JsonObject RequireNativeFrame(JsonObject snapshot)
+    internal static JsonObject RequireNativeFrame(JsonObject snapshot)
     {
         if (snapshot["frame"] is not JsonObject frame || new[] { "left", "top", "width", "height" }.Any(field => !double.IsFinite(Number(frame, field, double.NaN)))
             || Number(frame, "width") <= 0 || Number(frame, "height") <= 0)
@@ -88,7 +88,7 @@ static partial class McpServer
                 ["bounds"] = new JsonArray(Number(line, "left"), Number(line, "top"), Number(line, "width"), Number(line, "height")), ["ocrFrame"] = frame.DeepClone(), ["ancestors"] = new JsonArray() }));
         }
     }
-    static string NativeLine(JsonObject element, JsonObject? reference)
+    internal static string NativeLine(JsonObject element, JsonObject? reference)
     {
         var line = $"[{element["index"]}] {element["role"]} \"{Str(element, "name")}\"" + (Str(element, "context").Length > 0 ? $" ({Str(element, "context")})" : "");
         if (Bool(element, "ocr")) line += " (OCR)";
@@ -102,15 +102,8 @@ static partial class McpServer
         }
         return line;
     }
-    static List<string> ChangedNativeLines(Dictionary<int, string> before, Dictionary<int, string> after)
-    {
-        var result = new List<string>();
-        foreach (var pair in after) if (!before.TryGetValue(pair.Key, out var old)) result.Add("+ " + pair.Value); else if (old != pair.Value) result.Add("~ " + pair.Value);
-        foreach (var pair in before) if (!after.ContainsKey(pair.Key)) result.Add("- " + pair.Value);
-        return result.Count == 0 ? ["No visible element change since the previous look."] : result;
-    }
     // Number of descendants of each element, from the ancestor chains every element carries.
-    static Dictionary<int, int> ParentCounts(JsonObject snapshot)
+    internal static Dictionary<int, int> ParentCounts(JsonObject snapshot)
     {
         var counts = new Dictionary<int, int>();
         foreach (var element in Elements(snapshot).OfType<JsonObject>())
@@ -118,7 +111,7 @@ static partial class McpServer
         return counts;
     }
     // A layout wrapper: an unnamed pane/group/custom with no id, value or focus, which only holds other elements.
-    static bool EmptyContainer(JsonObject element, Dictionary<int, int> descendants)
+    internal static bool EmptyContainer(JsonObject element, Dictionary<int, int> descendants)
         => Str(element, "role") is "pane" or "group" or "custom" && Str(element, "name").Length == 0 && Str(element, "automationId").Length == 0
             && element["value"] == null && !Bool(element, "focused") && !Bool(element, "ocr") && descendants.GetValueOrDefault((int)Number(element, "index", -1)) > 0;
     // show="table": headers then rows of the grid at or under element N (GridPattern/TablePattern, Explorer Details view,
@@ -185,7 +178,7 @@ static partial class McpServer
         return lines;
     }
     // Named containers holding a large part of the window: the places worth a look within=N.
-    static List<string> Regions(JsonObject snapshot, Dictionary<int, int> descendants)
+    internal static List<string> Regions(JsonObject snapshot, Dictionary<int, int> descendants)
     {
         var all = Elements(snapshot).OfType<JsonObject>().ToList();
         var regions = all.Select((e, order) => (Element: e, Order: order, Count: descendants.GetValueOrDefault((int)Number(e, "index", -1))))
@@ -196,7 +189,7 @@ static partial class McpServer
     static string Truncate(string text, int length) => text.Length <= length ? text.ReplaceLineEndings(" ") : text[..length].ReplaceLineEndings(" ") + "…";
     // Listed elements without defaults (null, false, empty) nor internal identities: the full record stays in the
     // observation acts resolve against, and with detail="full" (31/10: ~400 characters per element, mostly empty fields).
-    static JsonObject CompactElement(JsonObject element)
+    internal static JsonObject CompactElement(JsonObject element)
     {
         var compact = new JsonObject { ["index"] = element["index"]?.DeepClone(), ["role"] = element["role"]?.DeepClone() };
         foreach (var field in new[] { "name", "context", "automationId", "description", "accessKey" }) if (Str(element, field).Length > 0) compact[field] = Str(element, field);
@@ -357,9 +350,9 @@ static partial class McpServer
         return new JsonObject { ["content"] = content, ["structuredContent"] = data };
     }
     static bool SameFrameSize(JsonObject a, JsonObject b) => Number(a, "width") == Number(b, "width") && Number(a, "height") == Number(b, "height");
-    static string NormalizeLegacyText(string? text) => Regex.Replace(text ?? "", @"\s+", " ").Trim();
-    static bool LegacyStateCheck(JsonObject expect) => expect["all"] is JsonArray all ? all.OfType<JsonObject>().All(LegacyStateCheck) : expect["selector"] != null && expect["exists"] != null;
-    static void CheckShownExpectationIndices(SessionState state, JsonObject expectation)
+    internal static string NormalizeLegacyText(string? text) => Regex.Replace(text ?? "", @"\s+", " ").Trim();
+    internal static bool LegacyStateCheck(JsonObject expect) => expect["all"] is JsonArray all ? all.OfType<JsonObject>().All(LegacyStateCheck) : expect["selector"] != null && expect["exists"] != null;
+    internal static void CheckShownExpectationIndices(SessionState state, JsonObject expectation)
     {
         if (expectation["all"] is JsonArray all) foreach (var part in all.OfType<JsonObject>()) CheckShownExpectationIndices(state, part);
         if (IsLegacyIndex(expectation["element"]) && int.TryParse(expectation["element"]!.ToString().Trim().Trim('#', '[', ']'), out var index)
@@ -467,97 +460,5 @@ static partial class McpServer
                 return GuardedAct(state, args, named.Id, () => RunShellAct(state, args, modern));
         }
         return RunShellAct(state, args, modern);
-    }
-    static int LegacyObservationSelfTest()
-    {
-        var assertions = 0;
-        void Check(bool condition, string why) { if (!condition) throw new InvalidOperationException("Legacy observation selftest: " + why); assertions++; }
-        bool Refused(Action operation) { try { operation(); return false; } catch (ActionRefusedException) { return true; } }
-        JsonObject Snapshot() => JsonNode.Parse("""{"ok":true,"processStartedUtc":"2026-10-30T00:00:00Z","revision":"fixture","frame":{"left":100,"top":100,"width":2560,"height":1440},"elements":[{"index":0,"role":"window","name":"Fixture","runtimeId":[42,1],"nativeWindow":100,"ancestors":[]},{"index":1,"role":"listitem","name":"Alpha","runtimeId":[42,2],"nativeWindow":101,"ancestors":[0],"bounds":[1350,780,60,40]},{"index":2,"role":"listitem","name":"Beta","runtimeId":[42,3],"nativeWindow":102,"ancestors":[0]}]}""")!.AsObject();
-        var state = new SessionState("codex") { BoundWindow = (100, "process:fixture.exe", "Fixture", 1) };
-        var observed = Snapshot(); var memory = LookMemory(state, 100, observed); memory.Shown.UnionWith(new[] { 0, 1, 2 });
-        var step = NormalizeStep(state, observed, new JsonObject { ["do"] = "click", ["target"] = "#1" });
-        var reordered = Snapshot(); reordered["elements"]![1]!["index"] = 2; reordered["elements"]![2]!["index"] = 1;
-        Check(Str(StepTarget(reordered, step, step["selector"]!.AsObject()), "name") == "Alpha", "index follows observed identity, never the new occupant");
-        var changed = Snapshot(); changed["elements"]![1]!["name"] = "Gamma";
-        Check(Refused(() => StepTarget(changed, step, step["selector"]!.AsObject())), "runtime identity reused for another label refuses before pointer input");
-        changed = Snapshot(); changed["elements"]![1]!["runtimeId"] = new JsonArray(99, 1);
-        Check(Refused(() => StepTarget(changed, step, step["selector"]!.AsObject())), "replaced target refuses");
-        changed = Snapshot(); changed["elements"]![0]!["name"] = "Another context";
-        Check(Refused(() => StepTarget(changed, step, step["selector"]!.AsObject())), "ancestor identity is observed");
-        memory.Shown.Remove(1);
-        Check(Refused(() => NormalizeStep(state, observed, new JsonObject { ["do"] = "click", ["target"] = "#1" })), "unshown index refuses");
-        var claude = new SessionState("claude") { BoundWindow = state.BoundWindow };
-        var first = Snapshot(); var cldMemory = LookMemory(claude, 100, first); PublishNativeIndices(claude, first, cldMemory);
-        var alpha = Elements(first).OfType<JsonObject>().Single(e => Str(e, "name") == "Alpha"); var alphaId = (int)Number(alpha, "index");
-        var next = Snapshot(); var originalElements = next["elements"]!.AsArray();
-        next["elements"] = new JsonArray(originalElements[0]!.DeepClone(), originalElements[2]!.DeepClone(), originalElements[1]!.DeepClone());
-        next["elements"]![1]!["index"] = 1; next["elements"]![2]!["index"] = 2;
-        PublishNativeIndices(claude, next, cldMemory);
-        Check(Number(Elements(next).OfType<JsonObject>().Single(e => Str(e, "name") == "Alpha"), "index") == alphaId, "ids stable across reorder");
-        var reference = JsonNode.Parse("""{"width":2000,"height":1125,"frame":{"left":100,"top":100,"width":2560,"height":1440},"windowFrame":{"left":100,"top":100,"width":2560,"height":1440}}""")!.AsObject();
-        Check(NativeLine(alpha, reference).EndsWith("@1000,547", StringComparison.Ordinal), "printed points use rendered image pixels, not physical pixels");
-        claude.Image = new NativeImage("img-fixture", 100, reference);
-        var coordinate = NativePoint(claude, new JsonObject { ["point"] = new JsonObject { ["x"] = 1000, ["y"] = 546.875 } }, first, null);
-        Check(coordinate.X == 1380 && coordinate.Y == 800, "printed point maps to actual center");
-        var moved = first.DeepClone().AsObject(); moved["frame"]!["left"] = 200;
-        coordinate = NativePoint(claude, new JsonObject { ["point"] = new JsonObject { ["x"] = 1000, ["y"] = 546.875 } }, moved, null);
-        Check(coordinate.X == 1480 && coordinate.Y == 800, "a point follows window movement");
-        moved["frame"]!["width"] = 2000;
-        Check(Refused(() => NativePoint(claude, new JsonObject { ["point"] = new JsonObject { ["x"] = 1, ["y"] = 1 } }, moved, null)), "resize invalidates image point");
-        var before = new Dictionary<int, string> { [1] = "old", [2] = "same", [3] = "removed" };
-        var after = new Dictionary<int, string> { [1] = "new", [2] = "same", [4] = "added" };
-        var delta = ChangedNativeLines(before, after);
-        Check(delta.SequenceEqual(new[] { "~ new", "+ added", "- removed" }), "changes retain ids and distinguish add/change/remove");
-        Check(Str(LegacyStep(new JsonObject { ["do"] = "select", ["target"] = "List", ["text"] = "Choice" }), "option") == "Choice", "select text fallback");
-        Check(Str(LegacyStep(new JsonObject { ["do"] = "key", ["text"] = "ctrl+s" }), "key") == "ctrl+s", "key text fallback");
-        Check(Str(LegacyStep(new JsonObject { ["do"] = "menu", ["target"] = "File > Open" }), "path") == "File > Open", "menu target fallback");
-        Check(LegacyStep(new JsonObject { ["do"] = "wait", ["target"] = "Ready" })["target"] == null, "wait target is expected text, never an input selector");
-        Check(Number(LegacyStep(new JsonObject { ["do"] = "scroll", ["target"] = "List" }), "scrollY") == 3, "legacy default scroll direction and amount");
-        var conditions = NormalizeExpectation(observed, new JsonObject { ["element"] = "Alpha", ["value"] = "x", ["enabled"] = false });
-        Check((conditions["all"] as JsonArray)?.Count == 2, "all expectation constraints survive translation");
-        var numeric = LegacyStep(new JsonObject { ["do"] = "click", ["target"] = "#1", ["check"] = new JsonObject { ["target"] = 1, ["selected"] = true } });
-        Check(NormalizeExpectation(observed, numeric["expect"]!.AsObject())["selector"] is JsonObject, "numeric check resolves against shown snapshot");
-        Check(LegacyRoles(Str(LegacySelector(JsonValue.Create("champ:Nom")!), "role")[7..]).Contains("document"), "French field alias retains document support");
-        Check(Str(LegacySelector(JsonValue.Create("nom:15")!), "name") == "15", "numeric visible name is explicit");
-        foreach (var bounds in new JsonNode?[] { null, new JsonArray(), new JsonArray(1, 2, 3) })
-        {
-            var invisible = first["elements"]![1]!.DeepClone().AsObject(); invisible["bounds"] = bounds;
-            Check(!NativeLine(invisible, claude.Image!.Capture).Contains(" @"), "an absent or incomplete provider rectangle renders without coordinates");
-        }
-        foreach (var frame in new JsonNode?[] { null, new JsonObject(), new JsonObject { ["left"] = 0, ["top"] = 0, ["width"] = 10 }, new JsonObject { ["left"] = 0, ["top"] = 0, ["width"] = 0, ["height"] = 10 } })
-            Check(Refused(() => RequireNativeFrame(new JsonObject { ["frame"] = frame })), "capture and OCR refuse absent or incomplete frame before any request");
-        Check(ReferenceEquals(RequireNativeFrame(first), first["frame"]), "a complete native frame is preserved without substitution");
-        // An unnamed web document is a wheel place, not an identity: its visible center inside the frame (31/10).
-        var page = Snapshot(); page["elements"]!.AsArray().Add(JsonNode.Parse("""{"index":3,"role":"document","name":"","runtimeId":[42,4],"nativeWindow":0,"ancestors":[0],"bounds":[100,140,2560,9000]}"""));
-        var pageState = new SessionState("codex") { BoundWindow = (100, "process:fixture.exe", "Fixture", 1) };
-        LookMemory(pageState, 100, page).Shown.UnionWith(new[] { 0, 1, 2, 3 });
-        var wheel = NormalizeStep(pageState, page, new JsonObject { ["do"] = "scroll", ["target"] = "#3", ["delta_y"] = -3 });
-        Check(Bool(wheel, "placeOnly") && Number(wheel, "x") == 1280 && Number(wheel, "y") == 740 && wheel["selector"] == null && wheel["observedIdentity"] == null, "unnamed document scroll targets the center of its visible part");
-        var wheelPoint = NativePoint(pageState, wheel, page, null);
-        Check(wheelPoint.X == 1380 && wheelPoint.Y == 840, "a place-only point needs no image and stays in the observed frame");
-        Check(!Bool(NormalizeStep(pageState, page, new JsonObject { ["do"] = "scroll", ["x"] = 5, ["y"] = 5, ["placeOnly"] = true }), "placeOnly"), "a caller can never claim a place-only point");
-        Check(VisibleCenterOf(page, JsonNode.Parse("""{"bounds":[100,1600,50,50]}""")!.AsObject()) == null, "an element entirely outside the frame has no wheel place");
-        Check(NormalizeLegacyText("  Hello\r\nworld ") == "Hello world", "legacy whitespace normalization");
-        var stateCheck = LegacyStep(new JsonObject { ["do"] = "click", ["target"] = "Alpha", ["check"] = new JsonObject { ["target"] = "Alpha", ["contains"] = "READY", ["enabled"] = true } });
-        var normalizedCheck = NormalizeExpectation(observed, stateCheck["expect"]!.AsObject());
-        var checks = normalizedCheck["all"]!.AsArray();
-        Check(checks.Count == 2 && LegacyStateCheck(normalizedCheck), "multi-field legacy check supports already-satisfied skip");
-        var checkSnapshot = Snapshot(); checkSnapshot["elements"]![1]!["value"] = "  Ready\r\nnow "; checkSnapshot["elements"]![1]!["disabled"] = false;
-        Check(ExpectationHolds(claude, checkSnapshot, normalizedCheck), "legacy contains is case-insensitive and whitespace normalized");
-        memory.Shown.Clear();
-        Check(Refused(() => CheckShownExpectationIndices(state, numeric["expect"]!.AsObject())), "numeric postcondition also requires a displayed index");
-        // Skeleton: a layout wrapper is hidden, a named list with many items is a region, a leaf is never a wrapper (31/10).
-        var dense = JsonNode.Parse("""{"elements":[{"index":0,"role":"window","name":"Chat","ancestors":[]},{"index":1,"role":"pane","name":"","automationId":"","ancestors":[0]},{"index":2,"role":"list","name":"Messages","ancestors":[0,1]},{"index":3,"role":"group","name":"","ancestors":[0]}]}""")!.AsObject();
-        for (var i = 0; i < 10; i++) dense["elements"]!.AsArray().Add(EngineJson.Node(new JsonObject { ["index"] = 10 + i, ["role"] = "listitem", ["name"] = $"m{i}", ["ancestors"] = new JsonArray(0, 1, 2) }));
-        var counts = ParentCounts(dense); var items = Elements(dense).OfType<JsonObject>().ToList();
-        Check(EmptyContainer(items[1], counts) && !EmptyContainer(items[2], counts) && !EmptyContainer(items[3], counts), "only an unnamed container holding elements is a layout wrapper");
-        Check(Regions(dense, counts).SequenceEqual(new[] { "[2] list \"Messages\" (10)" }), "a named container with most items is the region to look within");
-        var full = JsonNode.Parse("""{"index":7,"role":"button","name":"OK","automationId":"","value":null,"disabled":false,"focused":true,"checked":null,"selected":false,"password":false,"runtimeId":[42,7],"nativeWindow":5,"ancestors":[1,4],"bounds":[1,2,3,4],"actions":[],"flags":["offscreen"]}""")!.AsObject();
-        var compact = CompactElement(full);
-        Check(JsonNode.DeepEquals(compact, JsonNode.Parse("""{"index":7,"role":"button","name":"OK","selected":false,"focused":true,"flags":["offscreen"],"bounds":[1,2,3,4],"parent":4}""")), "compact element keeps states and drops defaults and internal identities");
-        var secret = full.DeepClone().AsObject(); secret["password"] = true; secret["value"] = "hunter2";
-        Check(CompactElement(secret)["value"] == null, "a password value is never listed");
-        return assertions;
     }
 }

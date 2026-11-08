@@ -11,11 +11,20 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+## [3.17.6] - 2026-11-08
+
 ### Fixed
 - Tests: no test can show a Windows error box. The test process sets the error mode (no critical-error, crash or
   missing-file box) when it loads, and every process it starts inherits it; a test checks it in a child process.
 
 ### Changed
+- The shipped engine no longer carries its test bench. The offline self-checks (the former `--*-selftest` methods),
+  their instrumented local DevTools/WebSocket servers, the test-only JSON shapes and their source-generated metadata, and
+  the Win32/GDI/SQLite imports only those checks used now live in the test project (`tests/EngineSelfTests`, with
+  their own source-generated JSON context): they reach the engine through internal members (`InternalsVisibleTo`),
+  and the engine keeps no self-test code. The unused `--indicator-frames` helper mode is removed. The Native AOT engine
+  goes from 14,100,992 to 13,244,928 bytes (-6.1 %); every self-check runs unchanged, also against the AOT engine
+  (`test.ps1 -Engine`).
 - The engine's source comments are all in English: the 31 files that still held comments written in French before the
   profiles were merged are translated (comments only, no code change), and the English comments test no longer keeps a
   list of exceptions. It now also reads the comments of every versioned PowerShell and batch script (`commun/native-runtime.ps1`
@@ -877,7 +886,8 @@ took 64 s and 14 calls; Codex now takes three calls and about 2 s, with no foreg
 - A UIA or Win32 input whose effect is not confirmed no longer triggers another technique or a physical click;
   repeated inputs require a newer observation of the same window; `expanded` and `focused` postconditions are checked.
 
-[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.5...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.6...HEAD
+[3.17.6]: https://github.com/pironjulien/NexusWindows/compare/v3.17.5...v3.17.6
 [3.17.5]: https://github.com/pironjulien/NexusWindows/compare/v3.17.4...v3.17.5
 [3.17.4]: https://github.com/pironjulien/NexusWindows/compare/v3.17.3...v3.17.4
 [3.17.3]: https://github.com/pironjulien/NexusWindows/compare/v3.17.2...v3.17.3

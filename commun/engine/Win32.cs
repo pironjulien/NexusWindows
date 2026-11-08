@@ -308,16 +308,6 @@ static partial class Win32
         // a right click opened it but the helper did not recognize it ("contextMenu: null").
         return (ex & (WS_EX_TOOLWINDOW | WS_EX_TOPMOST)) != 0 && cls.StartsWith("WindowsForms10.", StringComparison.Ordinal) && menuRole && linked;
     }
-
-    public static int PopupSelfTest()
-    {
-        using var input = System.Text.Json.JsonDocument.Parse(Console.In.ReadToEnd());
-        var results = input.RootElement.EnumerateArray()
-            .Select(c => IsTransientPopupStyle(c.GetProperty("style").GetUInt32(), c.GetProperty("ex").GetUInt32(), c.GetProperty("cls").GetString() ?? "",
-                c.TryGetProperty("menu", out var m) && m.GetBoolean(), c.TryGetProperty("linked", out var l) && l.GetBoolean())).ToList();
-        Console.WriteLine(EngineJson.Serialize(results));
-        return 0;
-    }
     public static uint ProcessOf(nint hwnd) { GetWindowThreadProcessId(hwnd, out var pid); return pid; }
 
     // Checked PostMessage: a refusal (window gone, elevated application blocked by UIPI) is never a success.
