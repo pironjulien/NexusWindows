@@ -55,6 +55,11 @@ static class NativeMcpGuard
     {
         if (active && (!ready || Interlocked.Read(ref lastInput) != inputAtStart)) throw new JulienActiveException("The user took the mouse or keyboard back; input stopped, inspect before deciding anything else");
     }
+    // Milliseconds since the user's last PHYSICAL input (Raw Input with a source device), or null when that is not known
+    // reliably (guard not ready, or only GetLastInputInfo, which also counts other agents' injected input).
+    public static long? PhysicalIdleMs => ready && source == "raw-input" ? Clock.ElapsedMilliseconds - Interlocked.Read(ref lastInput) : null;
+    // Moment of the user's last PHYSICAL input, compared before and after a step; null when not known reliably.
+    public static long? PhysicalInputStamp => ready && source == "raw-input" ? Interlocked.Read(ref lastInput) : null;
     public static bool UserResumed => active && (!ready || Interlocked.Read(ref lastInput) != inputAtStart);
     sealed class Scope : IDisposable { public void Dispose() => active = false; }
     sealed class OwnedGuard(Process process) : IDisposable

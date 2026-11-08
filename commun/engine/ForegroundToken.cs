@@ -70,14 +70,25 @@ sealed class ForegroundToken : IDisposable
     }
 }
 
-// Did the user take the keyboard or mouse back while waiting for the token? GetLastInputInfo counts every input
-// (injected included): cautious, another agent's input defers too. No input has been sent here yet.
+// Did the user take the keyboard or mouse back while waiting for the token? Their PHYSICAL input is read by Raw Input
+// (NativeMcpGuard): another agent's injected input (a computer-use tool driving another window, 08/11: GetLastInputInfo
+// reset every ~0.5 s with no keyboard or mouse event) no longer defers a background gesture that cannot mix with it.
+// Without a reliable Raw Input source, GetLastInputInfo stays the cautious fallback (injected input included). No input
+// has been sent here yet.
 sealed class JulienActiveException(string message) : InvalidOperationException(message);
 static class JulienPause
 {
-    public static void ThrowIfActive(int? quietMs)
+    public static void ThrowIfActive(int? quietMs) => ThrowIfActive(quietMs, NativeMcpGuard.PhysicalIdleMs);
+
+    internal static void ThrowIfActive(int? quietMs, long? physicalIdleMs)
     {
         if (quietMs is not { } quiet || quiet <= 0) return;
+        if (physicalIdleMs is { } physical)
+        {
+            if (physical < quiet)
+                throw new JulienActiveException($"The user is using the keyboard or mouse (last input {physical} ms ago, after waiting for the token): input deferred, nothing was sent. Observe again later; never replay automatically.");
+            return;
+        }
         var info = new Win32.LastInputInfo { Size = (uint)System.Runtime.InteropServices.Marshal.SizeOf<Win32.LastInputInfo>() };
         if (!Win32.GetLastInputInfo(ref info)) throw new JulienActiveException("User presence unreadable after taking the token: input deferred, nothing was sent.");
         var idle = unchecked(Win32.GetTickCount() - info.Time);

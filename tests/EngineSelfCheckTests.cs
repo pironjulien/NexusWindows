@@ -99,6 +99,16 @@ public class EngineSelfCheckTests
     }
 
     [Fact]
+    public void User_pause_follows_physical_input_not_other_agents_injected_input()
+    {
+        JulienPause.ThrowIfActive(1618, 5000); // physical input 5 s ago: another agent's injected input does not defer
+        JulienPause.ThrowIfActive(null, 0);    // no pause asked
+        var error = Assert.Throws<JulienActiveException>(() => JulienPause.ThrowIfActive(1618, 200));
+        Assert.Contains("200 ms", error.Message);
+        Assert.Contains("nothing was sent", error.Message);
+    }
+
+    [Fact]
     public void Pointer_messages_restore_the_recipient_dpi_context()
     {
         var result = SelfTest.Node(PointerSelfTests.RecipientContextSelfTest());

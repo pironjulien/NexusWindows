@@ -180,7 +180,7 @@ static partial class ChromiumInput
             throw new ActionRefusedException("Simulated text needs the exact non-secret editable Chromium target");
         using var process = Process.GetProcessById((int)Win32.ProcessOf(window));
         if (GardeFous.BlockReason(process.ProcessName, Win32.ClassName(window), GardeFous.CurrentAgent) is { } blocked) throw new GuardRailException(blocked);
-        uint? input = null; var windowPid = Win32.ProcessOf(window); var birth = Program.ProcessStartedUtc(windowPid); var windowClass = Win32.ClassName(window);
+        uint? input = null; long? physicalAtStart = null; var windowPid = Win32.ProcessOf(window); var birth = Program.ProcessStartedUtc(windowPid); var windowClass = Win32.ClassName(window);
         var alreadyForeground = InForeground(window);
         if (birth == null) throw new ActionRefusedException("Window process identity unavailable; no simulated text sent");
         void CheckPresence()
@@ -188,11 +188,13 @@ static partial class ChromiumInput
             EmergencyStop.ThrowIfStopped(); McpServer.NativeInteraction.CheckInputLease();
             if (!Win32.IsWindow(window) || Win32.ProcessOf(window) != windowPid || Program.ProcessStartedUtc(windowPid) != birth || Win32.ClassName(window) != windowClass)
                 throw new ActionRefusedException("Chromium window/process changed; no further text sent");
-            input ??= Win32.Probe().LastInput;
+            input ??= Win32.Probe().LastInput; physicalAtStart ??= NativeMcpGuard.PhysicalInputStamp;
             // Julien's keyboard and mouse elsewhere do not stop text sent to a window that is not in front (05/11: 8 of 58
             // characters, then stopped by a mouse move in another window). Typing stops when he brings this window in front,
-            // or, when it already was, at his first input.
-            if (alreadyForeground && Win32.Probe().LastInput != input) throw new JulienActiveException("The user typed or clicked in this window, which is in front; text stopped");
+            // or, when it already was, at his first PHYSICAL input (Raw Input; another agent's injected input does not
+            // count, 08/11). Without a reliable Raw Input source, any input counts.
+            var userInput = physicalAtStart is { } physical ? NativeMcpGuard.PhysicalInputStamp != physical : Win32.Probe().LastInput != input;
+            if (alreadyForeground && userInput) throw new JulienActiveException("The user typed or clicked in this window, which is in front; text stopped");
             if (InForeground(window) != alreadyForeground) throw new JulienActiveException(alreadyForeground ? "The window left the foreground; text stopped" : "The window came to the foreground; text stopped");
             if (!Win32.IsWindowEnabled(window)) throw new JulienActiveException("A modal dialog appeared in the window; text stopped");
         }

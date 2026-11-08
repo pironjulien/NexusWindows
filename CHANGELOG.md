@@ -12,6 +12,10 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 ## [Unreleased]
 
 ### Fixed
+- A background gesture that waits for the user's pause reads their physical input (Raw Input), as the READMEs state,
+  instead of `GetLastInputInfo`, which also counts other agents' injected input: a computer-use tool driving another
+  window no longer defers typing, list picks and shortcuts in the background, nor stops text typed into a web page
+  already in front. Without a reliable Raw Input source the cautious count stays.
 - A click proven by the clicked element alone is `✓` again without `expect`, as the README states: the UI Automation
   "Invoked" event its provider raises (WPF, Chromium, Electron), listened for on that element only, or its own state
   read back after Toggle or SelectionItem.Select. Both proofs were lost when 3.9.0 left the Python engine, so every
