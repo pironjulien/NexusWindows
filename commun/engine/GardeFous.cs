@@ -186,10 +186,12 @@ static class GardeFous
             var titre = ctx.GetProperty("titre").GetString() ?? throw new InvalidDataException("Missing context titre");
             var verbes = ctx.GetProperty("verbes").GetString() ?? throw new InvalidDataException("Missing context verbes");
             var quoi = ctx.GetProperty("quoi").GetString() ?? throw new InvalidDataException("Missing context quoi");
+            // Summaries reach the model in English (README): "what" is the English label, "quoi" the French one of the policy.
+            var what = ctx.TryGetProperty("what", out var en) ? en.GetString() ?? quoi : quoi;
             contexts.Add(new ContextRule(
                 new Regex(@"\b(" + titre + @")\b", RegexOptions.Compiled | RegexOptions.CultureInvariant),
                 new Regex(@"\b(" + verbes + @")\b", RegexOptions.Compiled | RegexOptions.CultureInvariant),
-                quoi));
+                what));
         }
 
         var nonActionRoles = confirmation.GetProperty("roles_non_actifs").EnumerateArray()
@@ -214,7 +216,7 @@ static class GardeFous
             confirmRegex,
             outwardRegex,
             contexts,
-            contexts.Where(c => c.What.Contains("paiement", StringComparison.OrdinalIgnoreCase)).ToList(),
+            contexts.Where(c => c.What.Contains("payment", StringComparison.OrdinalIgnoreCase)).ToList(),
             nonActionRoles,
             triggerRoles,
             dureeS,
@@ -325,7 +327,7 @@ static class GardeFous
         {
             var verb = ctx.Verbs.Match(text);
             if (verb.Success && ctx.Title.IsMatch(heading))
-                return $"{verb.Value} (fenêtre de {ctx.What})";
+                return $"{verb.Value} ({ctx.What} window)";
         }
         return "";
     }
@@ -343,7 +345,7 @@ static class GardeFous
         {
             var verb = ctx.Verbs.Match(text);
             if (verb.Success && ctx.Title.IsMatch(heading))
-                return $"{verb.Value} (fenêtre de {ctx.What})";
+                return $"{verb.Value} ({ctx.What} window)";
         }
         return "";
     }
@@ -362,7 +364,7 @@ static class GardeFous
             }
             else if (pasted && ((act == "key" && key is "enter" or "return") || step.Confirm))
             {
-                return $"Étape {index} ({act}) : interdiction de chaîner un collage (Ctrl+V) et une validation (Entrée / confirm) dans le même lot. Le texte collé doit être relu et vérifié avant d'envoyer.";
+                return $"Step {index} ({act}): a paste (Ctrl+V) and a validation (Enter / confirm) cannot be chained in the same batch. Read back and check the pasted text before sending.";
             }
             index++;
         }

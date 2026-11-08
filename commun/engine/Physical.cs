@@ -116,7 +116,7 @@ static partial class Physical
         NativeMcpGuard.CheckInterruption();
         McpServer.NativeInteraction.CheckInputLease();
         if (!OfTarget(Win32.GetForegroundWindow(), window) && !McpServer.NativeInteraction.AllowsForeground(window, Win32.GetForegroundWindow()))
-            throw new InvalidOperationException("The target is no longer in the foreground (Julien took over?): stopped, nothing else sent");
+            throw new InvalidOperationException("The target is no longer in the foreground (the user took over?): stopped, nothing else sent");
         if (x is { } px && y is { } py)
         {
             var hit = WindowFromPoint(new Win32.Point { X = px, Y = py });

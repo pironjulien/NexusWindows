@@ -140,13 +140,13 @@ static partial class McpServer
             && observed.TryGetValue(candidate.Window, out var shownCandidate) && SameIdentity(shownCandidate, candidate);
         internal string ReturnForeground()
         {
-            if (NativeMcpGuard.UserResumed) return "kept-by-julien";
+            if (NativeMcpGuard.UserResumed) return "kept-by-user";
             if (notedIdentity is not { } previous || !StillMatches(previous)) return "none";
             var front = Win32.GetForegroundWindow();
             var root = front == 0 ? 0 : Win32.GetAncestor(front, Win32.GA_ROOT); if (root != 0) front = root;
             if (shellWindows.Count > 0)
             {
-                if (!OwnsShellWindow(front)) return front == noted ? "not-taken" : "kept-by-julien";
+                if (!OwnsShellWindow(front)) return front == noted ? "not-taken" : "kept-by-user";
                 return ForegroundReturn.GiveBack(noted, front, sameProcess: true);
             }
             return targetIdentity is { } target && StillMatches(target) ? ForegroundReturn.GiveBack(noted, target.Window) : "none";

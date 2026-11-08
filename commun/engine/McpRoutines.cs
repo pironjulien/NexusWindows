@@ -177,6 +177,9 @@ static partial class McpServer
                 else if (args["params"] != null) throw new InvalidOperationException("params applies only to routine learning or replay");
             }
         }
+        // README: a routine replayed after an update of its application says so (the replay still re-verifies every step).
+        var appNote = entryForRun != null && Str(entryForRun, "revision").Length > 0 && Str(entryForRun, "revision") != Str(start, "revision")
+            ? "Application updated since the routine was saved" : null;
         var localTargetContext = !structureCheckedBeforeLease
             ? ValidateNativeObservation(observed, start, args, steps)
             : ValidateNativeTargetContext(observed, start, args, steps);
@@ -204,7 +207,7 @@ static partial class McpServer
                     var token = Guid.NewGuid().ToString("N");
                     state.Pending = new PendingNativeBatch(token, DateTimeOffset.UtcNow, named.Id, named.Pid, Str(boundary, "processStartedUtc"), Str(boundary, "revision"), BoundaryNative(boundary),
                         StripPermissions(steps), i, results, definition, remember, routine, entryForRun != null ? RoutineStamp(entryForRun) : null, anchors, transitions);
-                    return BatchResponse(state, results, steps.Count, i, "paused", token);
+                    return BatchResponse(state, results, steps.Count, i, "paused", token, appNote);
                 }
                 catch (Exception error)
                 {
@@ -290,7 +293,7 @@ static partial class McpServer
                     try { memory.RecordRun(routine, false); }
                     catch (Exception error) { stepResult["persistenceError"] = "Routine remains needs-review in this session; failure could not be written: " + error.GetType().Name; }
                 }
-                return BatchResponse(state, results, steps.Count, i, Str(stepResult, "mark") == "~" ? "unverified" : "failed", null);
+                return BatchResponse(state, results, steps.Count, i, Str(stepResult, "mark") == "~" ? "unverified" : "failed", null, appNote);
             }
             completedThisCall++;
         }
@@ -312,7 +315,7 @@ static partial class McpServer
             if (routine != null) state.FailedRoutines.Add(ReviewKey(named.App, routine));
         }
         var unconfirmed = results.OfType<JsonObject>().Any(r => Str(r, "status") == "sent-unconfirmed");
-        var response = BatchResponse(state, results, steps.Count, steps.Count, unconfirmed ? "unverified" : "success", null);
+        var response = BatchResponse(state, results, steps.Count, steps.Count, unconfirmed ? "unverified" : "success", null, appNote);
         if (persistenceError != null) { response["structuredContent"]!["persistenceError"] = persistenceError; response["content"]!.AsArray().Add(EngineJson.Node(TextBlock(persistenceError))); }
         return response;
     }
@@ -426,14 +429,22 @@ static partial class McpServer
         if (args["params"] is JsonObject p) foreach (var kv in p) result[kv.Key] = kv.Value is JsonValue v && v.TryGetValue<string>(out var s) ? s : throw new InvalidOperationException("Routine parameter must be text");
         return result;
     }
-    static JsonObject BatchResponse(SessionState state, JsonArray results, int total, int next, string status, string? continuation)
+    static JsonObject BatchResponse(SessionState state, JsonArray results, int total, int next, string status, string? continuation, string? applicationNote = null)
     {
         var completed = results.OfType<JsonObject>().Count(r => Bool(r, "success"));
         var data = new JsonObject { ["status"] = status, ["success"] = status == "success", ["paused"] = status == "paused", ["steps"] = results.DeepClone(),
             ["progress"] = new JsonObject { ["completed"] = completed, ["total"] = total, ["nextStep"] = next },
+            ["tally"] = Tally(results),
             ["next"] = status == "success" ? "✓ done (move on)" : status == "paused" ? "Fresh look, then continue with this token and current authorizations" : "Look again; no step will be replayed automatically" };
         if (continuation != null) data["continuation"] = continuation;
+        if (applicationNote != null) data["applicationChanged"] = applicationNote;
         return NativeResponse(data);
+    }
+    // The four counts the README promises at the end of a batch (✓ read back, = already true, ~ unknown, ✗ failed or refused).
+    internal static JsonObject Tally(JsonArray results)
+    {
+        var marks = results.OfType<JsonObject>().Select(r => Str(r, "mark")).ToList();
+        return new JsonObject { ["✓"] = marks.Count(m => m == "✓"), ["="] = marks.Count(m => m == "="), ["~"] = marks.Count(m => m == "~"), ["✗"] = marks.Count(m => m == "✗") };
     }
     static JsonObject NativeResponse(JsonObject data) => new() { ["content"] = new JsonArray(TextBlock(data)), ["structuredContent"] = data.DeepClone() };
 

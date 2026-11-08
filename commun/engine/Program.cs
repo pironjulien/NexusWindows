@@ -61,7 +61,7 @@ static partial class Program
                 {
                     // "keep": the caller saw the user take the keyboard or mouse back during the lease (its presence tells
                     // the agent's injections apart, which LastInput does not); their choice is kept.
-                    state = said.Contains("keep") ? "kept-by-julien" : ForegroundReturn.GiveBack(noted, target);
+                    state = said.Contains("keep") ? "kept-by-user" : ForegroundReturn.GiveBack(noted, target);
                 }
                 try { Write(new ProgramMainJson2(released: true, giveBack: state)); Console.Out.Flush(); } catch (IOException) { } // caller already gone
                 return 0;

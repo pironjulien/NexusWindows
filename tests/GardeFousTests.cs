@@ -155,8 +155,8 @@ public class GardeFousTests
     public void Generic_verb_only_in_a_money_or_format_window()
     {
         Assert.Equal("", GardeFous.ConfirmWord("OK", "Bloc-notes"));
-        Assert.Contains("paiement", GardeFous.ConfirmWord("Valider", "Confirmer le paiement"), StringComparison.Ordinal);
-        Assert.Contains("formatage", GardeFous.ConfirmWord("Démarrer", "Formater Disque local (E:)"), StringComparison.Ordinal);
+        Assert.Contains("payment", GardeFous.ConfirmWord("Valider", "Confirmer le paiement"), StringComparison.Ordinal);
+        Assert.Contains("formatting", GardeFous.ConfirmWord("Démarrer", "Formater Disque local (E:)"), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -171,8 +171,8 @@ public class GardeFousTests
     {
         Assert.Equal("", GardeFous.CheckBlindPaste([("key", "ctrl+v", false)]));
         Assert.Equal("", GardeFous.CheckBlindPaste([("key", "ctrl+v", false), ("wait", "", false)]));
-        Assert.Contains("interdiction de chaîner un collage", GardeFous.CheckBlindPaste([("click", "", false), ("key", "ctrl+v", false), ("wait", "", false), ("key", "Enter", false)]), StringComparison.Ordinal);
-        Assert.Contains("interdiction de chaîner un collage", GardeFous.CheckBlindPaste([("key", "Control+V", false), ("click", "", true)]), StringComparison.Ordinal);
+        Assert.Contains("cannot be chained in the same batch", GardeFous.CheckBlindPaste([("click", "", false), ("key", "ctrl+v", false), ("wait", "", false), ("key", "Enter", false)]), StringComparison.Ordinal);
+        Assert.Contains("cannot be chained in the same batch", GardeFous.CheckBlindPaste([("key", "Control+V", false), ("click", "", true)]), StringComparison.Ordinal);
     }
 
     // ----- Accord bound to the exact action, and provenance (trinity, 19/10/2026) -----

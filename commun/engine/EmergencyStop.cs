@@ -148,7 +148,7 @@ static partial class EmergencyStop
         try
         {
             System.IO.Directory.CreateDirectory(Directory);
-            File.WriteAllText(OwnerFile, EngineJson.Serialize(new EmergencyStopHeartbeatJson(owner: "NexusCodex", pid: Environment.ProcessId, version: version, ts: Now())));
+            File.WriteAllText(OwnerFile, EngineJson.Serialize(new EmergencyStopHeartbeatJson(owner: "NexusWindows", pid: Environment.ProcessId, version: version, ts: Now())));
         }
         catch (IOException) { } // A missed beat makes the others report the stop as unavailable, which stays honest.
         catch (UnauthorizedAccessException) { }
@@ -163,7 +163,7 @@ static partial class EmergencyStop
         {
             System.IO.Directory.CreateDirectory(Directory);
             File.WriteAllText(StopFile, EngineJson.Serialize(new EmergencyStopPressedJson(
-                by: "NexusCodex", pid: Environment.ProcessId, at: Now(), hold_s: HoldSeconds,
+                by: "NexusWindows", pid: Environment.ProcessId, at: Now(), hold_s: HoldSeconds,
                 nonce: Convert.ToHexString(RandomNumberGenerator.GetBytes(6)).ToLowerInvariant()
             )));
         }

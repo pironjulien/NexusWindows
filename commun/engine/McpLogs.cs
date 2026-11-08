@@ -45,7 +45,7 @@ static partial class McpServer
             "show" or "mode" => ["auto", "both", "image", "elements", "text", "changes", "none", "background", "foreground", "physical", "native"],
             "direction" => ["up", "down", "left", "right", "into_view"],
             "status" => ["success", "verified", "already", "already-satisfied", "waited", "unknown", "unverified", "unmet", "failed", "refused", "interrupted", "stopped", "deferred", "confirmation-required", "sent", "sent-unconfirmed", "paused", "before-input", "not-applicable", "acknowledged", "refused-before-input", "returned", "input-uncertain"],
-            "foregroundReturned" => ["restored", "none", "kept-by-julien", "unchanged", "failed", "target-gone", "not-taken", "refused", "held-for-interaction", "kept-requested"],
+            "foregroundReturned" => ["restored", "none", "kept-by-user", "unchanged", "failed", "target-gone", "not-taken", "refused", "held-for-interaction", "kept-requested"],
             _ => [],
         };
         return allowed.Contains(text) ? text : null;

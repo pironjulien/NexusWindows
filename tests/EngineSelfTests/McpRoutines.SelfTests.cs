@@ -107,6 +107,14 @@ static partial class McpServerSelfTests
             Check(NativeResultWithoutProofRead(Args("{\"kind\":\"click\"}"), Args($"{{\"effect\":\"applied\",\"mechanism\":\"{proved}\"}}"), null) == null, $"a click proven by {proved} goes on to ✓");
         Check(Str(NativeResultWithoutProofRead(Args("{\"kind\":\"click\"}"), Args("{\"effect\":\"sent\",\"mechanism\":\"Invoke\"}"), null), "mark") == "~", "an Invoke whose event was not heard stays ~");
         Check(Str(NativeResultWithoutProofRead(Args("{\"kind\":\"click\"}"), Args("{\"effect\":\"applied\",\"mechanism\":\"LegacyIAccessible.DoDefaultAction\"}"), null), "mark") == "~", "only the element's own proofs count");
+        // README promises restored on 08/11 (lost in the native port): batch tally, scroll ranges, frame-relative moves.
+        var tally = Tally(new JsonArray(Args("{\"mark\":\"✓\"}"), Args("{\"mark\":\"✓\"}"), Args("{\"mark\":\"=\"}"), Args("{\"mark\":\"~\"}")));
+        Check(Number(tally, "✓") == 2 && Number(tally, "=") == 1 && Number(tally, "~") == 1 && Number(tally, "✗") == 0, "a batch ends with the four counts");
+        Check(IndexRanges([21, 2, 3, 4, 25, 30, 31]) == "[2-4] [21] [25] [30-31]", "moved indices collapse into ranges");
+        var frame = Args("{\"left\":100,\"top\":50}");
+        Check(PlaceInWindow(Args("{\"bounds\":[110,60,20,10]}"), frame) == "20,15" && PlaceInWindow(Args("{\"bounds\":[210,160,20,10]}"), Args("{\"left\":200,\"top\":150}")) == "20,15",
+            "a place is read in the window's own frame: moving the window is not a change");
+        Check(PlaceInWindow(Args("{}"), frame) == "", "an element without bounds has no place");
         count += NativeRoutineMirrorSelfTest();
         Console.WriteLine(new JsonObject { ["ok"] = true, ["assertions"] = count, ["gui"] = false }.ToJsonString()); return 0;
     }

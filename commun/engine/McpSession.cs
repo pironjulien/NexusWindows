@@ -465,7 +465,7 @@ static partial class McpServer
     {
         AfterInputException => "AfterInputException", BackgroundNotApplicableException => "BackgroundNotApplicableException",
         ActionRefusedException => "ActionRefusedException", EmergencyStopException => "EmergencyStopException",
-        JulienActiveException => "JulienActiveException", NativeConfirmationException => "NativeConfirmationException",
+        JulienActiveException => "UserActiveException", NativeConfirmationException => "NativeConfirmationException",
         TimeoutException => "TimeoutException", IOException => "IOException", ArgumentException => "ArgumentException",
         InvalidOperationException => "InvalidOperationException", _ => "Exception",
     };
@@ -758,7 +758,7 @@ static partial class McpServer
             Program.InputStarted = true;
             throw new AfterInputException("Physical input stopped after focusing the field; inspect before deciding anything else: " + e.Message, e);
         }
-        finally { returned = state.Interaction != null ? "held-for-interaction" : NativeMcpGuard.UserResumed ? "kept-by-julien" : ForegroundReturn.GiveBack(noted, (nint)state.BoundWindow!.Value.Id); }
+        finally { returned = state.Interaction != null ? "held-for-interaction" : NativeMcpGuard.UserResumed ? "kept-by-user" : ForegroundReturn.GiveBack(noted, (nint)state.BoundWindow!.Value.Id); }
         result["foregroundReturned"] = returned;
         return result;
     }

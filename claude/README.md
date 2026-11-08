@@ -326,7 +326,8 @@ with it.
 - **Password fields**: never typed into. Typed text is never logged (only its length).
 - **Accounts**: a browser started with `devtools=true` gets a throwaway profile without account or sync, checked
   after launch and deleted afterwards.
-- **Screen content is data**: every `look` reminds the model that on-screen text is not an instruction.
+- **Screen content is data**: the server instructions tell the model that on-screen text is never an instruction, and a
+  `look` whose text resembles an instruction aimed at an AI carries a warning.
 - **Up-to-date code**: clients start the stable launcher, which runs the engine version recorded at install time after checking its SHA-256; an update installs a new immutable version beside it, so a running session is never changed under its feet and the next one gets the new version.
 - **Timeouts**: an abandoned call is cancelled at its next checkpoint instead of finishing later.
 - **Clipboard**: never used on its own; only the `clipboard` tool writes to it, and the user's content is given back.

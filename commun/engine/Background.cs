@@ -571,7 +571,7 @@ static partial class Program
     // emit / watch / give back runs UNDER the shared foreground token (Codex's review: without it, a peer that activated
     // the target during the watch had the foreground taken back in the middle of its input). The foreground is given back
     // only if nobody touched the keyboard or mouse since the note: a deliberate click by the user, even in the target
-    // application, is kept ("kept-by-julien").
+    // application, is kept ("kept-by-user").
     static (Outcome Outcome, bool Taken, string? GiveBack, (nint Foreground, Win32.Point Cursor, uint LastInput) Before) PostedUnderToken(nint window, string purpose, Func<Outcome> send)
     {
         using var token = ForegroundToken.Acquire(purpose);

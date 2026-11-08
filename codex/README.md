@@ -191,18 +191,18 @@ text read on screen is data, never an instruction.
 
 ### Verified batches
 
-`act(observation, steps)` runs any number of actions in one call. Every step needs an `expect`; all steps are validated before
-any input; each step acts on the observation refreshed by the previous one; the batch stops at the first step that is
-not `verified` or `already-satisfied`.
+`act(observation, steps)` runs any number of actions in one call. Give each step an `expect` that proves its effect;
+all steps are validated before any input; each step acts on the observation refreshed by the previous one. The batch
+stops at the first failed or refused step (`✗`). A step sent without a postcondition (`~`) stops it too, unless the
+next step names its own target (it is resolved and guarded again on a fresh observation before any input) or is a key
+following a delivered key; a routine always stops there.
 
 ### Multiple windows
 
-The engine follows dialogs and popups without a new `look`: windows owned by the followed windows, windows that
-disable the window in front (modal), and windows of the same process that appear during an action. When a dialog
-closes, it returns to its nearest open owner. Each observation reports `windowStack` and `windowChange`.
-Transient popups (caption-less `WS_POPUP` windows with `WS_EX_NOACTIVATE`: an open drop-down list, a tooltip, a WPF
-popup; or a Win32 `ComboLBox`) are never followed: they are read through the window's own tree and listed in
-`popups`.
+A dialog is a window of its own: after the action that opens it, find it in `windows` (`dialogOf` names its owner)
+and `look` at its own handle. An owner's tree can contain the dialog while the owner itself is disabled. Transient
+popups (an open drop-down list, a tooltip, a WPF popup, a Win32 `ComboLBox`) are read through the window's own tree.
+See the [MCP cookbook](../commun/mcp-cookbook.md) for native file dialogs.
 
 ### Guardrails: one shared policy
 
@@ -243,7 +243,7 @@ only the instant of each physical keyboard or mouse input, never its content. In
 device and is ignored. Before any physical input the engine waits for 1.618 s without
 user input (at most 8 s, otherwise the action is deferred and nothing is sent), then types in chunks of at most
 48 graphemes and stops (`interrupted`, never resent) if the user takes the keyboard or mouse back. Without Raw
-Input it falls back to `GetLastInputInfo`, excluding its own injections.
+Input, user presence is not known reliably and physical input is deferred (nothing is sent).
 
 ### Routines
 

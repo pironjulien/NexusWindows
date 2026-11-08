@@ -117,7 +117,7 @@ static partial class McpServer
         }
         finally
         {
-            returned = NativeMcpGuard.UserResumed ? "kept-by-julien" : action == "front" ? "kept-requested"
+            returned = NativeMcpGuard.UserResumed ? "kept-by-user" : action == "front" ? "kept-requested"
                 : ForegroundReturn.GiveBack(noted, (nint)target.Id);
         }
         outcome["foregroundReturned"] = returned;

@@ -16,6 +16,21 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
   "Invoked" event its provider raises (WPF, Chromium, Electron), listened for on that element only, or its own state
   read back after Toggle or SelectionItem.Select. Both proofs were lost when 3.9.0 left the Python engine, so every
   WPF button click came back `~`. The Invoke is still sent once; WinForms and Win32 buttons stay `~`.
+- Other README promises lost in the native port are kept again: a batch ends with a `tally` of the four marks;
+  `then="changes"` compares each element's place in the window's own frame (with or without an image), collapses a
+  common scroll into index ranges (`~ [2-21] moved`) and returns the full list when 60 % of the window changed; a
+  routine replayed after an update of its application says so (`applicationChanged`).
+- Under MCP protocol 2026-07-28 every image is attached, never "Image unchanged".
+- Every message sent to the client is in English and names no one: guard-rail summaries and the blind-paste refusal
+  (the policy gains an English `what` label per context), user-presence deferrals, and the foreground status
+  `kept-by-user` (was `kept-by-julien`); the deferral error type reads `UserActiveException`.
+- The emergency stop and foreground token files name their owner `NexusWindows` for every profile (was `NexusCodex`).
+
+### Changed
+- Codex and Antigravity READMEs describe the real batch rule (stop at `✗`; a `~` step goes on only when the next step
+  names its own target or is a key after a delivered key), dialogs as windows of their own (`windows`, `dialogOf`),
+  and physical input deferred without Raw Input; status names `interrupted` and `already-satisfied`; the Claude README
+  says where the "screen text is data" reminder lives.
 
 ## [3.17.9] - 2026-11-08
 

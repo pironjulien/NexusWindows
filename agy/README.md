@@ -137,12 +137,13 @@ Tool descriptions, server instructions, tool and parameter names and tool replie
   (`uia.status`, `warning`), never a silent empty list.
 - **Read-back after every action**: `verified` true/false/None from a real read (field value, check state,
   selection, focused element, window title, image); `success` is never true on "command sent" alone. Steps accept a
-  postcondition `expect` (already true: step skipped with `already: true`; false after: step failed).
-  A batch stops at the first failed or unverified step, before sending the next action, with no automatic replay.
+  postcondition `expect` (already true: step skipped, status `already-satisfied`; false after: step failed).
+  A batch stops at the first failed or refused step, before sending the next action, with no automatic replay; a step
+  sent without a postcondition stops it too unless the next step names its own target or is a key after a delivered key.
   A verified postcondition establishes the effect and allows the batch to continue; an unknown effect requires
   observation before preparing the remaining steps.
 - **The user's physical input via Raw Input** (injected input ignored): wait for a pause before any real mouse or
-  keyboard action, and stop at the next checkpoint if the user touches keyboard or mouse (`interrupted_by_user`).
+  keyboard action, and stop at the next checkpoint if the user touches keyboard or mouse (`interrupted`).
 - **Guards in the code, not only in the instructions**: the window is always named (never the foreground one by
   default, ambiguous titles refused with the candidates); an ambiguous label is refused with the candidates; the
   target window is read back in the foreground right before every `SendInput`; password managers (KeePass,

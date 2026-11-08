@@ -145,7 +145,7 @@ public class SharedProtocolProcessTests
                 var stop = guard.WaitEvent("stop");
                 Assert.True(stop["written"]!.GetValue<bool>());
                 var written = JsonNode.Parse(File.ReadAllText(Path.Combine(home, "stop")))!;
-                Assert.Equal("NexusCodex", written["by"]!.GetValue<string>());
+                Assert.Equal("NexusWindows", written["by"]!.GetValue<string>());
                 Assert.Equal(120, written["hold_s"]!.GetValue<double>());
                 Assert.True(written["pid"]!.GetValue<int>() > 0 && written["at"]!.GetValue<double>() > 0);
                 Assert.Matches(new Regex("^[0-9a-f]{12}$"), written["nonce"]!.GetValue<string>());
@@ -181,7 +181,7 @@ public class SharedProtocolProcessTests
             using var holder = new Engine(home, "--foreground-token", "lease integration test");
             Assert.True(holder.NextJson()["ok"]!.GetValue<bool>());
             var diagnostic = JsonNode.Parse(ReadLock())!;
-            Assert.Equal("NexusCodex", diagnostic["owner"]!.GetValue<string>());
+            Assert.Equal("NexusWindows", diagnostic["owner"]!.GetValue<string>());
             Assert.Equal("lease integration test", diagnostic["purpose"]!.GetValue<string>());
             Assert.Equal(holder.Id, diagnostic["pid"]!.GetValue<int>());
             Assert.True(diagnostic["since"]!.GetValue<long>() > 0);

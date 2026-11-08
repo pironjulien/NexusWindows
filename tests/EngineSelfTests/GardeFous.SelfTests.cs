@@ -50,14 +50,14 @@ static partial class GardeFousSelfTests
         }
         foreach (var label in new[] { "Éléments envoyés", "Boîte d'envoi", "Supprimer", "Valider", "OK", "Déployer", "Réinitialiser les filtres" })
             Assert(ConfirmWord(label) == "", $"free: {label}");
-        Assert(ConfirmWord("Valider", "Confirmer le paiement").Contains("paiement", StringComparison.Ordinal), "context payment");
-        Assert(OutwardWord("Valider", "Paiement sécurisé").Contains("paiement", StringComparison.Ordinal), "outward context payment");
+        Assert(ConfirmWord("Valider", "Confirmer le paiement").Contains("payment", StringComparison.Ordinal), "context payment");
+        Assert(OutwardWord("Valider", "Paiement sécurisé").Contains("payment", StringComparison.Ordinal), "outward context payment");
         Assert(OutwardWord("Valider", "Formatage du disque") == "", "format context is local");
 
         // 4. Keys and blind paste
         Assert(KeyKinds("Control_L+Return").SequenceEqual(["send"]), "Control_L+Return");
         Assert(KeyKinds("alt+E").SequenceEqual(["alt+e"]), "alt+E");
-        Assert(CheckBlindPaste([("key", "ctrl+v", false), ("key", "Enter", false)]).Contains("interdiction de chaîner un collage", StringComparison.Ordinal), "blind paste");
+        Assert(CheckBlindPaste([("key", "ctrl+v", false), ("key", "Enter", false)]).Contains("cannot be chained in the same batch", StringComparison.Ordinal), "blind paste");
 
         // 5. Accords and provenance
         var now = 1000.0;

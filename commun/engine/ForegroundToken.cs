@@ -51,7 +51,7 @@ sealed class ForegroundToken : IDisposable
         var token = new ForegroundToken(stream);
         try
         {
-            var data = EngineJson.SerializeToUtf8Bytes(new ForegroundTokenAcquireJson(owner: "NexusCodex", pid: Environment.ProcessId, since: DateTimeOffset.UtcNow.ToUnixTimeSeconds(), purpose: purpose));
+            var data = EngineJson.SerializeToUtf8Bytes(new ForegroundTokenAcquireJson(owner: "NexusWindows", pid: Environment.ProcessId, since: DateTimeOffset.UtcNow.ToUnixTimeSeconds(), purpose: purpose));
             stream.SetLength(0);
             stream.Write(data);
             stream.Flush();
@@ -79,17 +79,17 @@ static class JulienPause
     {
         if (quietMs is not { } quiet || quiet <= 0) return;
         var info = new Win32.LastInputInfo { Size = (uint)System.Runtime.InteropServices.Marshal.SizeOf<Win32.LastInputInfo>() };
-        if (!Win32.GetLastInputInfo(ref info)) throw new JulienActiveException("Presence de Julien illisible apres la prise du jeton : entree differee, rien n'a ete envoye.");
+        if (!Win32.GetLastInputInfo(ref info)) throw new JulienActiveException("User presence unreadable after taking the token: input deferred, nothing was sent.");
         var idle = unchecked(Win32.GetTickCount() - info.Time);
         if (idle < quiet)
-            throw new JulienActiveException($"Julien utilise le clavier ou la souris (derniere entree il y a {idle} ms, apres l'attente du jeton) : entree differee, rien n'a ete envoye. Reobserver plus tard ; ne jamais rejouer automatiquement.");
+            throw new JulienActiveException($"The user is using the keyboard or mouse (last input {idle} ms ago, after waiting for the token): input deferred, nothing was sent. Observe again later; never replay automatically.");
     }
 }
 
 // Foreground given back to the user UNDER the token, before giving the token back (commun/foreground-token.md): the
 // active window noted when the token was taken is brought back in front, only if the target window (its process) still
 // holds the foreground. If the user moved to another window, nothing is taken from them. States: restored, not-taken
-// (the target does not hold the foreground, or the user was already in the target), kept-by-julien, none (no window to
+// (the target does not hold the foreground, or the user was already in the target), kept-by-user, none (no window to
 // give it back to), refused.
 static class ForegroundReturn
 {
@@ -107,18 +107,18 @@ static class ForegroundReturn
         input ??= Win32.Probe().LastInput;
         bool Moved() => Win32.Probe().LastInput != input;
         if (target == 0 || noted == 0) return "none";
-        if (Moved()) return "kept-by-julien";
+        if (Moved()) return "kept-by-user";
         var fg = Win32.GetForegroundWindow();
         if (fg == noted) return "not-taken";
         var targetPid = Win32.ProcessOf(target);
         if (!sameProcess && Win32.ProcessOf(noted) == targetPid) return "not-taken"; // the user was already in the target application
         if (fg == 0) return "not-taken";
-        if (Win32.ProcessOf(fg) != targetPid) return "kept-by-julien";
+        if (Win32.ProcessOf(fg) != targetPid) return "kept-by-user";
         if (!Restorable(noted)) return "none";
         for (var attempt = 0; attempt < 2; attempt++)
         {
             if (Win32.GetForegroundWindow() != fg) break; // the foreground changed meanwhile: force nothing
-            if (Moved()) return "kept-by-julien";
+            if (Moved()) return "kept-by-user";
             var own = Win32.GetCurrentThreadId();
             var thread = Win32.GetWindowThreadProcessId(fg, out _);
             var attached = thread != 0 && thread != own && Win32.AttachThreadInput(own, thread, true);
@@ -128,11 +128,11 @@ static class ForegroundReturn
             }
             finally { if (attached) Win32.AttachThreadInput(own, thread, false); }
             if (Wait(noted, 150, Moved)) return "restored";
-            if (Moved()) return "kept-by-julien";
+            if (Moved()) return "kept-by-user";
         }
         // No more fallback through a POSTED WM_SYSCOMMAND SC_HOTKEY: an expired wait does not remove the message from the
         // queue, which could reactivate the old window after the token and after the user's choice (Codex's review, 21/10).
-        return Win32.GetForegroundWindow() is var now && now != 0 && Win32.ProcessOf(now) != targetPid && now != noted ? "kept-by-julien" : "refused";
+        return Win32.GetForegroundWindow() is var now && now != 0 && Win32.ProcessOf(now) != targetPid && now != noted ? "kept-by-user" : "refused";
     }
     static bool Wait(nint window, int ms, Func<bool>? stop = null)
     {

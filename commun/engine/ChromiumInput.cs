@@ -161,8 +161,8 @@ static partial class ChromiumInput
             {
                 EmergencyStop.ThrowIfStopped();
                 if (Top(Win32.GetForegroundWindow()) == top)
-                    throw sent == 0 ? new BackgroundNotApplicableException("Julien switched to the window: nothing was typed")
-                        : new InvalidOperationException("Julien switched to the window while typing: typing stopped");
+                    throw sent == 0 ? new BackgroundNotApplicableException("The user switched to the window: nothing was typed")
+                        : new InvalidOperationException("The user switched to the window while typing: typing stopped");
                 var focus = Call(new ProgramForegroundActionJson(op: "hasFocus", windowId: (long)window, runtimeId: target.RuntimeId, nativeWindow: (long)target.NativeWindow), deadline);
                 if (focus.Effect != "applied")
                     throw sent == 0 ? new BackgroundNotApplicableException("The field lost the focus: nothing was typed")
@@ -246,7 +246,7 @@ static partial class ChromiumInput
                 Primed.Add(pid);
             }
             if (Top(Win32.GetForegroundWindow()) == top)
-                throw new BackgroundNotApplicableException("Julien switched to the window: nothing was typed");
+                throw new BackgroundNotApplicableException("The user switched to the window: nothing was typed");
             return new(act(top, deadline), taken, giveBack);
         }
         catch (Exception error) when (error is not (BackgroundNotApplicableException or EmergencyStopException or ActionRefusedException or JulienActiveException or AfterInputException))

@@ -13,6 +13,10 @@ static partial class McpServer
         public int Next;
         public Dictionary<string, int> Ids = new(StringComparer.Ordinal);
         public Dictionary<int, string> Lines = new();
+        // What "changes" compares: each element's line without position, and its centre in the window's own frame
+        // (README: moving the window is not a change, a scroll is a move); kept whether or not an image is shown.
+        public Dictionary<int, string> Contents = new();
+        public Dictionary<int, string> Places = new();
         public HashSet<int> Shown = new();
         public JsonObject? Image;
         public Dictionary<string, string> Sent = new(StringComparer.Ordinal);
@@ -101,6 +105,27 @@ static partial class McpServer
             line += $" @{Math.Round(x)},{Math.Round(y)}";
         }
         return line;
+    }
+    // Centre of an element in its window's own frame ("" without bounds or frame): moving the window changes nothing.
+    internal static string PlaceInWindow(JsonObject element, JsonObject? frame)
+    {
+        if (frame == null || element["bounds"] is not JsonArray { Count: 4 } b) return "";
+        var x = b[0]!.GetValue<double>() + b[2]!.GetValue<double>() / 2 - Number(frame, "left");
+        var y = b[1]!.GetValue<double>() + b[3]!.GetValue<double>() / 2 - Number(frame, "top");
+        return $"{Math.Round(x)},{Math.Round(y)}";
+    }
+    // [2-21] [25] [30-31]: indices grouped into consecutive runs.
+    internal static string IndexRanges(IEnumerable<int> indices)
+    {
+        var parts = new List<string>(); int? start = null, end = null;
+        foreach (var i in indices.Order())
+        {
+            if (end == i - 1) { end = i; continue; }
+            if (start != null) parts.Add(start == end ? $"[{start}]" : $"[{start}-{end}]");
+            start = end = i;
+        }
+        if (start != null) parts.Add(start == end ? $"[{start}]" : $"[{start}-{end}]");
+        return string.Join(" ", parts);
     }
     // Number of descendants of each element, from the ancestor chains every element carries.
     internal static Dictionary<int, int> ParentCounts(JsonObject snapshot)
@@ -297,13 +322,26 @@ static partial class McpServer
         // even after a narrow query (31/10: a filtered look followed by changes listed everything as new).
         var allLines = Elements(snapshot).OfType<JsonObject>().ToDictionary(e => (int)Number(e, "index"), e => NativeLine(e, reference));
         var previousLines = memory.Lines;
+        var contents = Elements(snapshot).OfType<JsonObject>().ToDictionary(e => (int)Number(e, "index"), e => NativeLine(e, null));
+        var places = Elements(snapshot).OfType<JsonObject>().ToDictionary(e => (int)Number(e, "index"), e => PlaceInWindow(e, snapshot["frame"] as JsonObject));
+        var previousContents = memory.Contents; var previousPlaces = memory.Places;
         var changed = show == "changes" && previousLines.Count > 0;
-        var candidates = Elements(snapshot).OfType<JsonObject>().Where(e => Wanted(e) && Inside(e) && !Noise(e))
-            .Where(e => !changed || !previousLines.TryGetValue((int)Number(e, "index"), out var old) || old != allLines[(int)Number(e, "index")]).ToList();
-        var listed = candidates.Take(maximum).ToList();
+        bool Moved(int i) => previousPlaces.TryGetValue(i, out var was) && was.Length > 0 && places[i].Length > 0 && was != places[i];
+        bool Differs(int i) => !previousContents.TryGetValue(i, out var old) || old != contents[i] || Moved(i);
+        var visible = Elements(snapshot).OfType<JsonObject>().Where(e => Wanted(e) && Inside(e) && !Noise(e)).ToList();
+        var candidates = visible.Where(e => !changed || Differs((int)Number(e, "index"))).ToList();
+        // When almost everything changed (60 %), the full list says more than a list of changes (README).
+        var mostChanged = changed && visible.Count > 0 && candidates.Count >= 0.6 * visible.Count;
+        if (mostChanged) { changed = false; candidates = visible; }
+        // A common scroll: elements whose only change is their place become one line of index ranges.
+        var movedOnly = changed ? candidates.Select(e => (int)Number(e, "index")).Where(i => previousContents.TryGetValue(i, out var old) && old == contents[i] && Moved(i)).ToHashSet() : [];
+        if (movedOnly.Count < 2) movedOnly.Clear();
+        var listed = candidates.Where(e => !movedOnly.Contains((int)Number(e, "index"))).Take(maximum).ToList();
         var lines = listed.ToDictionary(e => (int)Number(e, "index"), e => allLines[(int)Number(e, "index")]);
         var removed = changed ? previousLines.Where(p => !allLines.ContainsKey(p.Key) && (query.Length == 0 || alternatives.Any(a => p.Value.Contains(a, StringComparison.OrdinalIgnoreCase)))).Select(p => "- " + p.Value).ToList() : [];
         var rendered = changed ? lines.Select(p => (previousLines.ContainsKey(p.Key) ? "~ " : "+ ") + p.Value).Concat(removed).ToList() : lines.Values.ToList();
+        if (movedOnly.Count > 0) rendered.Insert(0, $"~ {IndexRanges(movedOnly)} moved");
+        if (mostChanged) rendered.Insert(0, "Most of the window changed: full list.");
         if (changed && rendered.Count == 0) rendered = ["No visible element change since the previous look."];
         if (show == "text") rendered = [Str(snapshot["accessibility"], "document_text")];
         if (show is "none" or "image") rendered.Clear();
@@ -319,7 +357,7 @@ static partial class McpServer
         // A narrowed look (query, within) adds what it lists to what the previous looks showed, instead of hiding it (05/11:
         // "This index was not displayed" for a button listed by the full look just before). Each #N still carries its
         // identity, checked again before any input.
-        memory.Lines = allLines; memory.Shown = table != null ? [within] : changed || query.Length > 0 || within >= 0 ? memory.Shown.Where(allLines.ContainsKey).Concat(lines.Keys).ToHashSet() : listed.Select(e => (int)Number(e, "index")).ToHashSet();
+        memory.Lines = allLines; memory.Contents = contents; memory.Places = places; memory.Shown = table != null ? [within] : changed || query.Length > 0 || within >= 0 ? memory.Shown.Where(allLines.ContainsKey).Concat(lines.Keys).ToHashSet() : listed.Select(e => (int)Number(e, "index")).ToHashSet();
         if (shot?["marks"]?["drawn"] is JsonArray drawn && wantsImage) foreach (var shown in drawn) memory.Shown.Add(shown!.GetValue<int>());
         var routines = new NativeRoutineMemory(state.Agent, target.App); routines.Sync();
         var data = snapshot.DeepClone().AsObject(); data["observation"] = id; data["window"] = target.Id; data["hwnd"] = target.Id; data["title"] = target.Title; data["routines"] = routines.List();
@@ -357,7 +395,7 @@ static partial class McpServer
             var areaKey = (args["region"] ?? args["zoom"])?.ToJsonString() ?? "full";
             var print = Routines.Digest(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)) + shot["frame"]!.ToJsonString());
             data["image"] = shotId; data["capture"] = shot.DeepClone();
-            if (show != "image" && memory.Sent.TryGetValue(areaKey, out var oldPrint) && oldPrint == print) content.Add(EngineJson.Node(TextBlock("Image unchanged: same pixels and frame; show=image resends it.")));
+            if (!modern && show != "image" && memory.Sent.TryGetValue(areaKey, out var oldPrint) && oldPrint == print) content.Add(EngineJson.Node(TextBlock("Image unchanged: same pixels and frame; show=image resends it.")));
             else { content.Add(EngineJson.Node(TextBlock($"image {shotId}; {shot.ToJsonString(JsonOut)}"))); content.Add(EngineJson.Node(new JsonObject { ["type"] = "image", ["data"] = Convert.ToBase64String(bytes), ["mimeType"] = Str(shot, "mimeType") })); memory.Sent[areaKey] = print; }
         }
         state.CurrentObservation = EngineJson.SerializeToElement(snapshot); state.CurrentObservationId = id; state.ObservedAt = DateTimeOffset.UtcNow;
