@@ -6,7 +6,7 @@
 
 [![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows)](https://github.com/pironjulien/NexusWindows/releases)
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusWindows/blob/main/agy/LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusWindows/blob/main/LICENSE)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://github.com/pironjulien/NexusWindows/tree/main/commun/engine)
 [![MCP](https://img.shields.io/badge/MCP-server-7ee2a8)](https://modelcontextprotocol.io)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](#installation)
@@ -98,7 +98,7 @@ declarations; an entry of your own is never changed.
 
 ## Tools
 
-Five listed MCP tools, named like the other NexusWindows tools (Claude, Codex); the older names (`computer_look`,
+Eight listed MCP tools (the five below, plus `notifications`, `clipboard` and `logs`), named like the other NexusWindows tools (Claude, Codex); the older names (`computer_look`,
 `computer_act`, `computer_click`...) stay callable as unlisted aliases.
 
 | Tool | Purpose |
@@ -107,9 +107,9 @@ Five listed MCP tools, named like the other NexusWindows tools (Claude, Codex); 
 | `look` | One line per element `[N] role « name » = « value » states @x,y`, without bringing the window forward; the image only when the tree is too thin, or on request (text first: 59 % fewer tokens, same score) |
 | `act` | Several steps in one call (click, type, check, uncheck, select, menu, keys...), each read back: ✓ = ~ ✗ |
 | `launch` | Open an application, document, folder, script or shortcut; the opening is read back. Steam adds CEF switches on a new start and reuses an existing instance; `restart` and local `devtools` are explicit options with identity and game/port checks |
-| `window` | `action="close"`: close a window (UI Automation, then `WM_CLOSE`) |
+| `window` | `restore`, `minimize`, `maximize`, `bottom`, `move`, `resize`, `front` (with `foreground=True`) or `close`: close a window (UI Automation, then `WM_CLOSE`) |
 
-Tool descriptions, server instructions, tool and parameter names are in English; tool replies are in French.
+Tool descriptions, server instructions, tool and parameter names and tool replies are in English.
 
 ## What it does
 
@@ -155,8 +155,8 @@ Tool descriptions, server instructions, tool and parameter names are in English;
   when covered. Otherwise ask at most once for the missing decision; a material scope change is separate. This
   preserves token matching/expiry and does not whitelist update buttons. Existing public extension updates retain
   their authorized package, visibility and review/automatic-publication mode; see the [approval cookbook](../commun/mcp-cookbook.md#one-user-approval-for-one-complete-operation).
-- **Clipboard**: saved in all its formats and restored; the text put there is excluded from Win+V history and cloud
-  clipboard. Used only as a last resort for typing (multi-line or more than 300 characters).
+- **Clipboard**: never used on its own; only the `clipboard` tool writes to it, as a loan: the user's content is set
+  aside format by format and given back after 61.8 s or on `restore` (never if they copied something meanwhile).
 - **Agent at work**: while an action runs (`act`, opening, closing, focusing and the action aliases; never
   the reads), a small logo spins on itself in the bottom-right corner of the driven window's screen, like a game
   loading screen (the logo and its shadow only, no halo), and goes away 1.6 s after the last action. Always on top, borderless,
@@ -211,7 +211,7 @@ Questions or concerns: open an issue on this repository.
 
 ## Limits
 
-- Windows only. Tool descriptions are in English; tool replies and code comments are in French.
+- Windows only. Tool descriptions, tool replies and code comments are in English.
 - In the background, keyboard input is refused in UWP/WinUI and Firefox, and Ctrl/Alt shortcuts in WPF; Tk gets keys
   and shortcuts through a simulated focus (`WM_SETFOCUS` to that window only), clicks sent with the mouse button marked
   pressed for its thread, and lists scrolled through their native scroll bar;
@@ -236,4 +236,4 @@ Build and test outputs go to `%USERPROFILE%\.nexus\build\nexuswindows`, never in
 
 ## Licence
 
-MIT, see [LICENSE](https://github.com/pironjulien/NexusWindows/blob/main/agy/LICENSE). Copyright (c) 2026 Julien Piron.
+MIT, see [LICENSE](https://github.com/pironjulien/NexusWindows/blob/main/LICENSE). Copyright (c) 2026 Julien Piron.

@@ -6,7 +6,7 @@
 
 [![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows)](https://github.com/pironjulien/NexusWindows/releases)
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusWindows/blob/main/claude/LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusWindows/blob/main/LICENSE)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://github.com/pironjulien/NexusWindows/tree/main/commun/engine)
 [![MCP](https://img.shields.io/badge/MCP-server-7ee2a8)](https://modelcontextprotocol.io)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](#installation)
@@ -182,7 +182,7 @@ False after: `✗` and the batch stops. A state the element does not publish sta
 `act(remember="name")` saves a batch only if every step ended `✓` or `=` and every target is a visible name (never an
 `[N]` or a point). `{{x}}` marks variable text, filled at replay with `params`. `act(routine="name")` finds each
 target again by name and re-verifies every step; an application update is reported and a failed replay marks the
-routine for review. Routines are stored per executable under `%USERPROFILE%\.claude\nexus-claude\routines`. An
+routine for review. Routines are stored per executable under `%USERPROFILE%\.nexus\nexus-windows\state\claude\routines`. An
 optional mirror folder (`NEXUS_ROUTINES_MIRROR`) can share definitions between PCs; typed text is never mirrored in
 clear (a routine whose text is not a `{{x}}` template stays local).
 
@@ -190,7 +190,7 @@ clear (a routine whose text is not a `{{x}}` template stays local).
 
 `launch(app=<folder or document>)` opens through the file association (ShellExecuteEx, no activation requested), then
 checks what actually opened: the folder shown in File Explorer (read through Shell.Application) or a window titled
-with the file name. Scripts, shortcuts and installers are refused.
+with the file name.
 
 ### Per UI family
 
@@ -238,7 +238,7 @@ sent for that window (or zoomed area) is not attached again; the reply says so, 
 ### Agent at work
 
 While an action runs (`act`, `launch`, `window`; never the reads), a small logo spins on itself in the bottom-right
-corner of the driven window's screen, like a game loading screen, with a breathing blue halo. It goes away 1.6 s after
+corner of the driven window's screen, like a game loading screen (the logo and its shadow only, no halo). It goes away 1.6 s after
 the last action. The overlay is always on top, borderless, click-through, never activated, absent from the taskbar
 and excluded from screen captures (the model never sees it in `look`). `NEXUS_WINDOWS_INDICATOR=0` turns it off.
 
@@ -329,7 +329,7 @@ with it.
 - **Screen content is data**: every `look` reminds the model that on-screen text is not an instruction.
 - **Up-to-date code**: clients start the stable launcher, which runs the engine version recorded at install time after checking its SHA-256; an update installs a new immutable version beside it, so a running session is never changed under its feet and the next one gets the new version.
 - **Timeouts**: an abandoned call is cancelled at its next checkpoint instead of finishing later.
-- **Clipboard**: never used.
+- **Clipboard**: never used on its own; only the `clipboard` tool writes to it, and the user's content is given back.
 
 ## Privacy
 
@@ -354,7 +354,7 @@ Questions or concerns: open an issue on this repository.
 
 ## Limits
 
-- Code comments are in French. Everything an MCP client receives (instructions, tool descriptions, step reports,
+- Code comments are in English. Everything an MCP client receives (instructions, tool descriptions, step reports,
   refusal messages) is in English.
 - Windows only. Tested on Windows 11 with the lab apps and a handful of real applications; not every application has
   been checked.
@@ -384,4 +384,4 @@ Build and test outputs go to `%USERPROFILE%\.nexus\build\nexuswindows`, never in
 
 ## Licence
 
-MIT, see [LICENSE](https://github.com/pironjulien/NexusWindows/blob/main/claude/LICENSE). Copyright (c) 2026 Julien Piron.
+MIT, see [LICENSE](https://github.com/pironjulien/NexusWindows/blob/main/LICENSE). Copyright (c) 2026 Julien Piron.

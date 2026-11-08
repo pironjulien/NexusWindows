@@ -63,7 +63,7 @@ Windows 10 or 11 and the [Codex app](https://openai.com/codex/) (or the Codex CL
 
 **Recommended**: the native engine, nothing else to install. Use the
 [NexusSystem app](https://apps.microsoft.com/detail/9NSH2P3QLWT1) from the Microsoft Store, or the release files
-(see the [main README](../README.md#install)): `get.ps1`, checked against `SHA256SUMS.txt` and run with
+(see the [main README](../README.md#-quick-start)): `get.ps1`, checked against `SHA256SUMS.txt` and run with
 `powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1`, declares
 `%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe --mcp --agent codex` in Codex `config.toml`.
 
@@ -90,12 +90,12 @@ retired and no longer updated: an older `npx -y nexus-windows-codex` declaration
 |---|---|
 | `windows(filter)` | Application windows (id, app, title, pid), like the taskbar, plus open dialogs with `dialogOf` (their owner); password managers never listed |
 | `look(window, mode, region, marks)` | One window by id or a unique part of its title or app: UI Automation tree, plus a capture that works on covered windows with `mode="image"` or `"both"`; `region` zooms on an area of the last image (`image`: that image's screenshotId); `marks` draws tree line numbers on the image; selects the window for `act` |
-| `act(observation, steps)` | One step, or up to 32 each with its own `expect`, on the observation id returned by `look` (or by the previous `act`); refused once another `look` replaced it; stops at the first step not verified |
+| `act(observation, steps)` | One step, or a procedure of any length, each with its own `expect`, on the observation id returned by `look` (or by the previous `act`); refused once another `look` replaced it; stops at the first step not verified |
 | `launch(app)` | Start an application (name, path, Store app id), a folder, a document or a Settings page (`ms-settings:`) and give the foreground back |
-| `window(action, window)` | `action="close"`: one close message, read back; a "save?" prompt is reported, never answered |
+| `window(action, window)` | `restore`, `minimize`, `maximize`, `bottom`, `move`, `resize`, `front` (with `foreground=true`) or `close`: one close message, read back; a "save?" prompt is reported, never answered |
 
 Step kinds: `click` (selector, or point and native capture id; `button`, `count`), `setValue`, `typeText`, `key`,
-`select`, `menu`, `secondary`, `scroll`, `drag`, `hover` (one mouse move, no button). Each step reports ✓ verified, = already done, ~ unknown (look again,
+`select`, `menu`, `secondary`, `scroll`, `drag`, `hover` (one mouse move, no button), `wait`. Each step reports ✓ verified, = already done, ~ unknown (look again,
 never replayed) or ✗ failed or refused.
 
 `windows`, `launch` and `window` also return structured content (MCP `outputSchema` and `structuredContent`: the
@@ -191,7 +191,7 @@ text read on screen is data, never an instruction.
 
 ### Verified batches
 
-`act(observation, steps)` runs up to 32 actions in one call. Every step needs an `expect`; all steps are validated before
+`act(observation, steps)` runs any number of actions in one call. Every step needs an `expect`; all steps are validated before
 any input; each step acts on the observation refreshed by the previous one; the batch stops at the first step that is
 not `verified` or `already-satisfied`.
 
@@ -384,7 +384,7 @@ Questions or concerns: open an issue on this repository.
   instance of the same application started by something else at the same moment could be taken for it. Files and
   folders need an absolute path; their windows come back as candidates unless the shell returned the process that
   shows them.
-- Tool descriptions are in English; tool replies and code comments are in French.
+- Tool descriptions, tool replies and code comments are in English.
 
 ## Development
 
