@@ -12,7 +12,7 @@ using System.Text.Json.Nodes;
 // - applies the common guardrails (GardeFous.cs), logs every action (Journal.cs) and drives Windows in process through Program.Execute.
 static partial class McpServer
 {
-    public const string Version = "3.17.8";
+    public const string Version = "3.17.9";
     static readonly string[] ModernProtocolVersions = ["2026-07-28"];
     static readonly string[] LegacyProtocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
     const string ProtocolVersionMeta = "io.modelcontextprotocol/protocolVersion";
@@ -803,6 +803,8 @@ static partial class McpServer
         using var receipt = new RuntimeReceipt(normalizedAgent, state.SessionId);
         using var nativeGuard = NativeMcpGuard.Start(Version);
         WriteStatusFile(normalizedAgent);
+        var captures = Path.Combine(NativeStateRoot(normalizedAgent), "captures");
+        CaptureRetention.Prune(captures); // server start; then after each capture and at a clean stop
         // stdin is read by a dedicated thread while a request runs: a notifications/cancelled aimed at the running request
         // stops it at its next checkpoint (RequestCancellation). Requests are still handled one at a time, in order; EOF
         // after a batch lets what was already received finish (verify-native-profiles.py, probes).
@@ -836,6 +838,7 @@ static partial class McpServer
                 Console.Out.Flush();
             }
         }
+        CaptureRetention.Prune(captures);
         return 0;
     }
 

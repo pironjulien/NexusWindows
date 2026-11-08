@@ -94,7 +94,8 @@ public class SharedProtocolProcessTests
         nonce = Guid.NewGuid().ToString("N")[..12],
     }));
 
-    const string Stopped = "Arrêt d'urgence demandé par Julien";
+    // The engine speaks the Windows display language (English, or French on a French Windows); never a person's name.
+    const string Stopped = @"^(Emergency stop requested by the user \(Ctrl\+Alt\+Shift\+Esc\): no more actions for another \d+ s; do not work around it\. |Arrêt d'urgence demandé par l'utilisateur \(Ctrl\+Alt\+Maj\+Échap\) : plus aucune action pendant encore \d+ s ; ne pas contourner\. )";
     static readonly string Click = JsonSerializer.Serialize(new { operation = "click", windowId = 0, app = "none", selector = new { name = "x" }, runtimeId = Array.Empty<int>() });
 
     [Fact]
@@ -107,8 +108,7 @@ public class SharedProtocolProcessTests
             var (code, token) = Run(home, "", "--foreground-token", "stop test");
             Assert.Equal(1, code);
             Assert.Equal("EmergencyStopException", token["error"]!.GetValue<string>());
-            Assert.Contains(Stopped, token["message"]!.GetValue<string>());
-            Assert.Matches(@"plus aucune action pendant encore \d+ s ; ne pas contourner", token["message"]!.GetValue<string>());
+            Assert.Matches(Stopped, token["message"]!.GetValue<string>());
 
             var (_, action) = Run(home, Click);
             Assert.Equal("EmergencyStopException", action["error"]!.GetValue<string>());
@@ -119,6 +119,17 @@ public class SharedProtocolProcessTests
             Assert.NotEqual("EmergencyStopException", after["error"]?.GetValue<string>());
         }
         finally { DeleteHome(home); }
+    }
+
+    [Fact]
+    public void The_stop_message_is_English_by_default_French_on_a_French_Windows_and_names_nobody()
+    {
+        var english = EmergencyStop.Message(41.2, System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+        var french = EmergencyStop.Message(41.2, System.Globalization.CultureInfo.GetCultureInfo("fr-FR"));
+        Assert.StartsWith("Emergency stop requested by the user (Ctrl+Alt+Shift+Esc): no more actions for another 42 s", english);
+        Assert.StartsWith("Arrêt d'urgence demandé par l'utilisateur (Ctrl+Alt+Maj+Échap) : plus aucune action pendant encore 42 s", french);
+        Assert.Equal(english, EmergencyStop.Message(41.2, System.Globalization.CultureInfo.GetCultureInfo("de-DE")));
+        foreach (var message in new[] { english, french }) Assert.DoesNotContain("Julien", message);
     }
 
     [Fact]

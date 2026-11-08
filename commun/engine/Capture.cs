@@ -138,6 +138,7 @@ static partial class Capture
                 file = Path.Combine(directory, Guid.NewGuid().ToString("N") + encoded.Extension);
                 File.WriteAllBytes(file, encoded.Bytes);
                 lock (LastGate) Last = (file, pixels, crop); // full resolution, without marks: read by Recognize
+                CaptureRetention.Prune(directory);
             }
             return new CaptureWindowJson(
                 ok: true, method: method, wgcError: wgcError, path: file, width: imageWidth, height: imageHeight, scale: scale, blank: blank, encoding: encoding, mimeType: mimeType,

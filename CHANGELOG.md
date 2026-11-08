@@ -11,13 +11,20 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+## [3.17.9] - 2026-11-08
+
 ### Changed
 - `look`: an image or text without action, value or focus that only repeats its parent's name or value (Gemini's
   cards list each title as a button then an image; an edit repeats its value as text) is no longer listed; the summary
   counts these labels and `detail="full"` still lists them. On Gemini's home page the default list drops from 132 to
   105 elements (text −17 %), and a query for a card title finds one target instead of two.
+- Emergency stop: the message sent to the model is in English, or in French when the Windows display language is
+  French, and names no one ("requested by the user").
 
 ### Fixed
+- Local captures are now really removed after 10 minutes and kept 32 at most, after each capture, at server start and
+  at a clean stop, as the README promised; nothing removed them before, so thousands piled up under
+  `%USERPROFILE%\.nexus\nexus-windows\state\<agent>\captures`. Only the engine's own capture files are touched.
 - COM worker: a failure inside the UI Automation worker (for example a click with no background pattern, such as
   Gemini's "Plus" menu button) is written back with its cause again; its record had no source-generated JSON
   metadata, so the worker died serializing it and the step only said "worker exited; outcome unknown".
@@ -926,7 +933,8 @@ took 64 s and 14 calls; Codex now takes three calls and about 2 s, with no foreg
 - A UIA or Win32 input whose effect is not confirmed no longer triggers another technique or a physical click;
   repeated inputs require a newer observation of the same window; `expanded` and `focused` postconditions are checked.
 
-[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.8...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.9...HEAD
+[3.17.9]: https://github.com/pironjulien/NexusWindows/compare/v3.17.8...v3.17.9
 [3.17.8]: https://github.com/pironjulien/NexusWindows/compare/v3.17.7...v3.17.8
 [3.17.7]: https://github.com/pironjulien/NexusWindows/compare/v3.17.6...v3.17.7
 [3.17.6]: https://github.com/pironjulien/NexusWindows/compare/v3.17.5...v3.17.6

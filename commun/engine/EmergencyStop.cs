@@ -13,7 +13,6 @@ static partial class EmergencyStop
 {
     public const double HoldSeconds = 120;
     const int HeartbeatMs = 3000, WatchMs = 200;
-    const string HotkeyLabel = "Ctrl+Alt+Maj+Échap";
     static readonly object Gate = new();
     static readonly Stopwatch Clock = Stopwatch.StartNew();
     static double latchedUntil; // Clock seconds; never moves backwards.
@@ -56,9 +55,16 @@ static partial class EmergencyStop
         lock (Gate) return Math.Max(latchedUntil - Clock.Elapsed.TotalSeconds, 0);
     }
 
-    public static string Message(double remaining) =>
-        $"Arrêt d'urgence demandé par Julien ({HotkeyLabel}) : plus aucune action pendant encore {Math.Ceiling(remaining)} s ; ne pas contourner. " +
-        "Attendre ses instructions dans la conversation ; une action refusée ainsi ne doit jamais être rejouée.";
+    // English by default, French when the Windows display language is French; never a person's name (public product).
+    public static string Message(double remaining, System.Globalization.CultureInfo? culture = null)
+    {
+        var seconds = Math.Ceiling(remaining);
+        return (culture ?? System.Globalization.CultureInfo.CurrentUICulture).TwoLetterISOLanguageName == "fr"
+            ? $"Arrêt d'urgence demandé par l'utilisateur (Ctrl+Alt+Maj+Échap) : plus aucune action pendant encore {seconds} s ; ne pas contourner. " +
+              "Attendre ses instructions dans la conversation ; une action refusée ainsi ne doit jamais être rejouée."
+            : $"Emergency stop requested by the user (Ctrl+Alt+Shift+Esc): no more actions for another {seconds} s; do not work around it. " +
+              "Wait for their instructions in the conversation; an action refused this way must never be replayed.";
+    }
 
     // Checkpoint before every desktop action (input, foreground, UIA pattern). Observations never call it.
     public static void ThrowIfStopped()

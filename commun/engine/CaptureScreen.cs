@@ -75,7 +75,7 @@ static partial class Capture
             // A manager/UAC appearing during acquisition invalidates the whole capture; no file is published.
             CheckDesktopCapture();
             var encoded = Encode(pixels, width, height); Directory.CreateDirectory(directory);
-            var file = Path.Combine(directory, Guid.NewGuid().ToString("N") + encoded.Image.Extension); File.WriteAllBytes(file, encoded.Image.Bytes);
+            var file = Path.Combine(directory, Guid.NewGuid().ToString("N") + encoded.Image.Extension); File.WriteAllBytes(file, encoded.Image.Bytes); CaptureRetention.Prune(directory);
             return new CaptureScreenJson(ok: true, method: "desktop-bitblt", path: file, width: encoded.Width, height: encoded.Height,
                 mimeType: encoded.Image.MimeType, size_bytes: encoded.Image.Bytes.Length, encoding: encoded.How,
                 frame: new CaptureWindowJson2(left: left, top: top, width: width, height: height), full_screen: true);
