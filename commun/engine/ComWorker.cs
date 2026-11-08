@@ -36,8 +36,10 @@ static partial class ComWorker
     // Boundary of the request: false as long as no call that can act (pattern, focus) has been tried. An emergency stop
     // before it is marked "before any pattern" (Codex's review of 24/10); after it, the outcome stays unknown.
     [ThreadStatic] internal static bool Acted;
-    internal sealed record WorkerFailure(bool ok, string error, string message, bool beforeInput);
-    internal static WorkerFailure Failure(Exception error) => new(false, error.GetType().Name, error.Message, !Acted);
+    // Named *Json so the shape check of the test suite requires its source-generated metadata: without it the worker
+    // died serializing its own failure and every refused click became "worker exited; outcome unknown" (08/11, Gemini).
+    internal sealed record WorkerFailureJson(bool ok, string error, string message, bool beforeInput);
+    internal static WorkerFailureJson Failure(Exception error) => new(false, error.GetType().Name, error.Message, !Acted);
     static void BeforeAct()
     {
         try { EmergencyStop.ThrowIfStopped(); }

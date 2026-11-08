@@ -70,6 +70,7 @@ static class EngineJson
 [JsonSerializable(typeof(ComWorkerExecuteJson))]
 [JsonSerializable(typeof(ComWorkerRealizeNamedJson))]
 [JsonSerializable(typeof(ComWorkerResumeStoreJson))]
+[JsonSerializable(typeof(ComWorker.WorkerFailureJson))]
 [JsonSerializable(typeof(decimal))]
 [JsonSerializable(typeof(double))]
 [JsonSerializable(typeof(double?))]

@@ -18,6 +18,9 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
   105 elements (text −17 %), and a query for a card title finds one target instead of two.
 
 ### Fixed
+- COM worker: a failure inside the UI Automation worker (for example a click with no background pattern, such as
+  Gemini's "Plus" menu button) is written back with its cause again; its record had no source-generated JSON
+  metadata, so the worker died serializing it and the step only said "worker exited; outcome unknown".
 - Tests: the error-mode check in a child process expects only the two bits always inherited
   (`SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX`): the runtime briefly sets exactly those two while it loads a
   native library on another thread, so a child started in that window lacked `SEM_NOGPFAULTERRORBOX` and the check
