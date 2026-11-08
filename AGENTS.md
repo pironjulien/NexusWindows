@@ -15,3 +15,13 @@
 - Never send a second technique after a first one was sent for the same step (no double action).
 - Restart Antigravity through its Start menu shortcut, which carries `--remote-debugging-port`; launching
   `Antigravity.exe` directly loses the port and cuts the relay and the keypad off from it.
+
+## Decisions
+
+- Every improvement goes through the shared bench (outside Git, linked at `commun\benchmarks\windows`; `RECETTES.md`
+  lists the proven techniques and the state of each profile). The bench starts after 120 s without keyboard or mouse
+  and stops at the user's first input; a foreground (intrusive) bench runs only while the user is away.
+- Declined, do not propose again: a COM driver for Word/Excel (they go through the UI or the docx/xlsx skills) and a
+  visible agent cursor.
+- The brief flash menus at the top left while an app is driven in the background are accepted; never move or rearrange
+  real app windows to hide them (apps remember their position). Only the bench places its lab windows bottom right.
