@@ -313,7 +313,7 @@ WinForms, WPF, Electron, Edge), the application as the judge, 116 trials each.
 | Real effect | **102** | 50 |
 | False success (reported done, the app got nothing) | **0** | 16 |
 | Refused before sending anything (needs the foreground) | 14 | 0 |
-| Trials with an intrusion (foreground, cursor or clipboard) | 4 (WPF Ctrl+K: brief foreground lease, 3.4 to 3.9 s; launch: activation event only, 0 ms) | 11 |
+| Trials with an intrusion (foreground, cursor or clipboard) | 4 (WPF Ctrl+K: brief foreground lease, 1.2 to 1.4 s since 3.17.11, 3.4 to 3.9 s before; launch: activation event only, 0 ms) | 11 |
 
 Raw results and every task are in that folder. Benchmarks of the earlier Python engine (October 2026) were retired
 with it.

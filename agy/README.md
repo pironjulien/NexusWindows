@@ -129,7 +129,7 @@ Tool descriptions, server instructions, tool and parameter names and tool replie
   read back; plain keys are posted (`WM_KEYDOWN`/`WM_KEYUP`) in Win32, WinForms and WPF. Real mouse and keyboard only
   as a fallback with `foreground=True`; otherwise an explicit refusal (`needs_foreground`) and nothing is sent. One
   exception: a key the application ignores when posted (WPF Ctrl+K) goes by the real keyboard in a brief foreground
-  lease once the user pauses, their window given back at once (3.4 to 3.9 s on the 9 November 2026 bench);
+  lease once the user pauses, their window given back at once (1.2 to 1.4 s in front on the 9 November 2026 bench, 3.17.11);
   `fallback:false` on the step refuses it instead.
 - **Per UI family**: Win32 → direct messages (`BN_CLICKED`, `BM_SETCHECK`, `EM_REPLACESEL`, `CB_SETCURSEL` /
   `LB_SETCURSEL` with their notifications, menu `WM_COMMAND`); WinForms → UI Automation then messages; WPF, UWP,
@@ -181,7 +181,7 @@ WinForms, WPF, Electron, Edge), the application as the judge, 116 trials each.
 | Real effect | **102** | 50 |
 | False success (reported done, the app got nothing) | **0** | 16 |
 | Refused before sending anything (needs the foreground) | 14 | 0 |
-| Trials with an intrusion (foreground, cursor or clipboard) | 4 (WPF Ctrl+K: brief foreground lease, 3.4 to 3.9 s; launch: activation event only, 0 ms) | 11 |
+| Trials with an intrusion (foreground, cursor or clipboard) | 4 (WPF Ctrl+K: brief foreground lease, 1.2 to 1.4 s since 3.17.11, 3.4 to 3.9 s before; launch: activation event only, 0 ms) | 11 |
 
 Raw results and every task are in that folder. Benchmarks of the earlier Python engine (October 2026) were retired
 with it.

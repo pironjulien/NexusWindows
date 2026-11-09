@@ -33,7 +33,8 @@ released 8 November 2026). Cua is pre-release software; these are Windows result
 Cua's two launch trials are not counted: its launched window was not covered when captured, so the trial was invalid.
 
 NexusWindows' intrusions, per profile: Ctrl+K on WPF (2), which WPF ignores when posted and which goes by the real
-keyboard in a brief foreground lease (3.4 to 3.9 s in front, window given back); and the launch (2), where Windows
+keyboard in a brief foreground lease (3.4 to 3.9 s in front, window given back; 1.2 to 1.4 s since 3.17.11, same
+task rerun the same day, effect 6/6); and the launch (2), where Windows
 signals an activation of the newly started app that never reached the front ("event only", 0 ms).
 Since 3 November: Ctrl+K on WPF went from refused to done; the rest is unchanged.
 

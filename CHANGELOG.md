@@ -11,9 +11,17 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+## [3.17.11] - 2026-11-09
+
+### Fixed
+- A key the application ignores when posted (WPF Ctrl+K) stays 1.2 to 1.4 s in front instead of 3.4 to 3.9 s (bench of
+  9 November 2026, effect 6 of 6 for each profile): inside its brief foreground lease the window is read once, by the
+  key's entry guard (focus, password and gesture guards unchanged), instead of three times, and the key goes straight
+  to the real keyboard since the background was already refused before any input.
+
 ### Changed
 - Claude and Antigravity READMEs describe the brief foreground lease of a key the application ignores when posted
-  (WPF Ctrl+K: 3.4 to 3.9 s in front on the 9 November 2026 bench, once the user pauses, `fallback:false` refuses it);
+  (WPF Ctrl+K: 1.2 to 1.4 s in front, once the user pauses, `fallback:false` refuses it);
   they promised a plain refusal without `foreground=true`.
 - Claude README: Anthropic's computer use is a beta for the Pro, Max and Ultra plans (Help Center, 9 November 2026).
 - Benchmark redone with 3.17.10 (three profiles) and Cua Driver 0.44.0 (`docs/benchmarks/2026-11-09-cua-driver`): 102
@@ -969,7 +977,8 @@ took 64 s and 14 calls; Codex now takes three calls and about 2 s, with no foreg
 - A UIA or Win32 input whose effect is not confirmed no longer triggers another technique or a physical click;
   repeated inputs require a newer observation of the same window; `expanded` and `focused` postconditions are checked.
 
-[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.10...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.11...HEAD
+[3.17.11]: https://github.com/pironjulien/NexusWindows/compare/v3.17.10...v3.17.11
 [3.17.10]: https://github.com/pironjulien/NexusWindows/compare/v3.17.9...v3.17.10
 [3.17.9]: https://github.com/pironjulien/NexusWindows/compare/v3.17.8...v3.17.9
 [3.17.8]: https://github.com/pironjulien/NexusWindows/compare/v3.17.7...v3.17.8
