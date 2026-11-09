@@ -276,6 +276,10 @@ static partial class McpServer
         // The last enlarged region of that image: points carrying its screenshotId are read in its pixels.
         public NativeImage? RegionImage { get; set; }
         public PendingNativeBatch? Pending { get; set; }
+        // Set only while a key refused in the background goes by the real keyboard in a brief foreground lease
+        // (McpRoutines): the key sequence then reads the window once, at its entry guard, and goes straight to the
+        // physical keyboard, since the background was already refused before any input.
+        public bool BriefKey { get; set; }
         public JsonObject? RetainedFocus { get; set; }
         public NativeInteraction? Interaction { get; set; }
         public Dictionary<string, string> ReviewedRoutines { get; } = new(StringComparer.Ordinal);

@@ -161,6 +161,9 @@ static partial class McpServer
         return keys;
     }
     static bool KeyDeliveryConfirmed(JsonObject outcome) => Bool(outcome, "ok") && Str(outcome, "effect") is "sent" or "applied";
+    // The shortened path of a brief foreground key: only with the real keyboard allowed for that lease and never through
+    // DevTools (whose DOM focus transport needs its own observation).
+    internal static bool BriefKeyPath(bool briefKey, bool devtools, bool physicalAllowed) => briefKey && !devtools && physicalAllowed;
     internal static void ValidateKeyContext(JsonObject initial, JsonObject fresh)
     {
         if (Str(initial, "processStartedUtc").Length == 0 || Str(initial, "processStartedUtc") != Str(fresh, "processStartedUtc") || Str(initial, "revision") != Str(fresh, "revision"))
@@ -262,19 +265,22 @@ static partial class McpServer
             snapshot = InspectNative(state);
         }
         JsonObject? last = null;
+        // Brief foreground key (SessionState.BriefKey): the decision does not depend on the focus, so the focus is read
+        // once, at the entry guard just before input (password and gesture guards included), not also beforehand.
+        var brief = BriefKeyPath(state.BriefKey, devtools, physicalAllowed);
         return ExecuteKeySequence(keys, key =>
         {
             Program.InputStarted = false;
             EmergencyStop.ThrowIfStopped(); state.Interaction?.Check(); GuardClaudeDevtools(state);
             var single = step.DeepClone().AsObject(); single["key"] = key; single.Remove("expect");
-            var before = InspectNative(state); ValidateKeyContext(snapshot, before);
-            var focus = ReadKeyFocus(state, before, single, requireReady: false, devtools);
+            var before = brief ? snapshot : InspectNative(state); ValidateKeyContext(snapshot, before);
+            var focus = brief ? null : ReadKeyFocus(state, before, single, requireReady: false, devtools);
             var grant = new NativeKeyGrant();
             using var entry = new NativeKeyEntryScope(() =>
             {
                 EmergencyStop.ThrowIfStopped(); state.Interaction?.Check(); GuardClaudeDevtools(state);
                 var current = InspectNative(state); ValidateKeyContext(snapshot, current);
-                var currentFocus = ReadKeyFocus(state, current, single, requireReady: true, devtools); ValidateKeyFocus(focus, currentFocus);
+                var currentFocus = ReadKeyFocus(state, current, single, requireReady: true, devtools); if (focus != null) ValidateKeyFocus(focus, currentFocus);
                 var title = Win32.Title(window); var stamp = KeyPermissionStamp(current, currentFocus, title);
                 grant.Check(stamp, () => CheckGesture(state, single, current, null));
                 if (title != Win32.Title(window)) throw new ActionRefusedException("Keyboard context changed while authorizing; current combination not sent");
@@ -287,7 +293,8 @@ static partial class McpServer
             using var cdpScope = devtools ? ClaudeDevtoolsScope(state, single, before) : null;
             Program.InputStarted = false;
             JsonObject outcome;
-            try { outcome = ObjectOf(ExecuteInternal(request)); }
+            if (brief) { request["operation"] = "physical"; request["action"] = "key"; outcome = NativeFallbackAttempt(() => PhysicalNative(state, request), () => Program.InputStarted); }
+            else try { outcome = ObjectOf(ExecuteInternal(request)); }
             catch (BackgroundNotApplicableException) when (!devtools && !Program.InputStarted && physicalAllowed)
             { request["operation"] = "physical"; request["action"] = "key"; outcome = NativeFallbackAttempt(() => PhysicalNative(state, request), () => Program.InputStarted); }
             catch (BackgroundNotApplicableException e) when (!devtools && !Program.InputStarted && !physicalAllowed) { throw new ForegroundNeededException(e.Message); }

@@ -229,6 +229,7 @@ static partial class McpServer
             if (authorization != null) { step["confirm"] = Bool(authorization, "confirm"); step["accord"] = Str(authorization, "accord"); }
             else if (operation == "run" && routine == null) { step["confirm"] = Bool(steps[i], "confirm", Bool(args, "confirm")); step["accord"] = Str(steps[i], "accord", Str(args, "accord")); }
             var preparationInputAttempted = false;
+            JsonObject? stepBefore = null; // the step's last observation, reused by the brief foreground key below
             Program.InputStarted = false;
             try
             {
@@ -245,6 +246,7 @@ static partial class McpServer
                     ValidateNativeTargetContext(observed, before, args, steps);
                 }
                 var anchor = AnchorNative(before, step);
+                stepBefore = before;
                 if (entryForRun != null && !Bool(entryForRun["migration"], "requiresAnchors") && (entryForRun["anchors"] as JsonArray)?[i]?.GetValue<string>() != anchor) throw new ActionRefusedException("Routine target/context changed; look and inspect before an explicit new run");
                 if (anchors.Count <= i) anchors.Add(EngineJson.Node(anchor));
                 // foreground on a step allows its physical fallback like foreground on the batch (05/11: it was ignored
@@ -258,17 +260,23 @@ static partial class McpServer
             // lease, without asking (Julien, 05/11: « un vol de focus ultra rapide puis remettre derrière »): only when he
             // is not typing or moving the mouse (the lease waits for that pause), his window given back at once, and only
             // for a key refused before any input.
+            // The lease is kept as short as the guards allow (09/11 bench: 3.4 to 3.9 s in front on WPF Ctrl+K, three full
+            // reads of the window inside it): the step's observation made just before the refusal (nothing was sent since)
+            // stands for the application identity, and the window is read once, after activation, by the key's entry guard.
             if (BriefForegroundKey(state, step, stepResult, physicalAllowed, routine))
             {
                 try
                 {
+                    var briefBefore = stepBefore;
+                    state.BriefKey = true;
                     using var brief = NativeInteraction.BeginLegacy(state, new JsonArray(step.DeepClone()));
-                    var briefBefore = InspectNative(state);
+                    briefBefore ??= InspectNative(state);
                     stepResult = PerformNative(state, step, briefBefore, true);
                     stepResult["foregroundReturned"] = brief.ReturnForeground();
                     stepResult["briefForeground"] = true;
                 }
                 catch (Exception e) { stepResult = RoutineFailure(e, Program.InputStarted); }
+                finally { state.BriefKey = false; }
             }
             stepResult["index"] = i; stepResult["action"] = Str(step, "kind"); results.Add(EngineJson.Node(stepResult));
             Journal.WriteEntry(state.Agent, Version, state.SessionId, named.App, Str(step, "kind"), Str(stepResult, "status"), Str(stepResult, "technique"), actionTimer.ElapsedMilliseconds, Bool(stepResult, "foregroundTaken"), Str(stepResult, "message"));
