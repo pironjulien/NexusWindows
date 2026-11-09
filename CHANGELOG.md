@@ -11,6 +11,8 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+## [3.17.10] - 2026-11-09
+
 ### Fixed
 - A background gesture that waits for the user's pause reads their physical input (Raw Input), as the READMEs state,
   instead of `GetLastInputInfo`, which also counts other agents' injected input: a computer-use tool driving another
@@ -958,7 +960,8 @@ took 64 s and 14 calls; Codex now takes three calls and about 2 s, with no foreg
 - A UIA or Win32 input whose effect is not confirmed no longer triggers another technique or a physical click;
   repeated inputs require a newer observation of the same window; `expanded` and `focused` postconditions are checked.
 
-[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.9...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.10...HEAD
+[3.17.10]: https://github.com/pironjulien/NexusWindows/compare/v3.17.9...v3.17.10
 [3.17.9]: https://github.com/pironjulien/NexusWindows/compare/v3.17.8...v3.17.9
 [3.17.8]: https://github.com/pironjulien/NexusWindows/compare/v3.17.7...v3.17.8
 [3.17.7]: https://github.com/pironjulien/NexusWindows/compare/v3.17.6...v3.17.7
