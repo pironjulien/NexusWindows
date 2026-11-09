@@ -11,6 +11,15 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+### Changed
+- Claude and Antigravity READMEs describe the brief foreground lease of a key the application ignores when posted
+  (WPF Ctrl+K: 3.4 to 3.9 s in front on the 9 November 2026 bench, once the user pauses, `fallback:false` refuses it);
+  they promised a plain refusal without `foreground=true`.
+- Claude README: Anthropic's computer use is a beta for the Pro, Max and Ultra plans (Help Center, 9 November 2026).
+- Benchmark redone with 3.17.10 (three profiles) and Cua Driver 0.44.0 (`docs/benchmarks/2026-11-09-cua-driver`): 102
+  real effects in 116 trials for each profile, no false success, versus 50 and 16 false successes; the three profile
+  READMEs quote it.
+
 ## [3.17.10] - 2026-11-09
 
 ### Fixed

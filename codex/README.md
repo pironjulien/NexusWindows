@@ -304,15 +304,16 @@ flowchart LR
 
 ## Measurements
 
-The current figures are in [the 3 November 2026 benchmark](https://github.com/pironjulien/NexusWindows/blob/main/docs/benchmarks/2026-11-03-cua-driver/README.md):
-the common engine (3.16.5, Claude profile) and Cua Driver 0.38.0 on the same covered lab windows (Win32, WinForms, WPF,
-Electron, Edge), the application as the judge, 116 trials each.
+The current figures are in [the 9 November 2026 benchmark](https://github.com/pironjulien/NexusWindows/blob/main/docs/benchmarks/2026-11-09-cua-driver/README.md):
+the common engine (3.17.10, each of the three profiles) and Cua Driver 0.44.0 on the same covered lab windows (Win32,
+WinForms, WPF, Electron, Edge), the application as the judge, 116 trials each.
 
-| 116 trials, target covered | NexusWindows 3.16.5 | Cua Driver 0.38.0 |
+| 116 trials, target covered | NexusWindows 3.17.10 (each profile) | Cua Driver 0.44.0 |
 |---|---|---|
-| Real effect | **98** | 54 |
+| Real effect | **102** | 50 |
 | False success (reported done, the app got nothing) | **0** | 16 |
-| Trials with an intrusion (foreground, cursor or clipboard) | **2** (launch: foreground given back at 0 ms) | 13 |
+| Refused before sending anything (needs the foreground) | 14 | 0 |
+| Trials with an intrusion (foreground, cursor or clipboard) | 4 (WPF Ctrl+K: brief foreground lease, 3.4 to 3.9 s; launch: activation event only, 0 ms) | 11 |
 
 Raw results and every task are in that folder. Benchmarks of the earlier Python engine (October 2026) were retired
 with it.

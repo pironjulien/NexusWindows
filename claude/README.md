@@ -31,8 +31,8 @@ Project page: [julienpiron.fr/nexuswindows](https://julienpiron.fr/nexuswindows/
 
 ## Why
 
-Anthropic's own computer use (in Cowork and Claude Code inside Claude Desktop) is a beta for Pro and Max
-subscribers: "Team and Enterprise plans don't have access to computer use at this time"
+Anthropic's own computer use (in Cowork and Claude Code inside Claude Desktop) is a beta for Pro, Max and Ultra
+subscribers; Team and Enterprise plans don't have access to it
 ([Claude Help Center](https://support.claude.com/en/articles/14128542-let-claude-use-your-computer-in-cowork)).
 NexusWindows for Claude is a local MCP server, so it works with Claude Desktop and Claude Code on any plan that
 allows local MCP servers, Team and Enterprise included.
@@ -247,6 +247,11 @@ and excluded from screen captures (the model never sees it in `look`). `NEXUS_WI
 Only with `act(foreground=true)`, which the user must approve. The window then stays in front for the whole batch;
 cursor and foreground are handed back at the end; any physical input from the user during the batch stops it.
 
+One exception, without `foreground=true`: a key or shortcut the application ignores when posted (WPF Ctrl+K, measured)
+goes by the real keyboard in a brief foreground lease, only once the user has paused their own typing and mouse, and
+their window is given back at once (3.4 to 3.9 s in front on the 9 November 2026 bench, reported `foregroundTaken`
+and `briefForeground`). `fallback:false` on the step forbids it: the key is then refused and nothing is sent.
+
 ## Working alongside other agents
 
 The server cooperates with other desktop agents on the same PC (it is used next to a Codex layer,
@@ -285,15 +290,16 @@ policy is `commun/garde-fous.json`.
 
 ## Measurements
 
-The current figures are in [the 3 November 2026 benchmark](https://github.com/pironjulien/NexusWindows/blob/main/docs/benchmarks/2026-11-03-cua-driver/README.md):
-the common engine (3.16.5, Claude profile) and Cua Driver 0.38.0 on the same covered lab windows (Win32, WinForms, WPF,
-Electron, Edge), the application as the judge, 116 trials each.
+The current figures are in [the 9 November 2026 benchmark](https://github.com/pironjulien/NexusWindows/blob/main/docs/benchmarks/2026-11-09-cua-driver/README.md):
+the common engine (3.17.10, each of the three profiles) and Cua Driver 0.44.0 on the same covered lab windows (Win32,
+WinForms, WPF, Electron, Edge), the application as the judge, 116 trials each.
 
-| 116 trials, target covered | NexusWindows 3.16.5 | Cua Driver 0.38.0 |
+| 116 trials, target covered | NexusWindows 3.17.10 (each profile) | Cua Driver 0.44.0 |
 |---|---|---|
-| Real effect | **98** | 54 |
+| Real effect | **102** | 50 |
 | False success (reported done, the app got nothing) | **0** | 16 |
-| Trials with an intrusion (foreground, cursor or clipboard) | **2** (launch: foreground given back at 0 ms) | 13 |
+| Refused before sending anything (needs the foreground) | 14 | 0 |
+| Trials with an intrusion (foreground, cursor or clipboard) | 4 (WPF Ctrl+K: brief foreground lease, 3.4 to 3.9 s; launch: activation event only, 0 ms) | 11 |
 
 Raw results and every task are in that folder. Benchmarks of the earlier Python engine (October 2026) were retired
 with it.
