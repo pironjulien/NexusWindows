@@ -26,6 +26,8 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 ### Changed
 - An installation or update waits up to 15 s for another one, or for the engine's cleanup, to finish before reporting
   that one is already in progress.
+- The Native AOT compiler and trimmer move to 10.0.15, the runtime of the current .NET 10 SDK (10.0.14 no longer
+  builds with it).
 
 ## [3.17.11] - 2026-11-09
 
