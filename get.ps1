@@ -282,7 +282,8 @@ try {
     if ($env:OS -ne 'Windows_NT') { throw 'NexusWindows runs on Windows 10 or 11 only.' }
     # Same exclusion as the source installer. No concurrent manifest/launcher swap or removal.
     $installationMutex = New-Object Threading.Mutex($false, 'Local\NexusWindows-CommonRuntime')
-    try { $installationHeld = $installationMutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $installationHeld = $true }
+    # A few seconds: an engine's own hourly prune holds it briefly (InstalledVersions.cs).
+    try { $installationHeld = $installationMutex.WaitOne([TimeSpan]::FromSeconds(15)) } catch [Threading.AbandonedMutexException] { $installationHeld = $true }
     if (-not $installationHeld) { throw 'Another NexusWindows installation is in progress; retry later.' }
     $outcome = if ($Remove) { Remove-NexusWindows } else { Install-NexusWindows }
     $code = $outcome.Code

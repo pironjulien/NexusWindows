@@ -127,6 +127,149 @@ public sealed class InstalledVersionsTests : IDisposable
         Assert.False(Directory.Exists(earlier) || Directory.Exists(interrupted) || File.Exists(aside));
     }
 
+    // The engine's own pass (MCP server start): only from the installed version, at most once an hour, never while an
+    // installation holds the mutex. A private mutex name: the real installers' mutex is never taken by the tests.
+    readonly string mutex = @"Local\NexusWindows-Test-" + Guid.NewGuid().ToString("N");
+    string InstalledEngine(char c) => Path.Combine(Home, "native", H(c), "NexusWindows.exe");
+    static InstalledVersions.Scan Running(params string[] paths) => new([.. paths], 0);
+
+    [Fact]
+    public void The_installed_engine_prunes_at_most_once_an_hour_and_keeps_its_own_and_running_versions()
+    {
+        var installed = Version('a'); var running = Version('b'); var earlier = Version('c', 4096);
+        Write(@".nexus\nexus-windows\installation.json", $$"""{"Schema":2,"NativeHash":"{{H('a')}}"}""");
+        var now = DateTimeOffset.UtcNow;
+        var self = InstalledEngine('a'); var other = Path.Combine(running, "NexusWindows.exe");
+
+        var first = InstalledVersions.StartupPass(Profile, self, () => Running(self, other), now, mutex);
+        Assert.Equal(InstalledVersions.Pass.Done, first.State);
+        Assert.True(Directory.Exists(installed) && Directory.Exists(running));
+        Assert.False(Directory.Exists(earlier));
+        Assert.Contains(H('b')[..12] + " (running)", first.Outcome!.Kept);
+        Assert.True(File.Exists(InstalledVersions.StampPath(Profile)));
+
+        // Within the hour: no scan, nothing touched, whatever has ended since.
+        var scanned = false;
+        var again = InstalledVersions.StartupPass(Profile, self, () => { scanned = true; return Running(self); }, now.AddMinutes(59), mutex);
+        Assert.Equal(InstalledVersions.Pass.Recent, again.State);
+        Assert.False(scanned);
+        Assert.True(Directory.Exists(running));
+
+        // An hour later, the session that ran it has ended: removed.
+        var later = InstalledVersions.StartupPass(Profile, self, () => Running(self), now.AddMinutes(61), mutex);
+        Assert.Equal(InstalledVersions.Pass.Done, later.State);
+        Assert.False(Directory.Exists(running));
+        Assert.True(Directory.Exists(installed));
+        // A stamp ahead of the clock (clock set back) does not hold the pass off.
+        Assert.Equal(InstalledVersions.Pass.Done, InstalledVersions.StartupPass(Profile, self, () => Running(self), now, mutex).State);
+    }
+
+    [Fact]
+    public void An_engine_other_than_the_installed_version_never_prunes()
+    {
+        var installed = Version('a'); var older = Version('b');
+        Write(@".nexus\nexus-windows\installation.json", $$"""{"Schema":2,"NativeHash":"{{H('a')}}"}""");
+        var now = DateTimeOffset.UtcNow;
+        foreach (var executable in new[] { InstalledEngine('b'), Path.Combine(root, "bin", "NexusWindows.exe"), Path.Combine(installed, "Other.exe"), null })
+        {
+            var scanned = false;
+            var pass = InstalledVersions.StartupPass(Profile, executable, () => { scanned = true; return Running(); }, now, mutex);
+            Assert.Equal(InstalledVersions.Pass.NotInstalledEngine, pass.State);
+            Assert.False(scanned, executable);
+        }
+        // Unreadable or missing record of the installed version: nothing either.
+        Write(@".nexus\nexus-windows\installation.json", "{not json");
+        Assert.Equal(InstalledVersions.Pass.NotInstalledEngine, InstalledVersions.StartupPass(Profile, InstalledEngine('a'), () => Running(), now, mutex).State);
+        File.Delete(Path.Combine(Home, "installation.json"));
+        Assert.Equal(InstalledVersions.Pass.NotInstalledEngine, InstalledVersions.StartupPass(Profile, InstalledEngine('a'), () => Running(), now, mutex).State);
+        Assert.True(Directory.Exists(installed) && Directory.Exists(older));
+        Assert.False(File.Exists(InstalledVersions.StampPath(Profile)));
+    }
+
+    [Fact]
+    public void No_pass_while_an_installation_holds_the_mutex()
+    {
+        Version('a'); var earlier = Version('b');
+        Write(@".nexus\nexus-windows\installation.json", $$"""{"Schema":2,"NativeHash":"{{H('a')}}"}""");
+        using var taken = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
+        var installer = new Thread(() =>
+        {
+            using var held = new Mutex(false, mutex);
+            held.WaitOne();
+            taken.Set();
+            release.Wait();
+            held.ReleaseMutex();
+        });
+        installer.Start();
+        try
+        {
+            Assert.True(taken.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            var pass = InstalledVersions.StartupPass(Profile, InstalledEngine('a'), () => Running(), DateTimeOffset.UtcNow, mutex);
+            Assert.Equal(InstalledVersions.Pass.InstallationRunning, pass.State);
+            Assert.True(Directory.Exists(earlier));
+            Assert.False(File.Exists(InstalledVersions.StampPath(Profile)), "a skipped pass is retried at the next start");
+        }
+        finally { release.Set(); installer.Join(); }
+        Assert.Equal(InstalledVersions.Pass.Done, InstalledVersions.StartupPass(Profile, InstalledEngine('a'), () => Running(), DateTimeOffset.UtcNow, mutex).State);
+        Assert.False(Directory.Exists(earlier));
+    }
+
+    [Fact]
+    public void The_source_installers_leftover_builds_and_launchers_go_unless_in_use()
+    {
+        Version('a');
+        Write(@".nexus\nexus-windows\installation.json", $$"""{"Schema":2,"NativeHash":"{{H('a')}}"}""");
+        var now = DateTimeOffset.UtcNow;
+        string Folder(string relative, DateTime? written = null, string? file = null, string content = "x")
+        {
+            var folder = Path.Combine(Home, relative);
+            Directory.CreateDirectory(folder);
+            if (file is not null) File.WriteAllText(Path.Combine(folder, file), content);
+            if (written is { } at) Directory.SetLastWriteTimeUtc(folder, at);
+            return folder;
+        }
+        var old = now.UtcDateTime.AddDays(-9);
+        var guid = new string('9', 32);
+        var leftover = Folder(@"build\" + H('1') + "-" + guid, old, "obj.dll");
+        var launcherBuild = Folder(@"build\launcher-" + H('2') + "-" + guid, old, "obj.dll");
+        var building = Folder(@"build\" + H('3') + "-" + guid); // an installation building now
+        var busyBuild = Folder(@"build\" + H('4') + "-" + guid, old, "NexusWindows.exe");
+        var foreignBuild = Folder(@"build\mine", old, "keep.txt");
+        File.WriteAllText(Path.Combine(Home, "NexusWindows.exe"), "stable launcher v2");
+        var current = Folder(@"launcher\" + H('5'), null, "NexusWindows.exe", "stable launcher v2");
+        var earlierLauncher = Folder(@"launcher\" + H('6'), null, "NexusWindows.exe", "stable launcher v1");
+        var emptyLauncher = Folder(@"launcher\" + H('7'));
+        var busyLauncher = Folder(@"launcher\" + H('8'), null, "NexusWindows.exe", "running launcher");
+        var foreignLauncher = Folder(@"launcher\custom", null, "keep.txt");
+        // Done again just before the pass: creating files inside moved the folders' write time.
+        foreach (var f in new[] { leftover, launcherBuild, busyBuild, foreignBuild }) Directory.SetLastWriteTimeUtc(f, old);
+
+        // An engine process the scan cannot identify: nothing of either goes.
+        Assert.Empty(InstalledVersions.Prune(Profile, [], now, unidentified: 1).Removed);
+        Assert.True(Directory.Exists(leftover) && Directory.Exists(earlierLauncher) && Directory.Exists(emptyLauncher));
+
+        var outcome = new Report(InstalledVersions.Prune(Profile, [Path.Combine(busyBuild, "NexusWindows.exe"), Path.Combine(busyLauncher, "NexusWindows.exe")], now));
+        foreach (var gone in new[] { leftover, launcherBuild, earlierLauncher, emptyLauncher }) Assert.False(Directory.Exists(gone), gone + ": " + outcome.Text);
+        foreach (var kept in new[] { building, busyBuild, foreignBuild, current, busyLauncher, foreignLauncher }) Assert.True(Directory.Exists(kept), kept + ": " + outcome.Text);
+        Assert.Contains("build " + H('4')[..12] + " (running)", outcome.Value.Kept);
+        Assert.Contains("launcher " + H('8')[..12] + " (running)", outcome.Value.Kept);
+        Assert.Empty(Directory.GetDirectories(Path.Combine(Home, "build"), ".prune-*"));
+        Assert.Empty(Directory.GetDirectories(Path.Combine(Home, "launcher"), ".prune-*"));
+    }
+
+    [Fact]
+    public void Empty_leftover_folders_go_with_their_last_entry()
+    {
+        Version('a');
+        Write(@".nexus\nexus-windows\installation.json", $$"""{"Schema":2,"NativeHash":"{{H('a')}}"}""");
+        var build = Path.Combine(Home, "build", H('1') + "-" + new string('0', 32));
+        Directory.CreateDirectory(build); Directory.SetLastWriteTimeUtc(build, DateTime.UtcNow.AddDays(-3));
+        Directory.CreateDirectory(Path.Combine(Home, "launcher", H('2')));
+        InstalledVersions.Prune(Profile, [], DateTimeOffset.UtcNow);
+        Assert.False(Directory.Exists(Path.Combine(Home, "build")));
+        Assert.False(Directory.Exists(Path.Combine(Home, "launcher")));
+    }
+
     internal readonly record struct Report(InstalledVersions.Outcome Value)
     {
         public string Text => "removed: " + string.Join(", ", Value.Removed) + "; kept: " + string.Join(", ", Value.Kept);

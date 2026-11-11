@@ -11,6 +11,22 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+## [3.17.12] - 2026-11-11
+
+### Fixed
+- Earlier engine versions no longer pile up between updates. A version an AI session was still running during an
+  installation was kept, and nothing removed it until the next version came out (4 versions, 29 MB on one PC). The
+  installed engine now runs the same cleanup itself: in the background, 20 s after an MCP server starts and at most
+  once an hour, never delaying or failing that start, and skipped while an installation runs. A version still running
+  or still declared by a client is kept, as at installation.
+- The cleanup also removes what the source installation (`install.ps1`) left in `%USERPROFILE%\.nexus\nexus-windows`:
+  its `build\` folders (about 4 MB each, never removed after an engine build, which is fixed too) and the `launcher\`
+  builds other than the one the stable launcher comes from.
+
+### Changed
+- An installation or update waits up to 15 s for another one, or for the engine's cleanup, to finish before reporting
+  that one is already in progress.
+
 ## [3.17.11] - 2026-11-09
 
 ### Fixed
@@ -977,7 +993,8 @@ took 64 s and 14 calls; Codex now takes three calls and about 2 s, with no foreg
 - A UIA or Win32 input whose effect is not confirmed no longer triggers another technique or a physical click;
   repeated inputs require a newer observation of the same window; `expanded` and `focused` postconditions are checked.
 
-[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.11...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.12...HEAD
+[3.17.12]: https://github.com/pironjulien/NexusWindows/compare/v3.17.11...v3.17.12
 [3.17.11]: https://github.com/pironjulien/NexusWindows/compare/v3.17.10...v3.17.11
 [3.17.10]: https://github.com/pironjulien/NexusWindows/compare/v3.17.9...v3.17.10
 [3.17.9]: https://github.com/pironjulien/NexusWindows/compare/v3.17.8...v3.17.9

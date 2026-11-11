@@ -12,7 +12,7 @@ using System.Text.Json.Nodes;
 // - applies the common guardrails (GardeFous.cs), logs every action (Journal.cs) and drives Windows in process through Program.Execute.
 static partial class McpServer
 {
-    public const string Version = "3.17.11";
+    public const string Version = "3.17.12";
     static readonly string[] ModernProtocolVersions = ["2026-07-28"];
     static readonly string[] LegacyProtocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
     const string ProtocolVersionMeta = "io.modelcontextprotocol/protocolVersion";
@@ -809,6 +809,9 @@ static partial class McpServer
         WriteStatusFile(normalizedAgent);
         var captures = Path.Combine(NativeStateRoot(normalizedAgent), "captures");
         CaptureRetention.Prune(captures); // server start; then after each capture and at a clean stop
+        // Earlier versions an AI session kept at the last installation (InstalledVersions.cs): in the background, at most
+        // once an hour, only from the installed version; never delays nor fails this start.
+        InstalledVersions.StartBackgroundPass();
         // stdin is read by a dedicated thread while a request runs: a notifications/cancelled aimed at the running request
         // stops it at its next checkpoint (RequestCancellation). Requests are still handled one at a time, in order; EOF
         // after a batch lets what was already received finish (verify-native-profiles.py, probes).

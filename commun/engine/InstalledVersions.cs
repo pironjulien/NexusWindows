@@ -13,6 +13,13 @@ using System.Text.RegularExpressions;
 //     has ended, and an interrupted get.ps1 staging folder (stage-*);
 //   - removes the disposable browser profiles of launch(devtools:true) (state\<agent>\devtools-profiles) whose browser
 //     has closed: the engine removes one only when it closes the browser itself.
+//   - removes the source installer's leftovers (commun\native-runtime.ps1): its build\<sha-256>-<guid> and
+//     build\launcher-<sha-256>-<guid> staging folders once older than the grace period, and its launcher\<sha-256>
+//     builds other than the one the stable launcher is a copy of.
+// The engine also runs this pass itself (StartBackgroundPass, since 3.17.12): a version an AI session was running at
+// the last installation is kept then, and nothing else would remove it until the next version. An MCP server started
+// from the installed version runs it in the background, 20 s after its start and at most once an hour, under the same
+// installation mutex (skipped while an installation holds it), with the same scan and lock.
 // A running engine is protected twice, since either guard alone can miss:
 //   1. the scan: the image path of every process (QueryFullProcessImageNameW with PROCESS_QUERY_LIMITED_INFORMATION,
 //      which also answers for an elevated process); a process named like the engine that cannot be queried at all
@@ -50,7 +57,9 @@ static partial class InstalledVersions
     }
 
     static readonly Regex Hash = new("^[a-f0-9]{64}$", RegexOptions.CultureInvariant);
-    static readonly Regex Named = new(@"nexus-windows(?:\\\\|\\|/)+native(?:\\\\|\\|/)+([a-f0-9]{64})", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    // An engine version (native\) or a source installer's launcher build (launcher\) named by a declaration.
+    static readonly Regex Named = new(@"nexus-windows(?:\\\\|\\|/)+(?:native|launcher)(?:\\\\|\\|/)+([a-f0-9]{64})", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    static readonly Regex Staging = new("^(?:launcher-)?[a-f0-9]{64}-[a-f0-9]{32}$", RegexOptions.CultureInvariant);
     // A launch(devtools:true) profile younger than this may belong to a browser still starting.
     internal static readonly TimeSpan ProfileGrace = TimeSpan.FromHours(1.618);
 
@@ -59,7 +68,10 @@ static partial class InstalledVersions
         try
         {
             var scan = RunningExecutables();
-            var outcome = Prune(Registration.Profile.Current(), scan.Paths, DateTimeOffset.UtcNow, scan.Unidentified);
+            var profile = Registration.Profile.Current();
+            var now = DateTimeOffset.UtcNow;
+            var outcome = Prune(profile, scan.Paths, now, scan.Unidentified);
+            WriteStamp(profile, now);
             Console.WriteLine($"Earlier files removed: {outcome.Removed.Count} ({outcome.Bytes / (1024 * 1024)} MB); kept: {(outcome.Kept.Count == 0 ? "none" : string.Join(", ", outcome.Kept))}.");
             return 0;
         }
@@ -68,6 +80,108 @@ static partial class InstalledVersions
             // Never a failed installation: the next one prunes again.
             Console.WriteLine("Earlier versions not pruned: " + error.Message); // stdout: Windows PowerShell stops on stderr
             return 0;
+        }
+    }
+
+    // The installers' mutex (get.ps1, commun\native-runtime.ps1): no pass while a version is being installed or removed.
+    internal const string InstallationMutex = @"Local\NexusWindows-CommonRuntime";
+    // A pass costs a scan of every process and a read of every client declaration (0.1 to 0.7 s measured on 11/11 with
+    // 350 processes and 283 declaration files), and AI apps start MCP servers many times an hour: once an hour is enough.
+    internal static readonly TimeSpan PassInterval = TimeSpan.FromHours(1);
+    // Short-lived servers (a client's health check) never pay for a pass; a session's first requests are not slowed.
+    static readonly TimeSpan StartDelay = TimeSpan.FromSeconds(20);
+    internal enum Pass { NotInstalledEngine, Recent, InstallationRunning, Done }
+
+    // MCP server start: the pass on a background thread, below normal priority; whatever it meets is reported on stderr,
+    // never thrown at the server, which neither waits for it nor depends on it.
+    internal static void StartBackgroundPass()
+    {
+        var executable = Environment.ProcessPath;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                Thread.Sleep(StartDelay);
+                StartupPass(Registration.Profile.Current(), executable, RunningExecutables, DateTimeOffset.UtcNow);
+            }
+            catch (Exception error)
+            {
+                try { Console.Error.WriteLine("NexusWindows: earlier versions not pruned: " + error.Message); } catch (IOException) { }
+            }
+        }) { IsBackground = true, Priority = ThreadPriority.BelowNormal, Name = "nexus-prune-installed" };
+        thread.Start();
+    }
+
+    // Only the installed version prunes (installation.json names the folder this engine runs from): an earlier engine
+    // still running, a build output or a test copy never does. The installed version and this engine's own are always
+    // kept by Prune itself (installation.json, the scan and engine.lock).
+    internal static (Pass State, Outcome? Outcome) StartupPass(Registration.Profile profile, string? executable, Func<Scan> scan, DateTimeOffset now, string mutexName = InstallationMutex)
+    {
+        if (!IsInstalledEngine(profile, executable)) return (Pass.NotInstalledEngine, null);
+        if (Recent(profile, now)) return (Pass.Recent, null);
+        using var mutex = new Mutex(false, mutexName);
+        bool held;
+        try { held = mutex.WaitOne(0); }
+        catch (AbandonedMutexException) { held = true; } // an installer or a pass ended without releasing it: ours now
+        if (!held) return (Pass.InstallationRunning, null);
+        try
+        {
+            // Read again under the mutex: an installation may have just recorded another version, another engine may
+            // have just run its pass.
+            if (!IsInstalledEngine(profile, executable)) return (Pass.NotInstalledEngine, null);
+            if (Recent(profile, now)) return (Pass.Recent, null);
+            var running = scan();
+            var outcome = Prune(profile, running.Paths, now, running.Unidentified);
+            WriteStamp(profile, now);
+            return (Pass.Done, outcome);
+        }
+        finally { mutex.ReleaseMutex(); }
+    }
+
+    static bool IsInstalledEngine(Registration.Profile profile, string? executable)
+    {
+        if (string.IsNullOrEmpty(executable)) return false;
+        try
+        {
+            var manifest = Path.Combine(Path.GetDirectoryName(profile.NativeRoot)!, "installation.json");
+            if (!File.Exists(manifest)) return false;
+            var installed = JsonNode.Parse(File.ReadAllText(manifest))?["NativeHash"]?.GetValue<string>() ?? "";
+            return Hash.IsMatch(installed) && string.Equals(Path.GetFullPath(executable),
+                Path.GetFullPath(Path.Combine(profile.NativeRoot, installed, "NexusWindows.exe")), StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or ArgumentException) { return false; }
+    }
+
+    // The last pass, engine or installer: state\prune-installed.json beside the installation.
+    internal static string StampPath(Registration.Profile profile) => Path.Combine(Path.GetDirectoryName(profile.NativeRoot)!, "state", "prune-installed.json");
+
+    static bool Recent(Registration.Profile profile, DateTimeOffset now)
+    {
+        try
+        {
+            var path = StampPath(profile);
+            if (!File.Exists(path)) return false;
+            var at = JsonNode.Parse(File.ReadAllText(path))?["lastPass"]?.GetValue<string>();
+            // A stamp ahead of the clock (the clock was set back) is not trusted.
+            return DateTimeOffset.TryParse(at, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var last)
+                && last <= now && now - last < PassInterval;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException) { return false; }
+    }
+
+    static void WriteStamp(Registration.Profile profile, DateTimeOffset now)
+    {
+        var path = StampPath(profile);
+        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(temporary, "{\"lastPass\":\"" + now.ToString("O", System.Globalization.CultureInfo.InvariantCulture) + "\"}\n");
+            File.Move(temporary, path, overwrite: true);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            try { File.Delete(temporary); } catch (Exception again) when (again is IOException or UnauthorizedAccessException) { }
         }
     }
 
@@ -166,6 +280,7 @@ static partial class InstalledVersions
             // A staging folder of another installation running now is recent: only an old one is a leftover.
             foreach (var stage in Directory.GetDirectories(home, "stage-*").Where(s => now - Directory.GetLastWriteTimeUtc(s) >= ProfileGrace).Concat(Directory.GetDirectories(home, ".prune-*")))
                 if (!IsLink(stage)) Remove(stage, Path.GetFileName(stage));
+            if (unidentified == 0) SourceInstallerLeftovers();
             var state = Path.Combine(home, "state");
             if (Directory.Exists(state) && !IsLink(state))
                 foreach (var agentFolder in Directory.GetDirectories(state))
@@ -182,6 +297,66 @@ static partial class InstalledVersions
                 }
         }
         return new Outcome(removed, kept, bytes);
+
+        bool RunsFrom(string folder)
+        {
+            var prefix = Path.GetFullPath(folder) + Path.DirectorySeparatorChar;
+            return runningPaths.Any(p => p.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // commun\native-runtime.ps1 (source installation, since 3.9.0) builds in build\<sha-256>-<guid> and
+        // build\launcher-<sha-256>-<guid>, and keeps each launcher it built in launcher\<sha-256>. A staging folder of an
+        // installation running now is recent; the launcher build the stable launcher is a copy of stays, since the
+        // source installer checks it (-CheckOnly). Only these names are touched; nothing a process runs from.
+        void SourceInstallerLeftovers()
+        {
+            var build = Path.Combine(home, "build");
+            if (Directory.Exists(build) && !IsLink(build))
+            {
+                foreach (var folder in Directory.GetDirectories(build))
+                {
+                    var name = Path.GetFileName(folder);
+                    var interrupted = name.StartsWith(".prune-", StringComparison.Ordinal);
+                    if ((!interrupted && !Staging.IsMatch(name)) || IsLink(folder)) continue;
+                    if (!interrupted && now - Directory.GetLastWriteTimeUtc(folder) < ProfileGrace) continue;
+                    var label = interrupted ? "interrupted removal" : "build " + name[..Math.Min(name.Length, name.StartsWith("launcher-", StringComparison.Ordinal) ? 21 : 12)];
+                    if (RunsFrom(folder)) { kept.Add(label + " (running)"); continue; }
+                    Remove(folder, label);
+                }
+                RemoveIfEmpty(build);
+            }
+            var launchers = Path.Combine(home, "launcher");
+            if (Directory.Exists(launchers) && !IsLink(launchers))
+            {
+                var stable = Path.Combine(home, "NexusWindows.exe");
+                var current = File.Exists(stable) ? FileHash(stable) : null;
+                foreach (var folder in Directory.GetDirectories(launchers))
+                {
+                    var name = Path.GetFileName(folder);
+                    var interrupted = name.StartsWith(".prune-", StringComparison.Ordinal);
+                    if ((!interrupted && !Hash.IsMatch(name)) || IsLink(folder)) continue;
+                    var label = interrupted ? "interrupted removal" : "launcher " + name[..12];
+                    var built = Path.Combine(folder, "NexusWindows.exe");
+                    if (!interrupted && current is not null && File.Exists(built) && FileHash(built) is { } hash && hash.SequenceEqual(current)) continue;
+                    if (RunsFrom(folder)) { kept.Add(label + " (running)"); continue; }
+                    if (!interrupted && declared.Contains(name)) { kept.Add(label + " (declared)"); continue; }
+                    Remove(folder, label);
+                }
+                RemoveIfEmpty(launchers);
+            }
+        }
+    }
+
+    static void RemoveIfEmpty(string folder)
+    {
+        try { if (!Directory.EnumerateFileSystemEntries(folder).Any()) Directory.Delete(folder); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+    }
+
+    static byte[]? FileHash(string path)
+    {
+        try { using var stream = File.OpenRead(path); return System.Security.Cryptography.SHA256.HashData(stream); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return null; }
     }
 
     // The same ownership rule as the engine's own removal (McpLaunchCompatibility.ClaudeRemoveOwnedProfile): its marker

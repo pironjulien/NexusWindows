@@ -89,7 +89,8 @@ function Install-NexusWindowsNativeRuntime([switch]$CheckOnly) {
     $mutex = [Threading.Mutex]::new($false, 'Local\NexusWindows-CommonRuntime')
     $held = $false
     try {
-        try { $held = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $held = $true }
+        # A few seconds: an engine's own hourly prune holds it briefly (InstalledVersions.cs).
+        try { $held = $mutex.WaitOne([TimeSpan]::FromSeconds(15)) } catch [Threading.AbandonedMutexException] { $held = $true }
         if (-not $held) { throw 'A common engine installation is already running.' }
         $hash = Get-NexusWindowsNativeHash
         $target = Join-Path $nexusWindowsRuntimeHome "native\$hash"
@@ -105,12 +106,14 @@ function Install-NexusWindowsNativeRuntime([switch]$CheckOnly) {
             Copy-Item -LiteralPath (Join-Path $nexusWindowsSource 'commun\garde-fous.json') -Destination $output
             $artifacts = [ordered]@{}
             foreach ($file in Get-ChildItem -LiteralPath $output -File) { $artifacts[$file.Name] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash }
-            $runtime = [pscustomobject]@{ Schema=2; SourceRoot=$nexusWindowsSource; NativeHash=$hash; NativeExecutable=(Join-Path $target 'NexusWindows.exe'); Version='3.17.11'; NativeArtifacts=[pscustomobject]$artifacts }
+            $runtime = [pscustomobject]@{ Schema=2; SourceRoot=$nexusWindowsSource; NativeHash=$hash; NativeExecutable=(Join-Path $target 'NexusWindows.exe'); Version='3.17.12'; NativeArtifacts=[pscustomobject]$artifacts }
             Write-NexusWindowsJson (Join-Path $output 'runtime.json') $runtime
             New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
             # Both resolved paths are within the explicitly named common runtime directory.
             if (-not ([IO.Path]::GetFullPath($output)).StartsWith(([IO.Path]::GetFullPath($nexusWindowsRuntimeHome) + '\'), [StringComparison]::OrdinalIgnoreCase) -or -not ([IO.Path]::GetFullPath($target)).StartsWith(([IO.Path]::GetFullPath($nexusWindowsRuntimeHome) + '\'), [StringComparison]::OrdinalIgnoreCase)) { throw 'Runtime path outside the common runtime directory.' }
             Move-Item -LiteralPath $output -Destination $target
+            # The build's obj\ and bin\ (about 4 MB) are left behind otherwise; the engine's prune removes what remains.
+            Remove-Item -LiteralPath $build -Recurse -Force -ErrorAction SilentlyContinue
             if (-not (Test-NexusWindowsRuntime $runtime)) { throw 'Common engine artifact check failed.' }
         }
         if (-not $CheckOnly) { $runtime.SourceRoot = $nexusWindowsSource; Write-NexusWindowsJson $nexusWindowsManifest $runtime }
