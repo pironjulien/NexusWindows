@@ -56,7 +56,9 @@ public class ConcurrencyAndTableTests
     // Full tree reads in turn: a second reader waits while the first holds the gate, then goes ahead; a reader that waited
     // too long reads anyway, ungated. Two threads, two handles on the same lock file in the tests' own shared home.
     // Synchronous on purpose: the gate is held per thread ([ThreadStatic]), so the test thread must not change across
-    // an await while it holds the first one.
+    // an await while it holds the first one. The other readers run on threads of their own, never Task.Run: waiting on a
+    // Task.Run task that has not started yet may run it inline on the waiting thread, which holds the gate, so the
+    // "second" reader re-entered the first one's gate at once (failed in 2 ms on a busy GitHub runner, 12/11/2026).
 #pragma warning disable xUnit1031, xUnit1051
     [Fact]
     public void Full_tree_reads_wait_their_turn_then_go_ahead_ungated_after_the_bound()
@@ -64,16 +66,25 @@ public class ConcurrencyAndTableTests
         var first = UiaReadGate.Enter();
         Assert.True(first.Gated);
         var clock = Stopwatch.StartNew();
-        var late = Task.Run(() => { using var gate = UiaReadGate.Enter(300); return (gate.Gated, clock.ElapsedMilliseconds); }).Result;
-        Assert.False(late.Gated); Assert.True(late.ElapsedMilliseconds >= 280, "waits up to its bound");
-        var turn = Task.Run(() => { using var gate = UiaReadGate.Enter(5000); return (gate.Gated, clock.ElapsedMilliseconds); });
+        var late = OnThreadOfItsOwn(() => { using var gate = UiaReadGate.Enter(300); return (gate.Gated, clock.ElapsedMilliseconds); });
+        Assert.True(late.Wait(30_000), "the late reader ends");
+        Assert.False(late.Result.Gated); Assert.True(late.Result.ElapsedMilliseconds >= 280, "waits up to its bound");
+        var turn = OnThreadOfItsOwn(() => { using var gate = UiaReadGate.Enter(5000); return (gate.Gated, clock.ElapsedMilliseconds); });
         Thread.Sleep(200);
         Assert.False(turn.IsCompleted, "waits while the gate is held");
         first.Dispose();
-        Assert.True(turn.Wait(2000) && turn.Result.Gated, "gets the gate once released");
+        Assert.True(turn.Wait(30_000) && turn.Result.Gated, "gets the gate once released");
         using (var again = UiaReadGate.Enter()) using (var nested = UiaReadGate.Enter()) Assert.Same(again, nested);
     }
 #pragma warning restore xUnit1031, xUnit1051
+
+    // A dedicated thread, observed through a completion source: waiting on it can never run the work inline.
+    static Task<T> OnThreadOfItsOwn<T>(Func<T> work)
+    {
+        var done = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        new Thread(() => { try { done.SetResult(work()); } catch (Exception error) { done.SetException(error); } }) { IsBackground = true }.Start();
+        return done.Task;
+    }
 
     static JsonObject Element(int index, string role, string name = "", string? value = null, int[]? ancestors = null, bool invoke = false, bool? toggled = null, bool? selected = null, bool disabled = false) => new()
     {
