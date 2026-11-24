@@ -31,17 +31,25 @@ Project page: [julienpiron.fr/nexuswindows](https://julienpiron.fr/nexuswindows/
 
 ## Why
 
-Anthropic's own computer use (in Cowork and Claude Code inside Claude Desktop) is a beta for Pro, Max and Ultra
-subscribers; Team and Enterprise plans don't have access to it
-([Claude Help Center](https://support.claude.com/en/articles/14128542-let-claude-use-your-computer-in-cowork)).
-NexusWindows for Claude is a local MCP server, so it works with Claude Desktop and Claude Code on any plan that
-allows local MCP servers, Team and Enterprise included.
-
 Screenshot-and-click computer use moves the real cursor and brings windows to the front, so the person at the PC has
 to stop working while the agent acts. Most Windows applications can be driven without that: native controls accept
 window messages, modern frameworks expose UI Automation, and Chromium can be reached through its accessibility tree.
-This server picks, per UI family, a technique that was **measured** not to steal focus, reads the effect back, and
-only falls back to the real mouse or keyboard when the user explicitly allows it.
+NexusWindows is built on three ideas:
+
+- **Like a person, only better.** Claude reads each control (role, name, value, state) instead of guessing from
+  pixels, sends a batch of steps in one call, and every step is read back in the application itself: ✓ verified,
+  = already done, ~ unknown (never replayed), ✗ failed or refused. No false success in
+  [the benchmark](#measurements).
+- **Native to Windows.** One self-contained C# .NET 10 program, nothing else to install. Per UI family (Win32,
+  WinForms, WPF, UWP/WinUI, Chromium/Electron) it uses a technique that was **measured** not to steal focus.
+- **Invisible.** You keep your mouse, keyboard and foreground window while Claude works; the real mouse or keyboard is
+  only used when you explicitly allow it.
+
+Anthropic's own computer use is a beta in Claude Desktop for Pro, Max and Ultra, and for Team and Enterprise once an
+owner turns it on
+([Claude Help Center](https://support.claude.com/en/articles/14128542-let-claude-use-your-computer-in-cowork)).
+NexusWindows for Claude is a local MCP server: it works the same in Claude Desktop and Claude Code, on any plan that
+allows local MCP servers, and alongside Anthropic's own when both are on.
 
 ## NexusWindows family
 

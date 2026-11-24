@@ -11,6 +11,11 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+### Changed
+- Claude README: the "Why" section leads with NexusWindows's three ideas (like a person, only better; native to
+  Windows; invisible). Anthropic's computer use now also reaches Team and Enterprise once an owner turns it on (Help
+  Center, 24 November 2026), so the README no longer says those plans lack it.
+
 ## [3.17.12] - 2026-11-11
 
 ### Fixed
