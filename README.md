@@ -46,7 +46,7 @@ mouse, keyboard or foreground, with every action read back. For Claude, Codex an
 </tr>
 <tr>
 <td>🖱️ <b>Real mouse only if you allow it</b><br>A last resort, used only with permission and stopped as soon as you take control back.</td>
-<td>⚡ <b>One native program</b><br>Self-contained C# (.NET 10), x64 and ARM64: no Python, Node.js or .NET runtime to install.</td>
+<td>⚡ <b>One native program</b><br>Self-contained C# (.NET 11), x64 and ARM64: no Python, Node.js or .NET runtime to install.</td>
 <td>🤝 <b>Three AI apps, one engine</b><br>Claude, Codex and Antigravity share the same engine and safety policy.</td>
 </tr>
 </table>
@@ -132,7 +132,7 @@ For current MCP requests, native file dialogs, UTF-8 stdio and blank Chromium pa
 <details>
 <summary><b>Repository layout</b></summary>
 
-- `commun/engine/`: the common C# (.NET 10) engine, `NexusWindows.exe`, serving the three profiles as MCP stdio
+- `commun/engine/`: the common C# (.NET 11) engine, `NexusWindows.exe`, serving the three profiles as MCP stdio
   servers (`--mcp --agent claude|codex|antigravity`) and declaring itself to them (`--register`).
 - `commun/`: the shared safety policy (`garde-fous.json`), the stable launcher (`launcher/`), the workstation
   installer of the immutable engine (`native-runtime.ps1`) and the release packaging (`package.ps1`).

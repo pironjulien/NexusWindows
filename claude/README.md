@@ -7,7 +7,7 @@
 [![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows)](https://github.com/pironjulien/NexusWindows/releases)
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusWindows/blob/main/LICENSE)
-[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://github.com/pironjulien/NexusWindows/tree/main/commun/engine)
+[![.NET 11](https://img.shields.io/badge/.NET-11-512BD4)](https://github.com/pironjulien/NexusWindows/tree/main/commun/engine)
 [![MCP](https://img.shields.io/badge/MCP-server-7ee2a8)](https://modelcontextprotocol.io)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](#installation)
 
@@ -19,7 +19,7 @@
 and Claude Code see and operate Windows desktop applications while the user keeps their mouse, keyboard and
 foreground window.
 
-Windows 10/11 (x64, ARM64) · native .NET 10, nothing else to install · MIT licence
+Windows 10/11 (x64, ARM64) · native .NET 11, nothing else to install · MIT licence
 
 Part of the Nexus family: [NexusWindows](https://julienpiron.fr/nexuswindows/)
 ([Claude](https://github.com/pironjulien/NexusWindows) ·
@@ -40,7 +40,7 @@ NexusWindows is built on three ideas:
   pixels, sends a batch of steps in one call, and every step is read back in the application itself: ✓ verified,
   = already done, ~ unknown (never replayed), ✗ failed or refused. No false success in
   [the benchmark](#measurements).
-- **Native to Windows.** One self-contained C# .NET 10 program, nothing else to install. Per UI family (Win32,
+- **Native to Windows.** One self-contained C# .NET 11 program, nothing else to install. Per UI family (Win32,
   WinForms, WPF, UWP/WinUI, Chromium/Electron) it uses a technique that was **measured** not to steal focus.
 - **Invisible.** You keep your mouse, keyboard and foreground window while Claude works; the real mouse or keyboard is
   only used when you explicitly allow it.
@@ -71,7 +71,7 @@ bench.
 ## Installation
 
 Windows 10 or 11, x64 or ARM64. Nothing else to install: NexusWindows is one self-contained native program
-(C#, .NET 10); no Python, Node.js or .NET runtime is needed.
+(C#, .NET 11); no Python, Node.js or .NET runtime is needed.
 
 **Let your AI install it**: NexusSystem detects your AI apps and sets up every profile.
 
@@ -291,7 +291,7 @@ flowchart LR
   Engine --> Capture["PrintWindow / Windows.Graphics.Capture, Windows OCR"]
 ```
 
-One C# (.NET 10) engine serves the three profiles (`commun/engine/`, `--agent claude|codex|antigravity`); each profile
+One C# (.NET 11) engine serves the three profiles (`commun/engine/`, `--agent claude|codex|antigravity`); each profile
 keeps its own tools and guide. The stable launcher (`commun/launcher/`) checks the engine's recorded SHA-256 and runs
 it with the same standard input and output, so an update never changes a client's declaration. The shared safety
 policy is `commun/garde-fous.json`.

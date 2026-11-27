@@ -11,7 +11,11 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+## [3.18.0] - 2026-11-27
+
 ### Changed
+- NexusWindows now runs on .NET 11. It is still one self-contained native program (Native AOT, x64 and ARM64):
+  nothing to install on your side, the update arrives as usual.
 - Claude README: the "Why" section leads with NexusWindows's three ideas (like a person, only better; native to
   Windows; invisible). Anthropic's computer use now also reaches Team and Enterprise once an owner turns it on (Help
   Center, 24 November 2026), so the README no longer says those plans lack it.
@@ -1000,7 +1004,8 @@ took 64 s and 14 calls; Codex now takes three calls and about 2 s, with no foreg
 - A UIA or Win32 input whose effect is not confirmed no longer triggers another technique or a physical click;
   repeated inputs require a newer observation of the same window; `expanded` and `focused` postconditions are checked.
 
-[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.17.12...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.18.0...HEAD
+[3.18.0]: https://github.com/pironjulien/NexusWindows/compare/v3.17.12...v3.18.0
 [3.17.12]: https://github.com/pironjulien/NexusWindows/compare/v3.17.11...v3.17.12
 [3.17.11]: https://github.com/pironjulien/NexusWindows/compare/v3.17.10...v3.17.11
 [3.17.10]: https://github.com/pironjulien/NexusWindows/compare/v3.17.9...v3.17.10

@@ -15,7 +15,7 @@ function Write-NexusWindowsJson([string]$Path, $Data) {
 function Get-NexusWindowsNativeHash {
     $lines = @(Get-ChildItem -LiteralPath (Join-Path $nexusWindowsSource 'commun\engine') -File | Sort-Object Name | ForEach-Object { $_.Name + ':' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash })
     $lines += 'garde-fous.json:' + (Get-FileHash -LiteralPath (Join-Path $nexusWindowsSource 'commun\garde-fous.json') -Algorithm SHA256).Hash
-    $lines += 'publish:AssemblyName=NexusWindows;Release;net10.0-windows'
+    $lines += 'publish:AssemblyName=NexusWindows;Release;net11.0-windows'
     [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lines -join "`n"))).ToLowerInvariant()
 }
 function Test-NexusWindowsRuntime($Manifest) {
@@ -106,7 +106,7 @@ function Install-NexusWindowsNativeRuntime([switch]$CheckOnly) {
             Copy-Item -LiteralPath (Join-Path $nexusWindowsSource 'commun\garde-fous.json') -Destination $output
             $artifacts = [ordered]@{}
             foreach ($file in Get-ChildItem -LiteralPath $output -File) { $artifacts[$file.Name] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash }
-            $runtime = [pscustomobject]@{ Schema=2; SourceRoot=$nexusWindowsSource; NativeHash=$hash; NativeExecutable=(Join-Path $target 'NexusWindows.exe'); Version='3.17.12'; NativeArtifacts=[pscustomobject]$artifacts }
+            $runtime = [pscustomobject]@{ Schema=2; SourceRoot=$nexusWindowsSource; NativeHash=$hash; NativeExecutable=(Join-Path $target 'NexusWindows.exe'); Version='3.18.0'; NativeArtifacts=[pscustomobject]$artifacts }
             Write-NexusWindowsJson (Join-Path $output 'runtime.json') $runtime
             New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
             # Both resolved paths are within the explicitly named common runtime directory.

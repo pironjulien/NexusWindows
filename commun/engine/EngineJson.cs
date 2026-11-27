@@ -28,9 +28,9 @@ static class EngineJson
     internal static byte[] SerializeToUtf8Bytes<T>(T value, JsonSerializerOptions? options = null) => JsonSerializer.SerializeToUtf8Bytes(value, Info(value, options));
     internal static JsonElement SerializeToElement<T>(T value, JsonSerializerOptions? options = null) => JsonSerializer.SerializeToElement(value, Info(value, options));
     internal static JsonNode? SerializeToNode<T>(T value, JsonSerializerOptions? options = null) => JsonSerializer.SerializeToNode(value, Info(value, options));
-    internal static T? Deserialize<T>(string json, JsonSerializerOptions? options = null) => JsonSerializer.Deserialize(json, (JsonTypeInfo<T>)Options(options).GetTypeInfo(typeof(T)));
-    internal static T? Deserialize<T>(JsonElement element, JsonSerializerOptions? options = null) => element.Deserialize((JsonTypeInfo<T>)Options(options).GetTypeInfo(typeof(T)));
-    internal static T? Deserialize<T>(ReadOnlySpan<byte> utf8, JsonSerializerOptions? options = null) => JsonSerializer.Deserialize(utf8, (JsonTypeInfo<T>)Options(options).GetTypeInfo(typeof(T)));
+    internal static T? Deserialize<T>(string json, JsonSerializerOptions? options = null) => JsonSerializer.Deserialize(json, Options(options).GetTypeInfo<T>());
+    internal static T? Deserialize<T>(JsonElement element, JsonSerializerOptions? options = null) => element.Deserialize(Options(options).GetTypeInfo<T>());
+    internal static T? Deserialize<T>(ReadOnlySpan<byte> utf8, JsonSerializerOptions? options = null) => JsonSerializer.Deserialize(utf8, Options(options).GetTypeInfo<T>());
 
     // A value added to a JsonArray: a node as itself (JsonArray.Add<T> did the same), anything else serialized.
     internal static JsonNode? Node<T>(T value) => value is null ? null : value as JsonNode ?? SerializeToNode(value);

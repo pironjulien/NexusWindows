@@ -7,12 +7,12 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 
 // The unified native MCP server of NexusWindows (stdio, JSON-RPC 2.0, one message per line):
-// - serves the three agent profiles (--agent codex|claude|antigravity) from one C# (.NET 10) engine, without Node or Python;
+// - serves the three agent profiles (--agent codex|claude|antigravity) from one C# (.NET 11) engine, without Node or Python;
 // - supports the stateless MCP protocol 2026-07-28 (server/discover, _meta) and the earlier versions (initialize, ping);
 // - applies the common guardrails (GardeFous.cs), logs every action (Journal.cs) and drives Windows in process through Program.Execute.
 static partial class McpServer
 {
-    public const string Version = "3.17.12";
+    public const string Version = "3.18.0";
     static readonly string[] ModernProtocolVersions = ["2026-07-28"];
     static readonly string[] LegacyProtocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
     const string ProtocolVersionMeta = "io.modelcontextprotocol/protocolVersion";
@@ -778,7 +778,7 @@ static partial class McpServer
             var payload = new McpServerWriteStatusFileJson(
                 product: $"windows-{agent}",
                 agent: agent,
-                engine: "csharp-net10",
+                engine: "csharp-net11",
                 version: Version,
                 state: "idle",
                 checked_at: DateTimeOffset.UtcNow.ToString("O"),

@@ -12,7 +12,7 @@ back; the real mouse and keyboard are only a fallback the step allows.
 ## Requirements
 
 Windows 10 or 11 (x64 or ARM64). The plugin starts the NexusWindows engine installed on the PC
-(`%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe`): one native program (C#, .NET 10), no Python, Node.js or
+(`%USERPROFILE%\.nexus\nexus-windows\NexusWindows.exe`): one native program (C#, .NET 11), no Python, Node.js or
 administrator rights. If it is missing, ask Antigravity to install NexusWindows: its skill downloads the latest
 release's `get.ps1`, checks it against `SHA256SUMS.txt` and runs it. By hand:
 [installation](https://github.com/pironjulien/NexusWindows/tree/main/agy#installation).

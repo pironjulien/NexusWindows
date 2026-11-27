@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/pironjulien/NexusWindows)](https://github.com/pironjulien/NexusWindows/releases)
 [![Tests](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusWindows/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusWindows/blob/main/LICENSE)
-[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://github.com/pironjulien/NexusWindows/tree/main/commun/engine)
+[![.NET 11](https://img.shields.io/badge/.NET-11-512BD4?logo=dotnet&logoColor=white)](https://github.com/pironjulien/NexusWindows/tree/main/commun/engine)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](#installation)
 
 [![NexusWindows: Windows computer use for AI agents, in the background. Works with Claude, Codex and Antigravity.](https://raw.githubusercontent.com/pironjulien/NexusWindows/main/codex/docs/assets/banner.webp)](https://julienpiron.fr/nexuswindows/)
@@ -19,7 +19,7 @@ capture of covered windows, Win32 messages and UI Automation patterns without fo
 keyboard as the last resort, under a shared foreground token. Every action is judged from the application's real
 state, and a batch needs an explicit postcondition per step.
 
-Windows 10/11 (x64, ARM64) · native .NET 10, nothing else to install · MIT licence
+Windows 10/11 (x64, ARM64) · native .NET 11, nothing else to install · MIT licence
 
 Part of the Nexus family: [NexusWindows](https://julienpiron.fr/nexuswindows/)
 ([Claude](https://github.com/pironjulien/NexusWindows) ·
@@ -284,7 +284,7 @@ monotonic clock: deleting the file or changing the clock does not lift it.
 
 ## Architecture
 
-The Codex profile is served by the common C# (.NET 10) engine (`commun/engine/`, started as
+The Codex profile is served by the common C# (.NET 11) engine (`commun/engine/`, started as
 `NexusWindows.exe --mcp --agent codex` through the stable launcher `commun/launcher/`), with the shared safety policy
 `commun/garde-fous.json`. Its MCP contract (tool names, descriptions and parameters of the Codex profile) is embedded
 in the engine (`commun/engine/NativeSchemas.json`). `plugin/` at the repository root holds the plugin of the three AI
@@ -293,7 +293,7 @@ apps; Codex reads `.codex-plugin/plugin.json` and `.codex-mcp.json` there.
 ```mermaid
 flowchart LR
     Codex["Codex"] -- "stdio (MCP)" --> Launcher["NexusWindows.exe --mcp --agent codex"]
-    Launcher --> Engine["native engine (C#, .NET 10)"]
+    Launcher --> Engine["native engine (C#, .NET 11)"]
     Engine --> Messages["Win32 messages"]
     Engine --> ComWorker["COM only worker for UIA patterns"]
     Engine --> Capture["PrintWindow and Windows.Graphics.Capture"]
