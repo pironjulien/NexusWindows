@@ -4,11 +4,11 @@
     "net11.0-windows7.0": {
       "Jint": {
         "type": "Direct",
-        "requested": "[4.17.0, )",
-        "resolved": "4.17.0",
-        "contentHash": "9jdpLQQYsWTjOn2THpiR8zRJ34ksV6ofW0gJvZxJW/fIGK+A+TkpWonhuuLDRwqLDjP+9WsxYt2MEge6lWjk2A==",
+        "requested": "[4.18.0, )",
+        "resolved": "4.18.0",
+        "contentHash": "DDFAZpJ3uvbzY6MiqchX+efNi+oj8QXKKIysB8aEqeWpfIuILvVjqYhXGvzLi10NbHWLu8G2pE+Ngwb1c5NSVw==",
         "dependencies": {
-          "Acornima": "1.7.0"
+          "Acornima": "1.9.1"
         }
       },
       "xunit.v3": {
@@ -22,8 +22,8 @@
       },
       "Acornima": {
         "type": "Transitive",
-        "resolved": "1.7.0",
-        "contentHash": "a2I4O4qkuAdB0oSaGz6/k0n/bXxMbGcLBra5dNTTVSLmTwM7uORA8ebpOrNMmDfFWOMwvuaRL6gPprRV4HTV0w=="
+        "resolved": "1.9.1",
+        "contentHash": "8dzVWz1AMyCaHq1DRU+qjNGd6jZyc4BgUBhl0qqdG0y+C02f2JASQaobF+O6A9vrW2QZL5Kx2q6V/KP3Q2LU+A=="
       },
       "Microsoft.ApplicationInsights": {
         "type": "Transitive",
