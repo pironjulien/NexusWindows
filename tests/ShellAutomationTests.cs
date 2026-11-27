@@ -1,10 +1,11 @@
 // The shell's automation objects (Shell.Application, ShellWindows, the Start menu's AppsFolder) reached through the
 // source-generated IDispatch of ShellDispatch instead of the C# dynamic binder: real objects, read only, nothing is
-// launched or navigated.
+// launched or navigated. The Start menu enumeration briefly sets the process error mode to 0x1: see NoErrorBoxes.
 using System.Runtime.InteropServices;
 
 namespace NexusWindows.Tests;
 
+[Collection(NoErrorBoxes.ShellCollection)]
 public partial class ShellAutomationTests
 {
     [LibraryImport("user32.dll")] private static partial nint GetShellWindow();

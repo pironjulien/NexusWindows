@@ -14,9 +14,16 @@ namespace NexusWindows.Tests;
 /// started or measured in that window lacks SEM_NOGPFAULTERRORBOX (0x8001 instead of 0x8003), and setting the mode
 /// again right before Process.Start does not close that window. Those two bits are always there, so they are what a
 /// child process is checked for; the full mode is checked right after it is set, before any test runs.
+/// The shell does worse: enumerating the Start menu (shell32) or reading a file association (shlwapi) sets the process
+/// mode to SEM_FAILCRITICALERRORS alone (0x1) for a moment, and a process started then inherits 0x1 (seen on 27/11; a
+/// serial run with a watch on the mode found these two tests the only ones to do it). Tests that call such shell code
+/// in the test process belong to the non-parallel <see cref="ShellCollection"/> (or to "Engine", also non-parallel):
+/// they run alone, after the parallel tests, so no other test starts a process during that moment.
 /// </summary>
 internal static partial class NoErrorBoxes
 {
+    internal const string ShellCollection = "Shell rewrites the process error mode";
+
     internal const uint Mode = Inherited | 0x0002 /* SEM_NOGPFAULTERRORBOX */;
     internal const uint Inherited = 0x0001 /* SEM_FAILCRITICALERRORS */ | 0x8000 /* SEM_NOOPENFILEERRORBOX */;
 
@@ -40,6 +47,9 @@ internal static partial class NoErrorBoxes
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static partial uint GetErrorMode();
 }
+
+[CollectionDefinition(NoErrorBoxes.ShellCollection, DisableParallelization = true)]
+public sealed class ShellErrorModeGroup;
 
 public sealed class NoErrorBoxesTests
 {

@@ -360,6 +360,10 @@ public sealed class RunningEngineVersionTests : IDisposable
     // The control: a running program from a version folder, named like the engine but holding no engine.lock (a copy of
     // cmd.exe, a single-file native executable like the Native AOT engine). Seen by the scan, it is kept; blinded, the
     // pass moves its folder away under it, and the folder it could not delete is reported set aside, not removed.
+    // The pass starts once the program has run its first command (its "running" line): Process.Start returns while the
+    // new process is still being set up, and in that window something still holds its image without delete sharing,
+    // so the move is refused (27/11: about 5% of moves right after the start were refused, none of 500 after the line,
+    // none of 150 without starting the program at all).
     [Fact]
     public void Without_the_lock_a_blinded_pass_moves_a_running_programs_folder_and_does_not_count_it_removed()
     {
@@ -369,10 +373,11 @@ public sealed class RunningEngineVersionTests : IDisposable
         var program = Path.Combine(folder, "NexusWindows.exe");
         File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), program);
         File.WriteAllText(Path.Combine(folder, "garde-fous.json"), "{}");
-        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(program, "/d /q /k")
+        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(program, "/d /q /k echo running")
         { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true })!;
         try
         {
+            Assert.Equal("running", process.StandardOutput.ReadLine());
             var scan = InstalledVersions.RunningExecutables();
             Assert.Contains(Path.GetFullPath(program), scan.Paths, StringComparer.OrdinalIgnoreCase);
             Assert.Contains(Label('b') + " (running)", InstalledVersions.Prune(Profile, scan.Paths, DateTimeOffset.UtcNow).Kept);
