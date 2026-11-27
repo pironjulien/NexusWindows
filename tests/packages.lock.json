@@ -4,9 +4,9 @@
     "net11.0-windows7.0": {
       "Jint": {
         "type": "Direct",
-        "requested": "[4.18.1, )",
-        "resolved": "4.18.1",
-        "contentHash": "fNUiVAyVQnCZYfa6rbesGHSRViwO3dG62LwUjqE/OqDX3GnSC1z64WHttZQ9CII/vB2W/xVQkZ7yz+p95okysg==",
+        "requested": "[4.18.0, )",
+        "resolved": "4.18.0",
+        "contentHash": "DDFAZpJ3uvbzY6MiqchX+efNi+oj8QXKKIysB8aEqeWpfIuILvVjqYhXGvzLi10NbHWLu8G2pE+Ngwb1c5NSVw==",
         "dependencies": {
           "Acornima": "1.9.1"
         }
