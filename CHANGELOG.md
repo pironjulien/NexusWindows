@@ -11,6 +11,11 @@ and npm (`nexus-windows-codex`), and their MCP registry entries are deprecated i
 
 ## [Unreleased]
 
+## [3.18.1] - 2026-11-27
+
+### Changed
+- Dependencies: Jint 4.18.1 and xunit.v3 4.0.3 (tests), CodeQL action 4.39.5 (CI).
+
 ## [3.18.0] - 2026-11-27
 
 ### Changed
@@ -1004,7 +1009,8 @@ took 64 s and 14 calls; Codex now takes three calls and about 2 s, with no foreg
 - A UIA or Win32 input whose effect is not confirmed no longer triggers another technique or a physical click;
   repeated inputs require a newer observation of the same window; `expanded` and `focused` postconditions are checked.
 
-[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.18.0...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusWindows/compare/v3.18.1...HEAD
+[3.18.1]: https://github.com/pironjulien/NexusWindows/compare/v3.18.0...v3.18.1
 [3.18.0]: https://github.com/pironjulien/NexusWindows/compare/v3.17.12...v3.18.0
 [3.17.12]: https://github.com/pironjulien/NexusWindows/compare/v3.17.11...v3.17.12
 [3.17.11]: https://github.com/pironjulien/NexusWindows/compare/v3.17.10...v3.17.11
