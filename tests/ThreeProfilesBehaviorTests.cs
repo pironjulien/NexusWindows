@@ -146,8 +146,9 @@ public class ThreeProfilesBehaviorTests
         Assert.Contains("foreground:true", claude["foregroundDefault"]!.GetValue<string>());
         Assert.Contains("Password", claude["password"]!.GetValue<string>());
         Assert.Contains("only exists in the foreground", claude["panelInBackground"]!.GetValue<string>());
-        // The full screen is captured, unless a blocked application is visible on the desktop at that moment.
-        Assert.Matches("^(image: True|error: Blocked by the shared garde-fous policy: .*; full-screen capture refused)$", claude["fullScreen"]!.GetValue<string>());
+        // The full screen is captured, unless a blocked application is visible on the desktop at that moment, or the input
+        // desktop is the secure one (session locked: LogonUI's Winlogon desktop cannot be opened, and is never captured).
+        Assert.Matches("^(image: True|error: Blocked by the shared garde-fous policy: .*; full-screen capture refused|error: Secure or unavailable input desktop: no screenshot taken)$", claude["fullScreen"]!.GetValue<string>());
         Assert.StartsWith("already-satisfied =", claude["expectSpaces"]!.GetValue<string>());
         Assert.EndsWith("stable=True", claude["lookDefault"]!.GetValue<string>());
         Assert.True(claude["actDefault"]!.GetValue<bool>(), report);
